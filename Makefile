@@ -216,6 +216,7 @@ include $(topdir)/build/vali.mk
 include $(topdir)/build/infobox.mk
 include $(topdir)/build/mapwindow.mk
 include $(topdir)/build/main.mk
+include $(topdir)/build/core.mk
 include $(topdir)/build/test.mk
 endif
 

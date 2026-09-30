@@ -97,3 +97,27 @@ loop so `InMainThread()`, `UI::Notify` and `BlackboardListener` keep working),
 TAP tests for C++ logic, the UI colour and touch guidelines, 79 columns and
 SPDX headers in C++. For user-visible changes to upstream code: update
 `NEWS.txt` and `doc/manual/en/`.
+
+## D11 — Split ActionInterface.cpp instead of copying its setters
+**Status:** Accepted (2026-09-30)
+
+`ActionInterface.cpp` mixed UI-free setters (MacCready, ballast, bugs,
+masses, radio, transponder, startup location, blackboard receive) with
+code that pushes state to `MainWindow`. Backend code
+(`ApplyExternalSettings`) and our C API need the setters. The
+`MainWindow`/page functions (and `SetQNH`, which calls them) moved,
+unchanged, to `src/ActionInterfaceUI.cpp`. Pure move, upstreamable. The
+setters' remaining UI call (`InfoBoxManager::SetDirty`) is a no-op seam in
+the core.
+
+## D12 — The core main thread runs XCSoar's own event loop (VFB flavour)
+**Status:** Accepted for host builds (2026-09-30); Android open
+
+`Replay` and device `Descriptor`s rely on `UI::Timer` and `UI::Notify`, and
+several backend duties run on the UI thread (`UIReceiveBlackboard`). The core
+therefore keeps a main thread running upstream's `UI::EventLoop`. On the host
+this is the existing headless `VFB=y` flavour (poll backend, virtual
+display), built into its own folder with `TARGET_DIR=MACOS_CORE`. For Android,
+`TARGET=ANDROID` currently forces the Android event loop and OpenGL; the
+core needs a build option that selects the poll loop there (to be designed).
+

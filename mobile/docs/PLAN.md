@@ -13,8 +13,8 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 
 | Milestone | Goal | State |
 |---|---|---|
-| M0 | Foundations: build, branch, CI baseline | ◐ in progress |
-| M1 | Headless core behind the C API, replay tests on the host | ☐ |
+| M0 | Foundations: build, branch, CI baseline | ◐ reference app install left |
+| M1 | Headless core behind the C API, replay tests on the host | ◐ in progress |
 | M2 | Android skeleton: replay an IGC, see live InfoBoxes | ☐ |
 | M3 | Moving map in the new app | ☐ |
 | M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ☐ |
@@ -23,13 +23,13 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** M0
+**Current focus:** M1 (C API + golden replay tests next)
 
 ---
 
 ## M0 — Foundations
 - [x] Fork `XCSoar/XCSoar` on GitHub; `origin` → fork, `upstream` → XCSoar
-- [~] Create a long-lived `mobile` branch (created locally, not pushed yet);
+- [x] Create a long-lived `mobile` branch (pushed to `origin/mobile`, 2026-09-30);
       decide on a regular upstream-merge routine
 - [x] macOS prerequisites: `./ide/provisioning/install-darwin-packages.sh BASE MACOS`
       plus `cmake ninja ccache` (the script only installs cmake/ninja for `IOS`,
@@ -63,19 +63,49 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
       ./output/ANDROID/arm64-v8a/dbg/bin/libxcsoar.so`
       Shortcut: `source mobile/tools/env.sh` then `xmake …` (sets all of the above).
 - [ ] Install upstream XCSoar from Play Store / F-Droid on your phone (reference for parity)
-- [~] CI: `.github/workflows/mobile.yml` runs `make check` (TARGET=UNIX, Debian
+- [x] CI: `.github/workflows/mobile.yml` runs `make check` (TARGET=UNIX, Debian
       trixie, same setup as upstream) on `mobile`/`mobile-*` pushes and PRs.
-      Written; runs once the branch is pushed. Upstream's `build-native.yml`
-      only runs on `master`/release branches.
+      First run green on 2026-09-30 (8 min 21 s with cold caches). Upstream's
+      `build-native.yml` only runs on `master`/release branches.
 
 ## M1 — Headless core (`core/`, C++)
-- [ ] `build/core.mk`: `libxcsoar_core` target (shared lib) built from the
-      existing `lib*.mk` groups (glide, task, route, computer, nmea, driver,
-      port, waypoint, airspace, terrain, topo, profile, logger …) with no
-      `ui/window`, `Form`, `Dialogs`, `Widget` or `Menu`
-- [ ] List every undefined symbol at link time; these are the seams to implement
-- [ ] `core/host`: headless `Protection.cpp`, `InputEvents::processGlideComputer`,
-      `Message::AddMessage`, `CommonInterface` settings store, `LocalPath`
+Build (host): `source mobile/tools/env.sh && xmake VFB=y TARGET_DIR=MACOS_CORE core`
+Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
+
+- [x] `build/core.mk`: every non-UI source of the main program goes into
+      `core-candidates.a`; programs linked against it only pull in what their
+      entry points reach, so every leftover UI call shows up as an undefined
+      symbol (the seam list). 411 → 0 undefined symbols.
+- [x] Seams implemented in `core/host` (link-time, D5):
+      `Protection.cpp` (Trigger*, CreateCalculationThread, Suspend/Resume),
+      `InputEvents::processGlideComputer` / `processNmea`, `Message::AddMessage`,
+      `ShowMessageBox` (answers "yes/OK", reports the text as a message),
+      `InfoBoxManager::SetDirty/ProcessTimer` (no-op), `AppendOverlayTitle`,
+      the `*FileChanged` flags. All forward to a `CoreListener`.
+- [x] `CoreStartup()` / `CoreShutdown()`: headless `Startup()`/`Shutdown()`
+      (same order; default profile; terrain loaded synchronously)
+- [x] Core main thread = XCSoar's own UI event loop in the headless `VFB`
+      flavour (poll backend, no window). Needed because `Replay` and device
+      `Descriptor`s use `UI::Timer`/`UI::Notify`. Merge/calculation results are
+      handed over with `UI::Notify` (coalescing), then `CoreReceive` does the
+      backend half of `UIReceiveBlackboard` (blackboard copy + listeners,
+      settings from devices, device notification, task events) (D12)
+- [x] Upstream refactor: `src/ActionInterface.cpp` split; MainWindow/page
+      code moved to `src/ActionInterfaceUI.cpp` (pure move, D11)
+- [x] Upstream fixes for the clang + no-OpenGL build: `Audio/Sound.cpp`
+      unused parameter, `Terrain/RasterRenderer.cpp` unused constant,
+      `ui/event/shared/Event.hpp` missing `<cstddef>`
+- [x] `CoreSmoke`: starts the core, replays an IGC (timed, 200×) and prints
+      listener counts + final state. Replay of `01lz1hq1.igc`: take-off,
+      flight-mode and alternate events arrive; runs in ~100 s
+- [x] `make all check` still green after the upstream changes (123 programs,
+      11,642 checks, 2026-09-30)
+- [ ] Topography, FLARM database and `AllMonitors` equivalents: topography moves
+      to the map (M3); monitors become core events (task advance, airspace
+      warnings, traffic) for the UI to present
+- [ ] Headless flavour for Android: `TARGET=ANDROID` hard-wires the Android
+      event loop (`ui/event/android`) and OpenGL; needs a build option that
+      selects the poll loop (decide in M1, needed for M2)
 - [ ] `core/api/xcsoar_core.h` v0: lifecycle, snapshot callback, event
       callback, `xcs_replay_start`, `xcs_feed_nmea`, `xcs_set_mc`
 - [ ] `xcs_flight_snapshot` v0 fields: time, position, GPS state, altitude
@@ -84,10 +114,12 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
       altitude and margin, next waypoint (name/distance/bearing), task progress
 - [ ] **L1** contract tests: create/start/stop/destroy loop, bad arguments,
       start/stop from several threads; run under ASan + TSan
-- [ ] **L2** golden replay tests on 3+ IGC files from `test/data`
+- [ ] **L2** golden replay tests on 3+ IGC files from `test/data`, using
+      `Replay::ProcessAllFixes()` (every fix, deterministic) rather than timed
+      replay (samples the flight at ~2 Hz real time, misses thermals at speed)
 - [ ] Tiny CLI `xcs-replay` (prints snapshots as JSON lines), for debugging and
       for regenerating golden files
-- [ ] CI runs L1 + L2
+- [ ] CI runs L1 + L2 (`VFB=y` on Linux)
 
 ## M2 — Android skeleton (`mobile/`)
 - [ ] Gradle project (Kotlin, Compose, version catalog, Gradle wrapper),
@@ -164,6 +196,10 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 
 ## Log
 Newest first. One line per session: what was done and what's next.
+
+- 2026-09-30 — M1 started: headless core links (411 → 0 seams), starts/stops,
+  replays an IGC with glide computer events. Split `ActionInterface.cpp` (D11),
+  core main thread on the VFB event loop (D12). Next: C API + golden tests.
 
 - 2026-09-30 — Android arm64 native build green. Fixes: automake, vorbis-tools,
   HotSpot JDK (OpenJ9 crashed in d8), build-tools 36.1.0 override; all wrapped
