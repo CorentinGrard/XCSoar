@@ -14,8 +14,8 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | Milestone | Goal | State |
 |---|---|---|
 | M0 | Foundations: build, branch, CI baseline | ◐ reference app install left |
-| M1 | Headless core behind the C API, replay tests on the host | ◐ in progress |
-| M2 | Android skeleton: replay an IGC, see live InfoBoxes | ☐ |
+| M1 | Headless core behind the C API, replay tests on the host | ☑ done |
+| M2 | Android skeleton: replay an IGC, see live InfoBoxes | ◐ demo works on the emulator |
 | M3 | Moving map in the new app | ☐ |
 | M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ☐ |
 | M5 | External devices: Bluetooth / BLE / USB, drivers, declaration | ☐ |
@@ -23,7 +23,7 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** M1 (C API + golden replay tests next)
+**Current focus:** M2 (run on your phone, data files, unit formatting)
 
 ---
 
@@ -160,15 +160,27 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       BOM 2026.09, version catalog): `:core` (pure Kotlin/JVM) builds and its
       tests pass; `:app` needs Android SDK Platform 37 (compileSdk 37 is
       required by the current AndroidX libraries). `:platform` later
-- [ ] Gradle task calls `make` for `arm64-v8a` + `x86_64` and packages `libxcsoar_core.so`
-- [ ] JNI glue (`core/jni/`):
-      - `JNI_OnLoad`: the non-UI half of `InitNative()` in
-        `src/Android/Main.cpp` (`Java::*`, `Context`, `Environment`, sensor,
-        port and listener classes, `PortBridge`, `SAFHelper`); matching
-        deinit; add `JNI_OnLoad` to `libxcsoar_core.map`
-      - `init(context, permissionManager)`: create `Context` and the
-        Bluetooth/USB/IOIO helpers the way `runNative()` does
-      - snapshot → direct `ByteBuffer`, events → Kotlin callback
+- [x] JNI glue (`core/jni/CoreJni.cpp`): `JNI_OnLoad` initialises the Java
+      classes the app ships (`Java::*`, `Context`, `Environment`, internal
+      sensors); `nativeInit(context, permissionManager)`; create/start/stop/
+      destroy, MacCready, replay; snapshot → direct `ByteBuffer` (no copy),
+      events → Kotlin, on the core main thread attached to the JVM
+- [ ] More Java I/O classes (Bluetooth/BLE/USB/IOIO ports, device
+      detection, storage hotplug) with their `Initialise()` calls (M5)
+- [x] `NativeXcsoarCore` (Kotlin) + `XcsoarApp` owning the core for the
+      process; falls back to `FakeXcsoarCore` without the native library
+- [x] Upstream Java I/O reused unchanged: Gradle copies 7 classes from
+      `android/src` (InternalGPS, NonGPSSensors, ...) into generated sources
+      (D13); `org.xcsoar.AppPermissionManager` implements their
+      package-private `PermissionManager` and shows the system dialog
+- [x] Gradle task `nativeCore` runs XCSoar's `make` (via `env.sh`) and
+      packages `libxcsoar_core.so` (`-Pxcsoar.abis=arm64-v8a,x86_64`)
+- [x] Devices open like in XCSoar: the core runs the backend half of
+      `ProcessTimer` every 500 ms (D14), including the first device open
+- [x] **On the emulator (arm64, Android 16):** core starts, internal GPS
+      asks for the location permission, a GPS fix shows up (1,147 m MSL for
+      1,200 m ellipsoidal: the geoid correction), the bundled IGC replays
+      through the real glide computer (take-off, tow climb, "Next (takeoff)")
 - [~] `:core`: `XcsoarCore` interface, `FlightState`, `SnapshotDecoder`,
       `FakeXcsoarCore` (synthetic cruise/thermal flight) done;
       `NativeXcsoarCore` (JNI) next
@@ -182,9 +194,11 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       fire on release), sunlight and night themes with colours named by
       function; screen kept on. Configurable content later
 - [ ] Data directory: pick or import `XCSoarData` via SAF; copy a sample data set
-- [ ] Replay screen: choose an IGC file, play/pause/speed
+- [~] Replay: "Replay demo" (bundled IGC, 10×) on the ground; choosing a
+      file, play/pause/speed later
 - [ ] **L4** screenshot tests of InfoBoxes (day/sunlight/night themes)
-- [ ] **Demo:** replay an IGC on the phone and watch the InfoBoxes update
+- [x] **Demo:** replay an IGC on the phone and watch the InfoBoxes update
+      (emulator; your phone next)
 
 ## M3 — Moving map
 - [ ] `core/map`: build `Renderer` + `MapWindow` drawing code with the
@@ -246,6 +260,12 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 
 ## Log
 Newest first. One line per session: what was done and what's next.
+
+- 2026-09-30 — M2: Gradle project, Kotlin binding, JNI glue, flight screen. The
+  app runs XCSoar's engine on the emulator: internal GPS (with permission
+  prompt) and IGC replay. Found and fixed: devices were never opened
+  (ProcessTimer split, D14), core objects ignored header changes (depfiles),
+  a core start failure crashed the app. Next: your phone, CI for mobile/.
 
 - 2026-09-30 — C API v1 (`xcsoar_core.h`), L1 contract tests (45) clean under
   ASan/TSan, L2 golden replays (4 flights, deterministic). ASan found and we

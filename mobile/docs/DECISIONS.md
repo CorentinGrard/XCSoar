@@ -136,3 +136,23 @@ package `org.xcsoar` with unchanged names. The new app's own code lives in
 its own package. The old UI's JNI (`NativeView`, `EventBridge`) is not in the
 core library.
 
+## D14 — Split ProcessTimer.cpp like ActionInterface.cpp
+**Status:** Accepted (2026-09-30)
+
+`ProcessTimer()` (twice per second on the UI thread) also does backend work:
+it opens devices (`MainWindow::LateInitialise`, then `AutoReopen`), ticks
+them, stops a replay on real movement, raises the GPS wait events, updates
+the UTC offset, dumps ballast, degrades bugs and drives the network clients.
+Following D11, those parts moved unchanged to `src/BackendProcessTimer.cpp`
+(`BackendSettingsTimer()`, `BackendDeviceTimer()`), called by `ProcessTimer()`
+at the same points; the core calls them from its own 500 ms timer.
+
+## D15 — Hosts can run the core without devices
+**Status:** Accepted (2026-09-30)
+
+`xcs_config.flags = XCS_CONFIG_NO_DEVICES` leaves every device closed. Used by
+replay, analysis and tests: on macOS the default device is the built-in GPS,
+whose CoreLocation code needs the process main thread, which a test blocks
+while waiting in `xcs_stop()`. For the iOS app (M8) this means the host's
+main thread must never block on the core while devices are open.
+
