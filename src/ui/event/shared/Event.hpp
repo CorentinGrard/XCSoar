@@ -6,6 +6,7 @@
 #include "ui/dim/Point.hpp"
 
 #include <cassert>
+#include <cstddef> // for size_t
 
 namespace UI {
 

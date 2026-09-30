@@ -34,7 +34,9 @@ static constexpr double PIXEL_SIZE_LOW_ZOOM_THRESHOLD = 20000.0;
 static constexpr double ZOOM_FACTOR_DIVISOR = 4250.0;
 static constexpr unsigned MAX_QUANTISATION_NEAR = 25;
 static constexpr unsigned MAX_QUANTISATION_LOW_ZOOM = 40;
+#ifdef ENABLE_OPENGL
 static constexpr double BOUNDS_SCALE_FACTOR = 1.5;
+#endif
 
 /** Keep slope neighbour sampling inside the height matrix. */
 static void
