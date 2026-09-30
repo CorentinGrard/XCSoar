@@ -488,6 +488,7 @@ XCSOAR_SOURCES := \
 	$(SRC)/UIActions.cpp \
 	$(SRC)/Interface.cpp \
 	$(SRC)/ActionInterface.cpp \
+	$(SRC)/ActionInterfaceUI.cpp \
 	$(SRC)/ProgressWindow.cpp \
 	$(SRC)/ProgressGlue.cpp \
 	$(SRC)/Units/Units.cpp \
