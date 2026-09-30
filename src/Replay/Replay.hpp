@@ -9,6 +9,8 @@
 #include "time/Stamp.hpp"
 #include "system/Path.hpp"
 
+#include <functional>
+
 class DeviceBlackboard;
 class Logger;
 class ProtectedTaskManager;
@@ -126,9 +128,12 @@ public:
    * calculation without virtual-time skipping.  For trail testing.
    * Returns the number of fixes processed (0 if replay is inactive or
    * demo mode).  \a merge_thread and \a calc_thread must be suspended.
+   *
+   * @param after_fix if set, called after each fix has been processed
    */
   unsigned ProcessAllFixes(MergeThread &merge_thread,
-                           CalculationThread &calc_thread);
+                           CalculationThread &calc_thread,
+                           const std::function<void()> &after_fix = {});
 
 private:
   void OnTimer();

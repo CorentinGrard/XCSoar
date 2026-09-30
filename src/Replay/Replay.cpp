@@ -200,7 +200,8 @@ Replay::Update()
 
 unsigned
 Replay::ProcessAllFixes(MergeThread &merge_thread,
-                        CalculationThread &calc_thread)
+                        CalculationThread &calc_thread,
+                        const std::function<void()> &after_fix)
 {
   if (replay == nullptr || path == nullptr || path.empty())
     return 0;
@@ -226,6 +227,9 @@ Replay::ProcessAllFixes(MergeThread &merge_thread,
     merge_thread.ProcessReplayFix();
     calc_thread.ProcessReplayFix();
     ++count;
+
+    if (after_fix)
+      after_fix();
 
     if (data.time_available)
       data.Expire();
