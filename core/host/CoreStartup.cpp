@@ -63,6 +63,7 @@
 #include "NMEA/Aircraft.hpp"
 #include "Storage/StorageManager.hpp"
 #include "Simulator.hpp"
+#include "Audio/VarioGlue.hpp"
 #include "system/FileUtil.hpp"
 
 #ifdef ANDROID
@@ -249,6 +250,10 @@ CoreStartup(OperationEnvironment &operation)
     lease->Reset(aircraft_state);
   }
 
+  /* the vario sound (a no-op where there is no audio player) */
+  AudioVarioGlue::Initialise();
+  AudioVarioGlue::Configure(CommonInterface::GetUISettings().sound.vario);
+
   if (backend_components->devices != nullptr)
     devStartup(*backend_components->devices,
                CommonInterface::GetSystemSettings());
@@ -344,6 +349,8 @@ CoreShutdown() noexcept
   }
 
   CoreDeinitNotify();
+
+  AudioVarioGlue::Deinitialise();
 
   if (backend_components != nullptr &&
       backend_components->protected_task_manager) {

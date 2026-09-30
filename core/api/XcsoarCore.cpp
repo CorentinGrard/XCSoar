@@ -44,6 +44,9 @@
 #include "io/async/GlobalAsioThread.hpp"
 #include "io/async/AsioThread.hpp"
 #include "net/http/Init.hpp"
+#include "Audio/GlobalPCMMixer.hpp"
+#include "Audio/GlobalPCMResourcePlayer.hpp"
+#include "Audio/GlobalVolumeController.hpp"
 #include "system/Path.hpp"
 #include "thread/Debug.hpp"
 #include "util/UTF8.hpp"
@@ -382,6 +385,9 @@ xcs_core::Run(std::promise<xcs_status> &started_promise) noexcept
     {
       ScopeGlobalAsioThread global_asio_thread;
       const Net::ScopeInit net_init(asio_thread->GetEventLoop());
+      ScopeGlobalPCMMixer global_pcm_mixer(asio_thread->GetEventLoop());
+      ScopeGlobalPCMResourcePlayer global_pcm_resource_player;
+      ScopeGlobalVolumeController global_volume_controller;
 
       if (!profile.empty())
         Profile::SetFiles(Path{profile.c_str()});
