@@ -5,12 +5,10 @@
 
 #ifdef NDEBUG
 
-#ifdef ANDROID
 static inline void
 InitThreadDebug()
 {
 }
-#endif
 
 #ifdef ENABLE_OPENGL
 
@@ -28,10 +26,13 @@ LeaveDrawThread()
 
 #else /* !NDEBUG */
 
-#ifdef ANDROID
+/**
+ * Declare the calling thread as XCSoar's main thread (the one running
+ * the UI event loop).  Needed where that is not the thread which
+ * started the process (Android, the headless core).
+ */
 void
 InitThreadDebug();
-#endif
 
 bool
 InMainThread();

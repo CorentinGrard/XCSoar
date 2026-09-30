@@ -14,15 +14,11 @@ static ThreadHandle main_thread;
 static ThreadHandle main_thread = ThreadHandle::GetCurrent();
 #endif
 
-#ifdef ANDROID
-
 void
 InitThreadDebug()
 {
   main_thread = ThreadHandle::GetCurrent();
 }
-
-#endif
 
 bool
 InMainThread()
