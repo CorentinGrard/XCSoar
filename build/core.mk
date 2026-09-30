@@ -104,13 +104,36 @@ CORE_HOST_SOURCES = \
 	$(CORE_SRC_DIR)/host/CoreStartup.cpp \
 	$(CORE_SRC_DIR)/host/Protection.cpp \
 	$(CORE_SRC_DIR)/host/Seams.cpp \
-	$(CORE_SRC_DIR)/host/CoreReceive.cpp
+	$(CORE_SRC_DIR)/host/CoreReceive.cpp \
+	$(CORE_SRC_DIR)/host/CoreEventLoop.cpp
+
+ifeq ($(TARGET),ANDROID)
+CORE_HOST_SOURCES += $(CORE_SRC_DIR)/host/AndroidGlobals.cpp
+endif
 
 CORE_API_SOURCES = \
 	$(CORE_HOST_SOURCES) \
 	$(CORE_SRC_DIR)/api/XcsoarCore.cpp
 
 CORE_CPPFLAGS = -I$(CORE_SRC_DIR)/host -I$(CORE_SRC_DIR)/api
+
+.PHONY: core core-check
+
+ifeq ($(TARGET),ANDROID)
+
+# The core as a shared library for the Android app (mobile/).
+# --no-undefined: every unresolved symbol is a seam to fill.
+LIBXCSOAR_CORE_SOURCES = $(CORE_API_SOURCES)
+LIBXCSOAR_CORE_CPPFLAGS = $(CORE_CPPFLAGS)
+LIBXCSOAR_CORE_DEPENDS = $(CORE_DEPENDS)
+LIBXCSOAR_CORE_LDLIBS = $(CORE_LDLIBS) -Wl,--no-undefined \
+	-Wl,--version-script=$(CORE_SRC_DIR)/api/libxcsoar_core.map
+LIBXCSOAR_CORE_STRIP = y
+$(eval $(call link-shared-library,xcsoar_core,LIBXCSOAR_CORE))
+
+core: $(LIBXCSOAR_CORE_BIN)
+
+else
 
 # Smoke test: start the core, run briefly, shut down.
 CORE_SMOKE_SOURCES = \
@@ -143,7 +166,6 @@ $(eval $(call link-program,xcs-replay,XCS_REPLAY))
 
 CORE_TESTS = $(TEST_CORE_API_BIN)
 
-.PHONY: core core-check
 core: $(CORE_SMOKE_BIN) $(CORE_TESTS) $(XCS_REPLAY_BIN)
 
 # L1 (TAP contract tests) and L2 (golden replay, core/test/golden)
@@ -151,3 +173,5 @@ core-check: $(CORE_TESTS) $(XCS_REPLAY_BIN) | $(OUT)/test/dirstamp
 	@$(NQ)echo "  CHECK   core"
 	$(Q)$(PERL) $(TEST_SRC_DIR)/testall.pl $(CORE_TESTS)
 	$(Q)python3 $(CORE_SRC_DIR)/test/check_golden.py --replay $(XCS_REPLAY_BIN)
+
+endif

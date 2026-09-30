@@ -65,6 +65,10 @@
 #include "Simulator.hpp"
 #include "system/FileUtil.hpp"
 
+#ifdef ANDROID
+#include "Android/Main.hpp"
+#endif
+
 #include <cassert>
 
 static TaskManager *task_manager;
@@ -107,6 +111,14 @@ try {
 bool
 CoreStartup(OperationEnvironment &operation)
 {
+#ifdef ANDROID
+  /* the app's JNI glue must have created the Java-side objects */
+  if (context == nullptr) {
+    LogString("CoreStartup: no Android Context");
+    return false;
+  }
+#endif
+
   CommonInterface::SetUISettings().SetDefaults();
   CommonInterface::SetSystemSettings().SetDefaults();
   CommonInterface::SetComputerSettings().SetDefaults();
@@ -138,6 +150,10 @@ CoreStartup(OperationEnvironment &operation)
 
   device_factory = new DeviceFactory{
     *asio_thread, *global_cares_channel,
+#ifdef ANDROID
+    *context, permission_manager,
+    bluetooth_helper, ioio_helper, usb_serial_helper,
+#endif
   };
 
   backend_components->devices =

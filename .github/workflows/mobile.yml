@@ -98,5 +98,22 @@ jobs:
           key: mobile-UNIX-VFB-ccache
           max-size: 2G
 
-      - name: Build and test the core
-        run: make -j$(nproc) TARGET=UNIX VFB=y USE_CCACHE=y core-check
+      # On failure, the key lines become annotations, which are readable
+      # without access to the full log.
+      - name: Build the core
+        shell: bash
+        run: |
+          set -o pipefail
+          make -j$(nproc) TARGET=UNIX VFB=y USE_CCACHE=y core 2>&1 | tee build.log || {
+            grep -E " error:|undefined reference|Error [0-9]" build.log | head -20 | sed 's/^/::error::/'
+            exit 1
+          }
+
+      - name: Test the core
+        shell: bash
+        run: |
+          set -o pipefail
+          make TARGET=UNIX VFB=y USE_CCACHE=y core-check 2>&1 | tee check.log || {
+            grep -E "^not ok|^FAIL|^  line|Failed|Assertion|error:|Error" check.log | head -30 | sed 's/^/::error::/'
+            exit 1
+          }

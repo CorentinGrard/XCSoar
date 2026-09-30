@@ -7,14 +7,15 @@
  *
  * The core main thread is created by xcs_start().  It owns everything
  * XCSoar normally sets up in main() (data path, language, asio thread,
- * network, the non-interactive display and its event loop) and runs
- * the event loop until xcs_stop().  Commands are injected into that
+ * network, the UI event queue) and runs the event loop until
+ * xcs_stop().  Commands are injected into that
  * event loop and the caller waits for the result.
  */
 
 #include "xcsoar_core.h"
 #include "CoreStartup.hpp"
 #include "CoreListener.hpp"
+#include "CoreEventLoop.hpp"
 #include "CoreReceive.hpp"
 #include "Interface.hpp"
 #include "ActionInterface.hpp"
@@ -36,13 +37,10 @@
 #include "Language/LanguageGlue.hpp"
 #include "Operation/Operation.hpp"
 #include "Operation/PopupOperationEnvironment.hpp"
-#include "ui/window/Init.hpp"
 #include "ui/event/Globals.hpp"
 #include "ui/event/Queue.hpp"
 #include "ui/event/Notify.hpp"
 #include "ui/event/Timer.hpp"
-#include "ui/event/poll/Loop.hpp"
-#include "ui/event/shared/Event.hpp"
 #include "io/async/GlobalAsioThread.hpp"
 #include "io/async/AsioThread.hpp"
 #include "net/http/Init.hpp"
@@ -375,7 +373,7 @@ xcs_core::Run(std::promise<xcs_status> &started_promise) noexcept
     SetSingleDataPath(Path{data_path.c_str()});
     InitialiseDataPath();
 
-    ScreenGlobalInit screen_init;
+    CoreEventQueue core_queue;
 
     AllowLanguage();
     InitLanguage();
@@ -395,10 +393,7 @@ xcs_core::Run(std::promise<xcs_status> &started_promise) noexcept
         PublishSnapshot();
         report(XCS_OK);
 
-        UI::EventLoop loop{*UI::event_queue};
-        UI::Event event;
-        while (loop.Get(event))
-          loop.Dispatch(event);
+        core_queue.Run();
       } else
         report(XCS_ERROR_FAILED);
 

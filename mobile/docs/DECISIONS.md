@@ -111,13 +111,28 @@ setters' remaining UI call (`InfoBoxManager::SetDirty`) is a no-op seam in
 the core.
 
 ## D12 — The core main thread runs XCSoar's own event loop (VFB flavour)
-**Status:** Accepted for host builds (2026-09-30); Android open
+**Status:** Accepted (2026-09-30)
 
 `Replay` and device `Descriptor`s rely on `UI::Timer` and `UI::Notify`, and
 several backend duties run on the UI thread (`UIReceiveBlackboard`). The core
 therefore keeps a main thread running upstream's `UI::EventLoop`. On the host
 this is the existing headless `VFB=y` flavour (poll backend, virtual
-display), built into its own folder with `TARGET_DIR=MACOS_CORE`. For Android,
-`TARGET=ANDROID` currently forces the Android event loop and OpenGL; the
-core needs a build option that selects the poll loop there (to be designed).
+display), built into its own folder with `TARGET_DIR=MACOS_CORE`. On Android
+no new flavour is needed: XCSoar's Android event queue is a plain C++ queue
+(mutex, condition variable, timers) that Java merely feeds, so the core runs
+it on its own thread. Upstream's `UI::EventLoop` needs a `TopWindow`, so the
+core has its own small loop (`CoreEventQueue::Run()`: callbacks and timers
+only) on both platforms.
+
+## D13 — Reused Java I/O classes keep their `org.xcsoar` names
+**Status:** Accepted (2026-09-30)
+
+`libxcsoar_core.so` contains the JNI side of XCSoar's device and sensor I/O
+(`NativePortListener`, `NativeSensorListener`, `NativeInputListener`,
+`NativeDetectDeviceListener`, `StorageHotplugReceiver`: 27 entry points).
+JNI binds by fully qualified class name, so the Java classes reused from
+`android/src` (ports, Bluetooth/BLE/USB, IOIO, internal sensors) stay in
+package `org.xcsoar` with unchanged names. The new app's own code lives in
+its own package. The old UI's JNI (`NativeView`, `EventBridge`) is not in the
+core library.
 

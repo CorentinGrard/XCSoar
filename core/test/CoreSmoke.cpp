@@ -12,6 +12,7 @@
 
 #include "CoreStartup.hpp"
 #include "CoreListener.hpp"
+#include "CoreEventLoop.hpp"
 #include "Components.hpp"
 #include "BackendComponents.hpp"
 #include "Blackboard/DeviceBlackboard.hpp"
@@ -21,11 +22,8 @@
 #include "Language/Language.hpp"
 #include "Language/LanguageGlue.hpp"
 #include "Operation/Operation.hpp"
-#include "ui/window/Init.hpp"
 #include "ui/event/Globals.hpp"
 #include "ui/event/Queue.hpp"
-#include "ui/event/poll/Loop.hpp"
-#include "ui/event/shared/Event.hpp"
 #include "ui/event/Timer.hpp"
 #include "io/async/GlobalAsioThread.hpp"
 #include "io/async/AsioThread.hpp"
@@ -70,7 +68,7 @@ public:
 };
 
 static void
-RunEventLoop(Path flight_path)
+RunEventLoop(CoreEventQueue &core_queue, Path flight_path)
 {
   auto &replay = *backend_components->replay;
   auto &queue = *UI::event_queue;
@@ -96,10 +94,7 @@ RunEventLoop(Path flight_path)
   }};
   check.Schedule(1s);
 
-  UI::EventLoop loop{queue};
-  UI::Event event;
-  while (loop.Get(event))
-    loop.Dispatch(event);
+  core_queue.Run();
 }
 
 static void
@@ -131,7 +126,7 @@ try {
   SetSingleDataPath(Path{argv[1]});
   InitialiseDataPath();
 
-  ScreenGlobalInit screen_init;
+  CoreEventQueue core_queue;
 
   AllowLanguage();
   InitLanguage();
@@ -146,7 +141,7 @@ try {
 
     NullOperationEnvironment operation;
     if (CoreStartup(operation)) {
-      RunEventLoop(flight_path);
+      RunEventLoop(core_queue, flight_path);
       PrintState();
       ret = EXIT_SUCCESS;
     }

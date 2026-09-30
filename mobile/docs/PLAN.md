@@ -103,9 +103,17 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 - [ ] Topography, FLARM database and `AllMonitors` equivalents: topography moves
       to the map (M3); monitors become core events (task advance, airspace
       warnings, traffic) for the UI to present
-- [ ] Headless flavour for Android: `TARGET=ANDROID` hard-wires the Android
-      event loop (`ui/event/android`) and OpenGL; needs a build option that
-      selects the poll loop (decide in M1, needed for M2)
+- [x] Android core library: `xmake TARGET=ANDROIDAARCH64 core` →
+      `libxcsoar_core.so` (22 MB stripped, linked with `--no-undefined`),
+      exports the `xcs_*` API and the 27 JNI entry points of device/sensor
+      I/O. The core runs XCSoar's Android event queue itself
+      (`CoreEventQueue`, D12); Android globals (`context`, Bluetooth/USB/IOIO
+      helpers) are defined by the core and filled by the app's JNI glue (M2)
+- [x] Export only `xcs_*` and `Java_*` from `libxcsoar_core.so`
+      (`core/api/libxcsoar_core.map`): 2,762 → 37 exported symbols. Add
+      `JNI_OnLoad` there in M2
+- [ ] Not yet run on a device: needs the JNI glue that creates `Context`
+      and the helpers (first task of M2)
 - [x] `core/api/xcsoar_core.h` v1: create/start/stop/destroy, snapshot and
       event callbacks (always on the core main thread), `xcs_get_snapshot`,
       `xcs_set_mac_cready`, `xcs_replay_start/stop` (timed) and

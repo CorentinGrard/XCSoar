@@ -1,0 +1,11 @@
+/* Symbols exported by libxcsoar_core.so: the C API and the JNI entry
+   points of the device/sensor I/O (called from Java by name).
+   Everything else is internal.  Add JNI_OnLoad here once the app's
+   JNI glue defines it (lld rejects names that do not exist). */
+{
+  global:
+    xcs_*;
+    Java_*;
+  local:
+    *;
+};
