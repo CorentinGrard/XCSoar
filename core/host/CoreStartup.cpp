@@ -110,7 +110,7 @@ try {
 }
 
 bool
-CoreStartup(OperationEnvironment &operation)
+CoreStartup(OperationEnvironment &operation, bool open_devices)
 {
 #ifdef ANDROID
   /* the app's JNI glue must have created the Java-side objects */
@@ -287,6 +287,9 @@ CoreStartup(OperationEnvironment &operation)
   backend_components->merge_thread->Start();
   backend_components->calculation_thread->Start();
 
+  /* opens the devices, among other things (like ProcessTimer()) */
+  CoreStartTimer(open_devices);
+
   return true;
 }
 
@@ -298,6 +301,8 @@ CoreShutdown() noexcept
   global_running = false;
 
   LogString("Entering core shutdown...");
+
+  CoreStopTimer();
 
   if (backend_components != nullptr &&
       backend_components->igc_logger != nullptr) {

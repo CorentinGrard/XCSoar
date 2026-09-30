@@ -146,7 +146,7 @@ try {
     ScopeGlobalVolumeController global_volume_controller;
 
     NullOperationEnvironment operation;
-    if (CoreStartup(operation)) {
+    if (CoreStartup(operation, false)) {
       RunEventLoop(core_queue, flight_path);
       PrintState();
       ret = EXIT_SUCCESS;

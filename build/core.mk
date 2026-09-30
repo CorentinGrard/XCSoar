@@ -142,7 +142,7 @@ ifeq ($(TARGET),ANDROID)
 
 # The core as a shared library for the Android app (mobile/).
 # --no-undefined: every unresolved symbol is a seam to fill.
-LIBXCSOAR_CORE_SOURCES = $(CORE_API_SOURCES)
+LIBXCSOAR_CORE_SOURCES = $(CORE_API_SOURCES) $(CORE_SRC_DIR)/jni/CoreJni.cpp
 LIBXCSOAR_CORE_CPPFLAGS = $(CORE_CPPFLAGS)
 LIBXCSOAR_CORE_DEPENDS = $(CORE_DEPENDS)
 LIBXCSOAR_CORE_LDLIBS = $(CORE_LDLIBS) -Wl,--no-undefined \
@@ -198,3 +198,8 @@ core-check: $(CORE_TESTS) $(XCS_REPLAY_BIN) | $(OUT)/test/dirstamp
 	$(Q)python3 $(CORE_SRC_DIR)/test/check_golden.py --replay $(XCS_REPLAY_BIN)
 
 endif
+
+# The top-level Makefile only reads the dependency files of objects
+# under src/; without this, header changes (e.g. core/api/xcsoar_core.h)
+# would not rebuild the core's objects.
+-include $(wildcard $(ABI_OUTPUT_DIR)/core/*/*.d)

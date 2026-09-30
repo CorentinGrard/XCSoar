@@ -14,10 +14,12 @@ class OperationEnvironment;
  * and follows the same order.  The caller must have set up the
  * process-wide globals first (data path, asio thread, network).
  *
+ * @param open_devices false to leave all devices closed (replay,
+ * analysis, tests)
  * @return true on success
  */
 bool
-CoreStartup(OperationEnvironment &operation);
+CoreStartup(OperationEnvironment &operation, bool open_devices = true);
 
 /**
  * Stop everything CoreStartup() started, in the order documented in

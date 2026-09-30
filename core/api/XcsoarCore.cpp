@@ -109,6 +109,7 @@ struct PendingEvent {
 
 struct xcs_core final : CoreListener {
   const std::string data_path, profile;
+  const uint32_t flags;
   const xcs_snapshot_callback on_snapshot;
   const xcs_event_callback on_event;
   void *const callback_ctx;
@@ -136,6 +137,7 @@ struct xcs_core final : CoreListener {
   explicit xcs_core(const xcs_config &config) noexcept
     :data_path(config.data_path),
      profile(config.profile != nullptr ? config.profile : ""),
+     flags(config.flags),
      on_snapshot(config.on_snapshot),
      on_event(config.on_event),
      callback_ctx(config.callback_ctx) {}
@@ -396,7 +398,7 @@ xcs_core::Run(std::promise<xcs_status> &started_promise) noexcept
       SetCoreListener(this);
 
       NullOperationEnvironment operation;
-      if (CoreStartup(operation)) {
+      if (CoreStartup(operation, !(flags & XCS_CONFIG_NO_DEVICES))) {
         PublishSnapshot();
         report(XCS_OK);
 

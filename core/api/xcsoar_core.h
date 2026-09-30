@@ -219,6 +219,13 @@ typedef void (*xcs_snapshot_callback)(void *ctx,
                                       const xcs_flight_snapshot *snapshot);
 typedef void (*xcs_event_callback)(void *ctx, const xcs_event *event);
 
+/** Bits of xcs_config.flags. */
+enum {
+  /** Do not open any device (GPS, sensors, varios, loggers): for replay,
+      flight analysis and tests, e.g. on machines without the hardware. */
+  XCS_CONFIG_NO_DEVICES = 1u << 0,
+};
+
 typedef struct xcs_config {
   uint32_t struct_size;
   /** Must be XCS_API_VERSION. */
@@ -234,6 +241,9 @@ typedef struct xcs_config {
   xcs_snapshot_callback on_snapshot;
   xcs_event_callback on_event;
   void *callback_ctx;
+
+  /** XCS_CONFIG_* bits. */
+  uint32_t flags;
 } xcs_config;
 
 /*

@@ -42,3 +42,15 @@ CoreSendGPSNotify() noexcept;
 /** Thread-safe; repeated calls before the main thread runs coalesce. */
 void
 CoreSendCalculatedNotify() noexcept;
+
+/**
+ * Start/stop the housekeeping timer of the core main thread: twice per
+ * second, like ProcessTimer() in the normal program, minus the UI
+ * (device reopen and tick, settings to the calculation thread, ballast
+ * dump, network client timers, ...).
+ */
+void
+CoreStartTimer(bool open_devices) noexcept;
+
+void
+CoreStopTimer() noexcept;

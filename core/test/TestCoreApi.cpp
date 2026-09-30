@@ -76,6 +76,7 @@ MakeConfig(Recorder &recorder) noexcept
   config.on_snapshot = OnSnapshot;
   config.on_event = OnEvent;
   config.callback_ctx = &recorder;
+  config.flags = XCS_CONFIG_NO_DEVICES;
   return config;
 }
 

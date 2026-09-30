@@ -161,6 +161,7 @@ main(int argc, char **argv)
   config.data_path = o.data_path;
   config.on_snapshot = OnSnapshot;
   config.on_event = OnEvent;
+  config.flags = XCS_CONFIG_NO_DEVICES;
 
   xcs_core *core;
   if (xcs_create(&config, &core) != XCS_OK ||
