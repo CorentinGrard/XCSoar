@@ -149,20 +149,38 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       `core/test/check_golden.py` (per-field tolerances, `--update`) on 4 IGC
       files; deterministic (byte-identical across runs)
 - [x] `make VFB=y core-check` runs L1 + L2
-- [~] CI job `core-api` runs `make TARGET=UNIX VFB=y core-check` (golden
-      files come from macOS arm64; first Linux x86_64 run will tell whether
-      the tolerances hold)
+- [x] CI job `core-api` runs `make TARGET=UNIX VFB=y core-check` on Linux
+      x86_64: green (golden files from macOS arm64 hold within tolerance).
+      Linux needed: `--start-group` (GNU ld), `-fno-finite-math-only` at the
+      API boundary (GCC keeps `-ffinite-math-only`), vario audio init (ALSA).
+      Failures are posted as annotations (readable without log access)
 
 ## M2 — Android skeleton (`mobile/`)
-- [ ] Gradle project (Kotlin, Compose, version catalog, Gradle wrapper),
-      modules `:app`, `:core`, `:platform`
+- [~] Gradle project (Gradle 9.8 wrapper, AGP 9.4.1, Kotlin 2.4.20, Compose
+      BOM 2026.09, version catalog): `:core` (pure Kotlin/JVM) builds and its
+      tests pass; `:app` needs Android SDK Platform 37 (compileSdk 37 is
+      required by the current AndroidX libraries). `:platform` later
 - [ ] Gradle task calls `make` for `arm64-v8a` + `x86_64` and packages `libxcsoar_core.so`
-- [ ] JNI glue (`core/jni/`): snapshot → direct `ByteBuffer`, events → Kotlin callback
-- [ ] `:core`: `XcsoarCore` interface, `FlightState` decoder, `NativeXcsoarCore`,
-      `FakeXcsoarCore` (scripted states for tests/previews)
-- [ ] **L3** decoder tests reuse the L2 golden JSON
+- [ ] JNI glue (`core/jni/`):
+      - `JNI_OnLoad`: the non-UI half of `InitNative()` in
+        `src/Android/Main.cpp` (`Java::*`, `Context`, `Environment`, sensor,
+        port and listener classes, `PortBridge`, `SAFHelper`); matching
+        deinit; add `JNI_OnLoad` to `libxcsoar_core.map`
+      - `init(context, permissionManager)`: create `Context` and the
+        Bluetooth/USB/IOIO helpers the way `runNative()` does
+      - snapshot → direct `ByteBuffer`, events → Kotlin callback
+- [~] `:core`: `XcsoarCore` interface, `FlightState`, `SnapshotDecoder`,
+      `FakeXcsoarCore` (synthetic cruise/thermal flight) done;
+      `NativeXcsoarCore` (JNI) next
+- [x] **L3** `SnapshotDecoderTest` (8 tests): every field and validity bit,
+      buffer position, bad version/size, and the Kotlin constants
+      (`XCS_GCE_*`, `XCS_VALID_*`, `XCS_FLAG_*`, API version) parsed from
+      `xcsoar_core.h` so the two sides cannot drift
 - [ ] Unit formatting (m/ft, km/h/kt, m/s/kt, …) + tests
-- [ ] Flight screen v0: InfoBox grid (configurable content, auto-sizing text)
+- [~] Flight screen v0: status line, 10 InfoBoxes (value size follows box
+      height, dashes when invalid, lift/sink/task accents), MC −/+ (≥56 dp,
+      fire on release), sunlight and night themes with colours named by
+      function; screen kept on. Configurable content later
 - [ ] Data directory: pick or import `XCSoarData` via SAF; copy a sample data set
 - [ ] Replay screen: choose an IGC file, play/pause/speed
 - [ ] **L4** screenshot tests of InfoBoxes (day/sunlight/night themes)

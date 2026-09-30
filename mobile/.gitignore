@@ -1,0 +1,8 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+# copied from the native build by the buildNativeCore task
+app/src/main/jniLibs/

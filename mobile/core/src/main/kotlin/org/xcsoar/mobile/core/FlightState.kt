@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright The XCSoar Project
+
+package org.xcsoar.mobile.core
+
+/**
+ * The live state the core publishes, decoded from `xcs_flight_snapshot`
+ * (core/api/xcsoar_core.h).
+ *
+ * All values are SI units: metres, metres per second, degrees, seconds.
+ * A value is `null` when the core has no valid data for it; the UI must
+ * then show dashes, never an old number (doc/architecture.rst, "Displayed
+ * data").
+ */
+data class FlightState(
+    /** Increases with every snapshot. */
+    val sequence: Long,
+
+    /** UTC, seconds since 1970-01-01. */
+    val timeUtc: Double?,
+    /** Seconds since take-off; 0 before. */
+    val flightTime: Double,
+
+    val position: GeoPosition?,
+    /** Track over ground, degrees true. */
+    val track: Double?,
+    val groundSpeed: Double?,
+    val trueAirspeed: Double?,
+    val indicatedAirspeed: Double?,
+
+    val gpsAltitude: Double?,
+    val baroAltitude: Double?,
+    /** The altitude XCSoar uses for its calculations. */
+    val navAltitude: Double?,
+    val terrainAltitude: Double?,
+    val altitudeAgl: Double?,
+
+    /** Total energy vario. */
+    val vario: Double?,
+    /** 30 s average of [vario]. */
+    val averageVario: Double?,
+    val nettoVario: Double?,
+
+    val wind: Wind?,
+    val macCready: Double,
+
+    val next: NextWaypoint?,
+    val finalGlide: FinalGlide?,
+
+    val gpsReal: Boolean,
+    val flying: Boolean,
+    val circling: Boolean,
+    /** Above final glide to the task finish. */
+    val aboveFinalGlide: Boolean,
+    val replay: Boolean,
+)
+
+data class GeoPosition(val latitude: Double, val longitude: Double)
+
+/** The wind the glider flies in; [bearing] is where it comes from. */
+data class Wind(val speed: Double, val bearing: Double)
+
+data class NextWaypoint(
+    /** Empty if the core has no name for it. */
+    val name: String,
+    val distance: Double,
+    val bearing: Double,
+    /** Above (positive) or below the glide path to the point. */
+    val altitudeDifference: Double,
+)
+
+data class FinalGlide(
+    val remainingDistance: Double,
+    /** Above (positive) or below final glide to the finish. */
+    val altitudeDifference: Double,
+)
