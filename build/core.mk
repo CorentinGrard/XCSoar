@@ -130,6 +130,12 @@ CORE_API_SOURCES = \
 
 CORE_CPPFLAGS = -I$(CORE_SRC_DIR)/host -I$(CORE_SRC_DIR)/api
 
+# XCSoar builds with -ffast-math, and GCC builds keep its
+# -ffinite-math-only, which lets the compiler drop NaN checks.  The API
+# must reject NaN coming from the app, whatever the compiler.
+$(call SRC_TO_OBJ,$(CORE_SRC_DIR)/api/XcsoarCore.cpp): CXXFLAGS += -fno-finite-math-only
+$(call SRC_TO_OBJ,$(CORE_SRC_DIR)/test/XcsReplay.cpp): CXXFLAGS += -fno-finite-math-only
+
 .PHONY: core core-check
 
 ifeq ($(TARGET),ANDROID)
