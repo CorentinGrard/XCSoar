@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# CI for the XCSoar Mobile project (mobile/docs/PLAN.md).
+# Kept separate from build-native.yml so upstream merges stay clean.
+
+name: mobile
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - mobile
+      - 'mobile-*'
+  pull_request:
+    branches:
+      - mobile
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # L0: upstream C++ test suite must stay green.
+  core-check:
+    runs-on: ubuntu-24.04
+    container: debian:trixie-slim
+
+    steps:
+      - name: Install checkout dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Mark git directory as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Cache downloads
+        uses: actions/cache@v6
+        with:
+          key: mobile-downloads-${{ hashFiles('build/libboost.mk', 'build/thirdparty.py', 'build/python/build/libs.py') }}
+          restore-keys: mobile-downloads-
+          path: ${{ github.workspace }}/output/download
+
+      - name: Install build dependencies
+        run: |
+          ./ide/provisioning/install-debian-packages.sh UPDATE
+          ./ide/provisioning/install-debian-packages.sh BASE
+          ./ide/provisioning/install-debian-packages.sh LINUX
+
+      - name: Cache ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: mobile-UNIX-ccache
+          max-size: 2G
+
+      - name: Build and run tests
+        run: make -j$(nproc) TARGET=UNIX USE_CCACHE=y check
