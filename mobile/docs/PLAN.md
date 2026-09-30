@@ -106,20 +106,44 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 - [ ] Headless flavour for Android: `TARGET=ANDROID` hard-wires the Android
       event loop (`ui/event/android`) and OpenGL; needs a build option that
       selects the poll loop (decide in M1, needed for M2)
-- [ ] `core/api/xcsoar_core.h` v0: lifecycle, snapshot callback, event
-      callback, `xcs_replay_start`, `xcs_feed_nmea`, `xcs_set_mc`
-- [ ] `xcs_flight_snapshot` v0 fields: time, position, GPS state, altitude
-      (GPS/baro/AGL), ground speed, track, TAS/IAS, vario (total energy/netto/
-      average), wind, MC, flight state (flying/circling), final-glide required
-      altitude and margin, next waypoint (name/distance/bearing), task progress
-- [ ] **L1** contract tests: create/start/stop/destroy loop, bad arguments,
-      start/stop from several threads; run under ASan + TSan
-- [ ] **L2** golden replay tests on 3+ IGC files from `test/data`, using
-      `Replay::ProcessAllFixes()` (every fix, deterministic) rather than timed
-      replay (samples the flight at ~2 Hz real time, misses thermals at speed)
-- [ ] Tiny CLI `xcs-replay` (prints snapshots as JSON lines), for debugging and
-      for regenerating golden files
-- [ ] CI runs L1 + L2 (`VFB=y` on Linux)
+- [x] `core/api/xcsoar_core.h` v1: create/start/stop/destroy, snapshot and
+      event callbacks (always on the core main thread), `xcs_get_snapshot`,
+      `xcs_set_mac_cready`, `xcs_replay_start/stop` (timed) and
+      `xcs_replay_run` (deterministic, every fix). Commands run on the core
+      main thread; the caller waits. One core per process (XCSoar globals)
+- [x] `xcs_flight_snapshot` v1 (280 bytes, layout locked by `static_assert`):
+      time, flight time, position, track, ground/air speed, GPS/baro/nav
+      altitude, terrain/AGL, vario/average/netto, wind, MC, next point
+      (name/distance/bearing/altitude difference), final glide; validity bits
+      and flags (flying, circling, final glide, replay, real GPS)
+- [x] Stable public event codes (`xcs_gce`), mapped from the internal GCE
+      list with a `static_assert` that fails when upstream adds one
+- [x] Upstream: `InitThreadDebug()` on all platforms (thread/Debug);
+      optional per-fix callback in `Replay::ProcessAllFixes()`;
+      `TriangleContest` use-after-free fix
+- [x] **L1** `TestCoreApi` (TAP, 45 checks): arguments, state errors,
+      single-instance, deterministic replay (take-off, climb, cruise events;
+      MC kept), callbacks only on the core main thread, 4 threads × 50
+      concurrent commands, restart after stop
+- [x] L1 under ASan + TSan (`SANITIZE=address|thread`; macOS needs
+      `CFLAGS=-Wno-deprecated-declarations` for the vendored shapelib).
+      ASan found a real upstream bug: `TriangleContest` kept using trace
+      points freed by `Trace::Thin()` while resuming its search → fixed
+      (restart the search when the master trace changed, like
+      `ContestDijkstra`). TSan: 5 known upstream races (debug thread flag,
+      event loop wake flag, curl shutdown), suppressed with reasons in
+      `core/test/tsan.supp`; none in core code. Golden replays also clean
+      under ASan
+- [ ] Upstream TAP regression test for the `TriangleContest` fix (before
+      sending it upstream)
+- [ ] Run L1 + L2 under ASan/TSan in CI
+- [x] **L2** golden replays: `xcs-replay` (C API only, JSON lines) +
+      `core/test/check_golden.py` (per-field tolerances, `--update`) on 4 IGC
+      files; deterministic (byte-identical across runs)
+- [x] `make VFB=y core-check` runs L1 + L2
+- [~] CI job `core-api` runs `make TARGET=UNIX VFB=y core-check` (golden
+      files come from macOS arm64; first Linux x86_64 run will tell whether
+      the tolerances hold)
 
 ## M2 — Android skeleton (`mobile/`)
 - [ ] Gradle project (Kotlin, Compose, version catalog, Gradle wrapper),
@@ -196,6 +220,11 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 
 ## Log
 Newest first. One line per session: what was done and what's next.
+
+- 2026-09-30 — C API v1 (`xcsoar_core.h`), L1 contract tests (45) clean under
+  ASan/TSan, L2 golden replays (4 flights, deterministic). ASan found and we
+  fixed an upstream use-after-free in `TriangleContest`. Next: CI for the core,
+  Android headless flavour, then M2.
 
 - 2026-09-30 — M1 started: headless core links (411 → 0 seams), starts/stops,
   replays an IGC with glide computer events. Split `ActionInterface.cpp` (D11),

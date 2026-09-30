@@ -59,3 +59,44 @@ jobs:
 
       - name: Build and run tests
         run: make -j$(nproc) TARGET=UNIX USE_CCACHE=y check
+
+  # L1 + L2: the headless core (C API contract tests, golden replays)
+  core-api:
+    runs-on: ubuntu-24.04
+    container: debian:trixie-slim
+
+    steps:
+      - name: Install checkout dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Mark git directory as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Cache downloads
+        uses: actions/cache@v6
+        with:
+          key: mobile-downloads-${{ hashFiles('build/libboost.mk', 'build/thirdparty.py', 'build/python/build/libs.py') }}
+          restore-keys: mobile-downloads-
+          path: ${{ github.workspace }}/output/download
+
+      - name: Install build dependencies
+        run: |
+          ./ide/provisioning/install-debian-packages.sh UPDATE
+          ./ide/provisioning/install-debian-packages.sh BASE
+          ./ide/provisioning/install-debian-packages.sh LINUX
+
+      - name: Cache ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: mobile-UNIX-VFB-ccache
+          max-size: 2G
+
+      - name: Build and test the core
+        run: make -j$(nproc) TARGET=UNIX VFB=y USE_CCACHE=y core-check

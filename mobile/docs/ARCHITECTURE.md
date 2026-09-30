@@ -80,49 +80,44 @@ So the seams are **link-time substitutions**, not refactors of existing code.
 
 ## 3. The core API (`core/api/xcsoar_core.h`)
 
-Plain C, opaque handle, `xcs_` prefix. All functions are thread-safe.
-Callbacks run on core threads, never on the UI thread.
+Plain C, opaque handle, `xcs_` prefix. The header is the reference; this is
+the shape of it:
 
 ```c
-typedef struct xcs_core xcs_core;
+/* lifecycle: create → start → commands → stop → destroy (restartable) */
+xcs_status xcs_create(const xcs_config *config, xcs_core **core_r);
+xcs_status xcs_start(xcs_core *);      /* spawns the core main thread */
+xcs_status xcs_stop(xcs_core *);
+void       xcs_destroy(xcs_core *);
 
-/* lifecycle */
-xcs_core *xcs_create(const xcs_config *cfg);   /* data dir, callbacks, api version */
-int       xcs_start(xcs_core *);               /* load profile, data files, spawn threads */
-void      xcs_stop(xcs_core *);
-void      xcs_destroy(xcs_core *);
+/* hot path: pushed after every merge and calculation */
+typedef void (*xcs_snapshot_callback)(void *ctx, const xcs_flight_snapshot *);
+xcs_status xcs_get_snapshot(xcs_core *, xcs_flight_snapshot *);
 
-/* hot path: flight state (pushed, rate-limited, typically 1–10 Hz) */
-typedef void (*xcs_snapshot_cb)(void *ctx, const xcs_flight_snapshot *s);
-
-/* events: take-off, landing, airspace warning, FLARM alarm, message, … */
-typedef void (*xcs_event_cb)(void *ctx, const xcs_event *e);
+/* events: take-off, landing, climb/cruise, final glide, task, airspace,
+   FLARM, messages, replay finished */
+typedef void (*xcs_event_callback)(void *ctx, const xcs_event *);
 
 /* commands */
-int xcs_set_mc(xcs_core *, double mc_ms);
-int xcs_set_ballast(xcs_core *, double fraction);
-int xcs_goto_waypoint(xcs_core *, int waypoint_id);
-int xcs_task_set(xcs_core *, const char *task_json);
-int xcs_airspace_ack(xcs_core *, int airspace_id, int kind);
-...
+xcs_status xcs_set_mac_cready(xcs_core *, double mac_cready);
 
-/* cold path: queries and documents, as JSON (caller frees with xcs_free) */
-char *xcs_task_get(xcs_core *);
-char *xcs_waypoints_query(xcs_core *, const char *query_json);
-char *xcs_settings_get(xcs_core *, const char *section);
-int   xcs_settings_set(xcs_core *, const char *section, const char *json);
-
-/* data sources */
-int xcs_port_open(xcs_core *, int device_index, const xcs_port_ops *ops); /* platform-supplied byte stream */
-int xcs_feed_nmea(xcs_core *, int device_index, const char *line);
-int xcs_replay_start(xcs_core *, const char *igc_or_nmea_path, double speed);
-
-/* map */
-int  xcs_map_attach_surface(xcs_core *, void *native_window, int w, int h, float dpi);
-void xcs_map_detach_surface(xcs_core *);
-int  xcs_map_gesture(xcs_core *, const xcs_map_gesture *g);   /* pan, zoom, rotate */
-char *xcs_map_items_at(xcs_core *, float x, float y);         /* JSON list */
+/* replay: timed, or deterministic (every fix, for tests and analysis) */
+xcs_status xcs_replay_start(xcs_core *, const char *path, double time_scale);
+xcs_status xcs_replay_stop(xcs_core *);
+xcs_status xcs_replay_run(xcs_core *, const char *path,
+                          double snapshot_interval, uint32_t *fixes_r);
 ```
+
+Planned next: task and waypoint documents (JSON), settings sections,
+platform-supplied ports (`xcs_port_*`), and the map surface (`xcs_map_*`).
+
+Guarantees:
+- Commands are injected into the core main thread's event loop and the
+  caller waits for the result; from inside a callback they run directly.
+- Callbacks always run on the core main thread, after the
+  `InterfaceBlackboard` has been updated. Events raised on backend threads
+  are queued and delivered there.
+- One core per process, because XCSoar keeps process-wide globals.
 
 ### Data formats: two paths
 
@@ -132,7 +127,8 @@ char *xcs_map_items_at(xcs_core *, float x, float y);         /* JSON list */
 | Cold | Task, waypoints, airspace lists, settings, devices, analysis | JSON (core already has boost.json) ↔ `kotlinx.serialization` | Easy to evolve, easy to test with golden files, easy to debug |
 
 The snapshot begins with `uint32 struct_size` and `uint32 api_version`, so new
-fields can be appended without breaking old readers.
+fields can be appended without breaking old readers. Its layout is locked by
+`static_assert`s on offsets and size in `XcsoarCore.cpp`.
 
 **Units:** the core always speaks SI. To avoid a second, drifting copy of
 XCSoar's unit logic (see D9), the core exports its unit tables (`Units/`) and

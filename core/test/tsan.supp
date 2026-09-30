@@ -1,0 +1,21 @@
+# ThreadSanitizer suppressions for the core tests:
+#   TSAN_OPTIONS="suppressions=core/test/tsan.supp halt_on_error=1"
+#
+# Only known races in upstream infrastructure, which the normal XCSoar
+# program has as well.  Each entry says why it is tolerated; anything
+# found in core/ must be fixed, not suppressed.
+
+# thread/Thread.cpp: debug builds deliberately set "defined = true" in
+# both Thread::Start() and ThreadProc() (see the comment there); both
+# write the same value.
+race:Thread::Start
+
+# event/Loop.cxx: Run() resets the "again" flag without the mutex while
+# AddInject() sets it with the mutex held; the wake fd still wakes the
+# loop, so no injection is lost.
+race:EventLoop::AddInject
+
+# net/http/Init.cpp: DrainCurl() asks the asio EventLoop IsInside()
+# while the loop records its thread id lazily in Run(); XCSoar.cpp
+# shuts down in the same order.
+race:Net::Deinitialise

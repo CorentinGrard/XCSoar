@@ -297,6 +297,8 @@ CoreShutdown() noexcept
   SaveFlarmColors();
   SaveFlarmMessaging();
   Profile::Save();
+  /* the core may be started again in this process */
+  Profile::Clear();
 
   if (backend_components != nullptr &&
       backend_components->devices != nullptr) {

@@ -106,7 +106,11 @@ CORE_HOST_SOURCES = \
 	$(CORE_SRC_DIR)/host/Seams.cpp \
 	$(CORE_SRC_DIR)/host/CoreReceive.cpp
 
-CORE_CPPFLAGS = -I$(CORE_SRC_DIR)/host
+CORE_API_SOURCES = \
+	$(CORE_HOST_SOURCES) \
+	$(CORE_SRC_DIR)/api/XcsoarCore.cpp
+
+CORE_CPPFLAGS = -I$(CORE_SRC_DIR)/host -I$(CORE_SRC_DIR)/api
 
 # Smoke test: start the core, run briefly, shut down.
 CORE_SMOKE_SOURCES = \
@@ -117,5 +121,33 @@ CORE_SMOKE_DEPENDS = $(CORE_DEPENDS)
 CORE_SMOKE_LDLIBS = $(CORE_LDLIBS)
 $(eval $(call link-program,CoreSmoke,CORE_SMOKE))
 
-.PHONY: core
-core: $(CORE_SMOKE_BIN)
+# L1: contract tests of the C API (TAP).  Headless flavour only:
+#   make VFB=y core-check
+TEST_CORE_API_SOURCES = \
+	$(CORE_API_SOURCES) \
+	$(CORE_SRC_DIR)/test/TestCoreApi.cpp \
+	$(TEST_SRC_DIR)/tap.c
+TEST_CORE_API_CPPFLAGS = $(CORE_CPPFLAGS) -I$(TEST_SRC_DIR)
+TEST_CORE_API_DEPENDS = $(CORE_DEPENDS)
+TEST_CORE_API_LDLIBS = $(CORE_LDLIBS)
+$(eval $(call link-program,TestCoreApi,TEST_CORE_API))
+
+# xcs-replay: deterministic replay to JSON lines (L2 golden tests)
+XCS_REPLAY_SOURCES = \
+	$(CORE_API_SOURCES) \
+	$(CORE_SRC_DIR)/test/XcsReplay.cpp
+XCS_REPLAY_CPPFLAGS = $(CORE_CPPFLAGS)
+XCS_REPLAY_DEPENDS = $(CORE_DEPENDS)
+XCS_REPLAY_LDLIBS = $(CORE_LDLIBS)
+$(eval $(call link-program,xcs-replay,XCS_REPLAY))
+
+CORE_TESTS = $(TEST_CORE_API_BIN)
+
+.PHONY: core core-check
+core: $(CORE_SMOKE_BIN) $(CORE_TESTS) $(XCS_REPLAY_BIN)
+
+# L1 (TAP contract tests) and L2 (golden replay, core/test/golden)
+core-check: $(CORE_TESTS) $(XCS_REPLAY_BIN) | $(OUT)/test/dirstamp
+	@$(NQ)echo "  CHECK   core"
+	$(Q)$(PERL) $(TEST_SRC_DIR)/testall.pl $(CORE_TESTS)
+	$(Q)python3 $(CORE_SRC_DIR)/test/check_golden.py --replay $(XCS_REPLAY_BIN)

@@ -1,0 +1,232 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright The XCSoar Project
+
+/*
+ * Contract tests (L1) for the C API in core/api/xcsoar_core.h.  Uses
+ * only the public API, like the Kotlin binding does.
+ *
+ * Run from the source root (it reads test/data).
+ */
+
+#include "xcsoar_core.h"
+#include "TestUtil.hpp"
+
+#include <atomic>
+#include <cstring>
+#include <limits>
+#include <mutex>
+#include <set>
+#include <thread>
+#include <vector>
+
+static constexpr const char *DATA_PATH = "output/test/TestCoreApi";
+static constexpr const char *FLIGHT = "test/data/01lz1hq1.igc";
+
+struct Recorder {
+  std::mutex mutex;
+  std::vector<xcs_flight_snapshot> snapshots;
+  std::vector<uint32_t> gce;
+  std::set<std::thread::id> callback_threads;
+  unsigned replay_finished = 0;
+
+  void Clear() {
+    const std::lock_guard lock{mutex};
+    snapshots.clear();
+    gce.clear();
+    replay_finished = 0;
+  }
+
+  bool HasEvent(uint32_t code) {
+    const std::lock_guard lock{mutex};
+    for (auto c : gce)
+      if (c == code)
+        return true;
+    return false;
+  }
+};
+
+static void
+OnSnapshot(void *ctx, const xcs_flight_snapshot *snapshot)
+{
+  auto &r = *static_cast<Recorder *>(ctx);
+  const std::lock_guard lock{r.mutex};
+  r.snapshots.push_back(*snapshot);
+  r.callback_threads.insert(std::this_thread::get_id());
+}
+
+static void
+OnEvent(void *ctx, const xcs_event *event)
+{
+  auto &r = *static_cast<Recorder *>(ctx);
+  const std::lock_guard lock{r.mutex};
+  r.callback_threads.insert(std::this_thread::get_id());
+  if (event->type == XCS_EVENT_GLIDE_COMPUTER)
+    r.gce.push_back(event->code);
+  else if (event->type == XCS_EVENT_REPLAY_FINISHED)
+    ++r.replay_finished;
+}
+
+static xcs_config
+MakeConfig(Recorder &recorder) noexcept
+{
+  xcs_config config{};
+  config.struct_size = sizeof(config);
+  config.api_version = XCS_API_VERSION;
+  config.data_path = DATA_PATH;
+  config.on_snapshot = OnSnapshot;
+  config.on_event = OnEvent;
+  config.callback_ctx = &recorder;
+  return config;
+}
+
+static void
+TestCreateArguments(Recorder &recorder)
+{
+  xcs_core *core = nullptr;
+  auto config = MakeConfig(recorder);
+
+  ok1(xcs_api_version() == XCS_API_VERSION);
+  ok1(xcs_create(nullptr, &core) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_create(&config, nullptr) == XCS_ERROR_INVALID_ARGUMENT);
+
+  config.api_version = XCS_API_VERSION + 1;
+  ok1(xcs_create(&config, &core) == XCS_ERROR_INVALID_ARGUMENT);
+  config.api_version = XCS_API_VERSION;
+
+  config.struct_size = 4;
+  ok1(xcs_create(&config, &core) == XCS_ERROR_INVALID_ARGUMENT);
+  config.struct_size = sizeof(config);
+
+  config.data_path = "";
+  ok1(xcs_create(&config, &core) == XCS_ERROR_INVALID_ARGUMENT);
+
+  ok1(core == nullptr);
+
+  /* NULL arguments of the other functions */
+  ok1(xcs_start(nullptr) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_stop(nullptr) == XCS_ERROR_INVALID_ARGUMENT);
+  xcs_destroy(nullptr);
+}
+
+static void
+TestNotStarted(xcs_core *core)
+{
+  xcs_flight_snapshot s{};
+  s.struct_size = sizeof(s);
+
+  ok1(xcs_stop(core) == XCS_ERROR_STATE);
+  ok1(xcs_set_mac_cready(core, 1) == XCS_ERROR_STATE);
+  ok1(xcs_get_snapshot(core, &s) == XCS_ERROR_STATE);
+  ok1(xcs_replay_run(core, FLIGHT, 60, nullptr) == XCS_ERROR_STATE);
+}
+
+static void
+TestStarted(xcs_core *core, Recorder &recorder)
+{
+  ok1(xcs_start(core) == XCS_ERROR_STATE);
+
+  xcs_flight_snapshot s{};
+  s.struct_size = 4;
+  ok1(xcs_get_snapshot(core, &s) == XCS_ERROR_INVALID_ARGUMENT);
+  s.struct_size = sizeof(s);
+  ok1(xcs_get_snapshot(core, &s) == XCS_OK);
+  ok1(s.struct_size == sizeof(s));
+  ok1(s.api_version == XCS_API_VERSION);
+  ok1(s.sequence >= 1);
+
+  ok1(xcs_set_mac_cready(core, -1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_mac_cready(core, 6) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_mac_cready(core, std::numeric_limits<double>::quiet_NaN()) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_mac_cready(core, 1.5) == XCS_OK);
+
+  ok1(xcs_replay_run(core, "test/data/does-not-exist.igc", 60, nullptr)
+      == XCS_ERROR_FAILED);
+
+  /* deterministic replay of a whole flight */
+  recorder.Clear();
+  uint32_t fixes = 0;
+  ok1(xcs_replay_run(core, FLIGHT, 60, &fixes) == XCS_OK);
+  ok1(fixes > 1000);
+
+  {
+    const std::lock_guard lock{recorder.mutex};
+    ok1(recorder.snapshots.size() > 50);
+    ok1(recorder.replay_finished == 1);
+
+    bool increasing = true, flew = false, located = false,
+      mc_kept = true;
+    uint64_t last = 0;
+    for (const auto &snapshot : recorder.snapshots) {
+      increasing = increasing && snapshot.sequence > last;
+      last = snapshot.sequence;
+      flew = flew || (snapshot.flags & XCS_FLAG_FLYING);
+      located = located || (snapshot.valid & XCS_VALID_LOCATION);
+      mc_kept = mc_kept && equals(snapshot.mac_cready, 1.5);
+    }
+    ok1(increasing);
+    ok1(flew);
+    ok1(located);
+    ok1(mc_kept);
+  }
+
+  ok1(recorder.HasEvent(XCS_GCE_TAKEOFF));
+  ok1(recorder.HasEvent(XCS_GCE_FLIGHTMODE_CLIMB));
+  ok1(recorder.HasEvent(XCS_GCE_FLIGHTMODE_CRUISE));
+
+  /* callbacks only ever run on one thread, the core main thread */
+  {
+    const std::lock_guard lock{recorder.mutex};
+    ok1(recorder.callback_threads.size() == 1);
+    ok1(recorder.callback_threads.count(std::this_thread::get_id()) == 0);
+  }
+
+  /* commands from several threads at once */
+  std::atomic<unsigned> failures{0};
+  std::vector<std::thread> threads;
+  for (unsigned i = 0; i < 4; ++i)
+    threads.emplace_back([core, &failures, i]{
+      xcs_flight_snapshot t{};
+      t.struct_size = sizeof(t);
+      for (unsigned j = 0; j < 50; ++j) {
+        if (xcs_set_mac_cready(core, (i + j) % 5) != XCS_OK ||
+            xcs_get_snapshot(core, &t) != XCS_OK)
+          ++failures;
+      }
+    });
+  for (auto &t : threads)
+    t.join();
+  ok1(failures == 0);
+}
+
+int
+main()
+{
+  plan_tests(9 + 4 + 25 + 7);
+
+  Recorder recorder;
+  TestCreateArguments(recorder);
+
+  const auto config = MakeConfig(recorder);
+  xcs_core *core = nullptr;
+  ok1(xcs_create(&config, &core) == XCS_OK);
+
+  xcs_core *second = nullptr;
+  ok1(xcs_create(&config, &second) == XCS_ERROR_BUSY);
+
+  TestNotStarted(core);
+
+  ok1(xcs_start(core) == XCS_OK);
+  TestStarted(core, recorder);
+  ok1(xcs_stop(core) == XCS_OK);
+
+  /* the same core can be started again */
+  ok1(xcs_start(core) == XCS_OK);
+  ok1(xcs_stop(core) == XCS_OK);
+  xcs_destroy(core);
+
+  /* after destroy, a new core may be created */
+  ok1(xcs_create(&config, &second) == XCS_OK);
+  xcs_destroy(second);
+
+  return exit_status();
+}
