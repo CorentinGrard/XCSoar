@@ -52,6 +52,7 @@
 #include <chrono>
 #include <cstring>
 #include <future>
+#include <iterator>
 #include <mutex>
 #include <string>
 #include <thread>

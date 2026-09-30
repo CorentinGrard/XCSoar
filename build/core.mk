@@ -100,6 +100,19 @@ ifeq ($(HAVE_HTTP),y)
 CORE_LDLIBS += $(NETCDF_LDLIBS)
 endif
 
+# The candidates archive and the libraries depend on each other in both
+# directions.  macOS ld64 and lld search archives repeatedly; GNU ld
+# reads them once, left to right, so group the whole link there.
+# (core-link-group adds the opening flag to one program's link.)
+ifneq ($(TARGET_IS_DARWIN),y)
+CORE_LDLIBS += -Wl,--end-group
+define core-link-group
+$$($(1)_NOSTRIP): LDFLAGS += -Wl,--start-group
+endef
+else
+core-link-group =
+endif
+
 CORE_HOST_SOURCES = \
 	$(CORE_SRC_DIR)/host/CoreStartup.cpp \
 	$(CORE_SRC_DIR)/host/Protection.cpp \
@@ -130,6 +143,7 @@ LIBXCSOAR_CORE_LDLIBS = $(CORE_LDLIBS) -Wl,--no-undefined \
 	-Wl,--version-script=$(CORE_SRC_DIR)/api/libxcsoar_core.map
 LIBXCSOAR_CORE_STRIP = y
 $(eval $(call link-shared-library,xcsoar_core,LIBXCSOAR_CORE))
+$(eval $(call core-link-group,LIBXCSOAR_CORE))
 
 core: $(LIBXCSOAR_CORE_BIN)
 
@@ -143,6 +157,7 @@ CORE_SMOKE_CPPFLAGS = $(CORE_CPPFLAGS)
 CORE_SMOKE_DEPENDS = $(CORE_DEPENDS)
 CORE_SMOKE_LDLIBS = $(CORE_LDLIBS)
 $(eval $(call link-program,CoreSmoke,CORE_SMOKE))
+$(eval $(call core-link-group,CORE_SMOKE))
 
 # L1: contract tests of the C API (TAP).  Headless flavour only:
 #   make VFB=y core-check
@@ -154,6 +169,7 @@ TEST_CORE_API_CPPFLAGS = $(CORE_CPPFLAGS) -I$(TEST_SRC_DIR)
 TEST_CORE_API_DEPENDS = $(CORE_DEPENDS)
 TEST_CORE_API_LDLIBS = $(CORE_LDLIBS)
 $(eval $(call link-program,TestCoreApi,TEST_CORE_API))
+$(eval $(call core-link-group,TEST_CORE_API))
 
 # xcs-replay: deterministic replay to JSON lines (L2 golden tests)
 XCS_REPLAY_SOURCES = \
@@ -163,6 +179,7 @@ XCS_REPLAY_CPPFLAGS = $(CORE_CPPFLAGS)
 XCS_REPLAY_DEPENDS = $(CORE_DEPENDS)
 XCS_REPLAY_LDLIBS = $(CORE_LDLIBS)
 $(eval $(call link-program,xcs-replay,XCS_REPLAY))
+$(eval $(call core-link-group,XCS_REPLAY))
 
 CORE_TESTS = $(TEST_CORE_API_BIN)
 
