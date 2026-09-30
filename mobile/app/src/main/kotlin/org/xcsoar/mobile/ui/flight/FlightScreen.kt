@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -42,6 +43,7 @@ fun FlightScreen(viewModel: FlightViewModel) {
         state = state,
         lastEvent = lastEvent,
         onMacCreadyChange = viewModel::changeMacCready,
+        onReplayDemo = viewModel::replayDemo,
     )
 }
 
@@ -54,6 +56,7 @@ fun FlightContent(
     state: FlightState?,
     lastEvent: String?,
     onMacCreadyChange: (Double) -> Unit,
+    onReplayDemo: () -> Unit = {},
 ) {
     val colors = XcsTheme.colors
 
@@ -65,7 +68,7 @@ fun FlightContent(
             .padding(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        StatusLine(state, lastEvent)
+        StatusLine(state, lastEvent, onReplayDemo)
 
         val boxes = infoBoxes(state)
         // 2 columns; rows share the remaining height
@@ -86,7 +89,12 @@ private fun infoBoxes(s: FlightState?): List<BoxSlot> {
     val vario = s?.vario
     return listOf(
         { InfoBox("Vario", Format.vario(vario), Modifier.weight(1f).fillMaxHeight(),
-                  accent = vario?.let { if (it >= 0) XcsTheme.colors.lift else XcsTheme.colors.sink }) },
+                  // no colour for values shown as 0.0: the bar must agree with the number
+                  accent = vario?.let { when {
+                      it >= 0.05 -> XcsTheme.colors.lift
+                      it <= -0.05 -> XcsTheme.colors.sink
+                      else -> null
+                  } }) },
         { InfoBox("Vario 30 s", Format.vario(s?.averageVario), Modifier.weight(1f).fillMaxHeight()) },
         { InfoBox("Altitude", Format.altitude(s?.navAltitude), Modifier.weight(1f).fillMaxHeight()) },
         { InfoBox("Height AGL", Format.altitude(s?.altitudeAgl), Modifier.weight(1f).fillMaxHeight()) },
@@ -105,7 +113,7 @@ private fun infoBoxes(s: FlightState?): List<BoxSlot> {
 }
 
 @Composable
-private fun StatusLine(state: FlightState?, lastEvent: String?) {
+private fun StatusLine(state: FlightState?, lastEvent: String?, onReplayDemo: () -> Unit) {
     val colors = XcsTheme.colors
     val mode = when {
         state == null -> "Starting…"
@@ -121,6 +129,11 @@ private fun StatusLine(state: FlightState?, lastEvent: String?) {
             Text("  NO GPS", color = colors.caution, fontWeight = FontWeight.Bold, fontSize = 13.sp)
         Text(lastEvent ?: "", color = colors.textSecondary, fontSize = 13.sp,
              modifier = Modifier.weight(1f).padding(start = 8.dp), maxLines = 1)
+        // on the ground only: a demo, not something to press in flight
+        if (state != null && !state.flying && !state.replay)
+            TextButton(onClick = onReplayDemo) {
+                Text("Replay demo", color = colors.neutralSafe, fontSize = 14.sp)
+            }
     }
 }
 

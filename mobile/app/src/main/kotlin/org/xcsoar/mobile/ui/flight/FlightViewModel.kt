@@ -21,8 +21,12 @@ import kotlin.math.roundToLong
  *
  * @param createCore creates the core; gets this view model's scope
  * (used by [org.xcsoar.mobile.core.FakeXcsoarCore])
+ * @param demoFlight path of a recorded flight for [replayDemo]
  */
-class FlightViewModel(createCore: (CoroutineScope) -> XcsoarCore) : ViewModel() {
+class FlightViewModel(
+    createCore: (CoroutineScope) -> XcsoarCore,
+    private val demoFlight: () -> String,
+) : ViewModel() {
     private val core = createCore(viewModelScope)
 
     val flightState: StateFlow<FlightState?> = core.flightState
@@ -32,7 +36,14 @@ class FlightViewModel(createCore: (CoroutineScope) -> XcsoarCore) : ViewModel() 
     val lastEvent: StateFlow<String?> = lastEventFlow.asStateFlow()
 
     init {
-        viewModelScope.launch { core.start() }
+        viewModelScope.launch {
+            try {
+                core.start()
+            } catch (e: Exception) {
+                // never crash the app: show why and keep the UI usable
+                lastEventFlow.value = "Core failed to start: ${e.message}"
+            }
+        }
         viewModelScope.launch {
             core.events.collect { event ->
                 lastEventFlow.value = when (event) {
@@ -44,11 +55,28 @@ class FlightViewModel(createCore: (CoroutineScope) -> XcsoarCore) : ViewModel() 
         }
     }
 
+    /** Replay the bundled demo flight at 10× real time. */
+    fun replayDemo() {
+        viewModelScope.launch {
+            try {
+                core.startReplay(demoFlight(), timeScale = 10.0)
+            } catch (e: Exception) {
+                lastEventFlow.value = "Replay failed: ${e.message}"
+            }
+        }
+    }
+
     /** MacCready ± 0.1 m/s, clamped to 0..5 like XCSoar. */
     fun changeMacCready(delta: Double) {
         val current = flightState.value?.macCready ?: return
         val mc = ((current + delta) * 10).roundToLong() / 10.0
-        viewModelScope.launch { core.setMacCready(mc.coerceIn(0.0, 5.0)) }
+        viewModelScope.launch {
+            try {
+                core.setMacCready(mc.coerceIn(0.0, 5.0))
+            } catch (e: Exception) {
+                lastEventFlow.value = "MacCready not set: ${e.message}"
+            }
+        }
     }
 
     private fun describe(e: GlideComputerEvent): String? = when (e) {

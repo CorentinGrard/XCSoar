@@ -32,6 +32,13 @@ interface XcsoarCore {
     suspend fun stopReplay()
 }
 
+/** Values of `xcs_event_type` (core/api/xcsoar_core.h). */
+object CoreEventType {
+    const val GLIDE_COMPUTER = 1
+    const val MESSAGE = 2
+    const val REPLAY_FINISHED = 3
+}
+
 sealed interface CoreEvent {
     data class GlideComputer(val event: GlideComputerEvent) : CoreEvent
     data class Message(val text: String, val detail: String?) : CoreEvent

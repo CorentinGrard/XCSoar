@@ -134,6 +134,15 @@ class SnapshotDecoderTest {
     }
 
     @Test
+    fun eventTypesMatchHeader() {
+        val c = headerConstants("XCS_EVENT_")
+        val kotlin = CoreEventType::class.java.declaredFields
+            .filter { it.type == Int::class.javaPrimitiveType && it.name != "INSTANCE" }
+            .associate { it.isAccessible = true; "XCS_EVENT_${it.name}" to it.getInt(null) }
+        assertEquals(c, kotlin)
+    }
+
+    @Test
     fun apiVersionMatchesHeader() {
         val version = Regex("""#define XCS_API_VERSION (\d+)""").find(header)!!.groupValues[1]
         assertEquals(version.toInt(), SnapshotDecoder.API_VERSION)
