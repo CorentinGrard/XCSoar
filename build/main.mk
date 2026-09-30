@@ -580,6 +580,7 @@ XCSOAR_SOURCES := \
 	$(SRC)/Protection.cpp \
 	$(SRC)/BatteryTimer.cpp \
 	$(SRC)/ProcessTimer.cpp \
+	$(SRC)/BackendProcessTimer.cpp \
 	$(SRC)/ApplyExternalSettings.cpp \
 	$(SRC)/ApplyVegaSwitches.cpp \
 	$(SRC)/MainWindow.cpp \
