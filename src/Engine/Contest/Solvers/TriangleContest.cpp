@@ -88,7 +88,8 @@ CalcLegDistance(const ContestTraceVector &solution,
 inline void
 TriangleContest::UpdateTrace(bool force) noexcept
 {
-  if (IsMasterAppended()) return; /* unmodified */
+  if (IsMasterAppended() && !CheckMasterSerial())
+    return; /* unmodified */
 
   if (force || IsMasterUpdated(false)) {
     UpdateTraceFull();
@@ -126,6 +127,12 @@ TriangleContest::Solve(bool exhaustive) noexcept
     is_complete = false;
     return SolverResult::FAILED;
   }
+
+  if (running && CheckMasterSerial())
+    /* the master trace has been modified (e.g. thinned) since the
+       branch and bound search began; the working trace may point to
+       deleted TracePoints, so start over (like ContestDijkstra) */
+    ResetBranchAndBound();
 
   if (!running) {
     // branch and bound is currently in finished state, update trace
