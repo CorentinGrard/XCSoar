@@ -117,3 +117,89 @@ jobs:
             grep -E "^not ok|^FAIL|^  line|Failed|Assertion|error:|Error" check.log | head -30 | sed 's/^/::error::/'
             exit 1
           }
+
+  # L3 + the Android app: native core (arm64), APK, Kotlin unit tests
+  mobile-app:
+    runs-on: ubuntu-24.04
+    container: debian:trixie-slim
+
+    steps:
+      - name: Install checkout dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Mark git directory as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Cache downloads
+        uses: actions/cache@v6
+        with:
+          key: mobile-downloads-${{ hashFiles('build/libboost.mk', 'build/thirdparty.py', 'build/python/build/libs.py') }}
+          restore-keys: mobile-downloads-
+          path: ${{ github.workspace }}/output/download
+
+      - name: Cache Android SDK and NDK
+        uses: actions/cache@v6
+        with:
+          key: mobile-android-tools-${{ hashFiles('ide/provisioning/install-android-tools.sh') }}
+          restore-keys: mobile-android-tools-
+          path: |
+            ~/opt/android-sdk-linux
+            ~/opt/android-ndk-r26d
+
+      - name: Cache third-party libraries (arm64)
+        uses: actions/cache@v6
+        with:
+          key: mobile-thirdparty-arm64-${{ hashFiles('build/thirdparty.py', 'build/python/build/*.py', 'build/thirdparty.mk', 'build/targets.mk', 'lib/**/patches/**') }}
+          path: ${{ github.workspace }}/output/ANDROID/arm64-v8a/lib
+
+      - name: Cache Gradle
+        uses: actions/cache@v6
+        with:
+          key: mobile-gradle-${{ hashFiles('mobile/gradle/libs.versions.toml', 'mobile/gradle/wrapper/gradle-wrapper.properties', 'mobile/**/*.gradle.kts') }}
+          restore-keys: mobile-gradle-
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+
+      - name: Install build dependencies
+        run: |
+          ./ide/provisioning/install-debian-packages.sh UPDATE
+          ./ide/provisioning/install-debian-packages.sh BASE
+          ./ide/provisioning/install-debian-packages.sh LINUX
+          ./ide/provisioning/install-debian-packages.sh ARM
+          ./ide/provisioning/install-debian-packages.sh LLVM
+          ./ide/provisioning/install-debian-packages.sh ANDROID
+          ./ide/provisioning/install-android-tools.sh NDK
+          ./ide/provisioning/install-android-tools.sh SDK
+
+      - name: Cache ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: mobile-android-arm64-ccache
+          max-size: 2G
+
+      - name: Build the app and run the Kotlin tests
+        shell: bash
+        working-directory: mobile
+        env:
+          ANDROID_HOME: /github/home/opt/android-sdk-linux
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --console=plain :core:test :app:assembleDebug 2>&1 | tee build.log || {
+            grep -E "^e: | error:|error:|FAILED|What went wrong" -A3 build.log | head -30 | sed 's/^/::error::/'
+            exit 1
+          }
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: xcsoar-mobile-debug
+          path: mobile/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
