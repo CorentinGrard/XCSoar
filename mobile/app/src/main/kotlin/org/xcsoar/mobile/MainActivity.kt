@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -34,6 +35,8 @@ private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS }
 
 class MainActivity : ComponentActivity() {
     private val app get() = application as XcsoarApp
+
+    private val alerts by lazy { Alerts(this) }
 
     /* one system permission dialog at a time, for AppPermissionManager */
     private var permissionResult: ((Boolean) -> Unit)? = null
@@ -94,6 +97,10 @@ class MainActivity : ComponentActivity() {
                     }
                 })
 
+                LaunchedEffect(flightViewModel) {
+                    flightViewModel.alerts.collect { alerts.play(it) }
+                }
+
                 var screen by rememberSaveable { mutableStateOf(Screen.FLIGHT) }
                 when (screen) {
                     Screen.FLIGHT -> FlightScreen(
@@ -133,6 +140,11 @@ class MainActivity : ComponentActivity() {
                 permissionLauncher.launch(permission)
             }
         }
+    }
+
+    override fun onDestroy() {
+        alerts.release()
+        super.onDestroy()
     }
 
     override fun onPause() {

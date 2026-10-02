@@ -6,7 +6,10 @@ package org.xcsoar.mobile.ui.flight
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -60,12 +63,27 @@ class FlightViewModel(
     /** Active airspace warnings, most severe first. */
     val airspaceWarnings: StateFlow<List<AirspaceWarningInfo>> = warningsFlow.asStateFlow()
 
+    private val alertFlow = MutableSharedFlow<Alert>(extraBufferCapacity = 4)
+    /** Something new the pilot must notice: sound and vibrate. */
+    val alerts: SharedFlow<Alert> = alertFlow.asSharedFlow()
+
+    /* warnings already announced, by airspace and state */
+    private var announced = emptySet<String>()
+
     private suspend fun refreshWarnings() {
-        warningsFlow.value = try {
+        val warnings = try {
             core.airspaceWarnings()
         } catch (_: Exception) {
             emptyList()
         }
+        warningsFlow.value = warnings
+
+        // like XCSoar: alert once per new warning, again when it gets worse
+        val keys = warnings.map { "${it.id}/${it.state}" }.toSet()
+        val fresh = warnings.filter { "${it.id}/${it.state}" !in announced }
+        announced = keys
+        if (fresh.isNotEmpty())
+            alertFlow.tryEmit(if (fresh.any { it.inside }) Alert.WARNING else Alert.CAUTION)
     }
 
     fun acknowledgeAirspace(warning: AirspaceWarningInfo, day: Boolean) {
@@ -318,3 +336,6 @@ private const val WARNING_POLL_MS = 1000L
 private val AIRSPACE_EVENTS = setOf(
     GlideComputerEvent.AIRSPACE_NEAR, GlideComputerEvent.AIRSPACE_ENTER,
     GlideComputerEvent.AIRSPACE_LEAVE)
+
+/** How urgent an alert is (doc/architecture.rst colours: red, orange). */
+enum class Alert { WARNING, CAUTION }

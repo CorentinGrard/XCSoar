@@ -270,7 +270,8 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       changes and "Day" (`xcs_get_airspace_warnings`,
       `xcs_airspace_acknowledge`, XCSoar's warning manager); polled every
       second and on airspace events.  Tested live (inside CTR Montpellier).
-      Sound and vibration still to do
+      A tone (alarm stream) and vibration once per new warning and again
+      when it gets worse (ahead → inside)
 - [ ] Vario / speed-to-fly audio (reuse `src/Audio` synthesizer through an AAudio sink)
 - [ ] IGC logging on by default; flight list with share/export
 - [ ] Analysis pages: barograph, climb history, task speed, contest (charts drawn

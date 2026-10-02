@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- XCSoar's file repository (maps, airspace, waypoints) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- airspace warning alerts -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
