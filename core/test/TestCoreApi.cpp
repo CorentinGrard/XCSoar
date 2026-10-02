@@ -125,6 +125,7 @@ TestNotStarted(xcs_core *core)
   ok1(xcs_set_mac_cready(core, 1) == XCS_ERROR_STATE);
   ok1(xcs_set_ballast(core, 0) == XCS_ERROR_STATE);
   ok1(xcs_set_bugs(core, 1) == XCS_ERROR_STATE);
+  ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO, 1) == XCS_ERROR_STATE);
   ok1(xcs_get_snapshot(core, &s) == XCS_ERROR_STATE);
   ok1(xcs_replay_run(core, FLIGHT, 60, nullptr) == XCS_ERROR_STATE);
   ok1(xcs_set_data_file(core, XCS_DATA_AIRSPACE, AIRSPACE) == XCS_ERROR_STATE);
@@ -224,6 +225,18 @@ TestStarted(xcs_core *core, Recorder &recorder)
   ok1(xcs_set_bugs(core, 1.1) == XCS_ERROR_INVALID_ARGUMENT);
   ok1(xcs_set_bugs(core, std::numeric_limits<double>::quiet_NaN()) == XCS_ERROR_INVALID_ARGUMENT);
   ok1(xcs_set_bugs(core, 0.8) == XCS_OK);
+
+  /* the host build always has a (possibly silent) vario sound */
+  int32_t value = -1;
+  ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO, 2) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_sound_set_option(core, 99, 1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO_VOLUME, 101) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_sound_get_option(core, XCS_SOUND_VARIO, nullptr) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO, 1) == XCS_OK);
+  ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO_VOLUME, 60) == XCS_OK);
+  ok1(xcs_sound_get_option(core, XCS_SOUND_VARIO, &value) == XCS_OK && value == 1);
+  ok1(xcs_sound_get_option(core, XCS_SOUND_VARIO_VOLUME, &value) == XCS_OK && value == 60);
+  ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO, 0) == XCS_OK);
 
   ok1(xcs_replay_run(core, "test/data/does-not-exist.igc", 60, nullptr)
       == XCS_ERROR_FAILED);
@@ -326,7 +339,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 10 + 6 + 34 + 15 + 7);
+  plan_tests(9 + 11 + 6 + 43 + 15 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);

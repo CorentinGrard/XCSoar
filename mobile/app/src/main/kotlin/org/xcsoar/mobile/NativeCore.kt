@@ -67,6 +67,9 @@ internal object NativeCore {
     @JvmStatic external fun nativeMapSetOption(core: Long, option: Int, value: Int): Int
     /** @return the value, or Int.MIN_VALUE on error */
     @JvmStatic external fun nativeMapGetOption(core: Long, option: Int): Int
+    @JvmStatic external fun nativeSoundSetOption(core: Long, option: Int, value: Int): Int
+    /** @return the value, or Int.MIN_VALUE on error */
+    @JvmStatic external fun nativeSoundGetOption(core: Long, option: Int): Int
     /** @return the JSON of `xcs_map_items_at`, or null on error */
     @JvmStatic external fun nativeMapItemsAt(core: Long, x: Int, y: Int): String?
 

@@ -196,3 +196,17 @@ a core-only screen library); SkySight overlays, `GlueMapWindow` lookups
 and download progress widgets are no-ops (`core/map/MapSeams.cpp`). One
 upstream change: `TextUtil` uses the calling thread's `JNIEnv` instead of
 the one cached at initialisation.
+
+## D18 — The vario sound keeps upstream's OpenSL ES player
+**Status:** Accepted (2026-10-02)
+
+The plan said "AAudio sink". The core already runs XCSoar's own audio
+chain on Android (`AudioVarioGlue`, `PCMMixer`, `AndroidPCMPlayer` over
+OpenSL ES), set up like `Startup()` does; it plays on the media stream.
+Keeping it means no new audio code and the same sound as XCSoar. OpenSL
+ES is deprecated but still supported on current Android; replace it
+upstream (for both apps) if it ever goes away.
+
+The app only turns the sound on and off (`xcs_sound_set_option`, saved
+under upstream's profile keys) and makes the volume keys control the
+media stream.

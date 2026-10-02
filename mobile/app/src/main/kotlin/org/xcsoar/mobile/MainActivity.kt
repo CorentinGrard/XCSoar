@@ -3,6 +3,7 @@
 
 package org.xcsoar.mobile
 
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
@@ -70,6 +71,10 @@ class MainActivity : ComponentActivity() {
 
         // in flight the screen must stay on
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        // the volume keys set the vario sound's volume (OpenSL plays on
+        // the media stream), even while it is silent
+        volumeControlStream = AudioManager.STREAM_MUSIC
 
         // the notification of FlightService (it runs without it, unseen)
         if (savedInstanceState == null)

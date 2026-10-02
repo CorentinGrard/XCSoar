@@ -333,6 +333,24 @@ xcs_set_ballast(xcs_core *core, double litres);
 XCS_EXPORT xcs_status
 xcs_set_bugs(xcs_core *core, double bugs);
 
+/** Sound options (XCSoar's profile keys in brackets). */
+typedef enum xcs_sound_option {
+  /** 0/1: the vario sound, XCSoar's synthesiser [AudioVario2] */
+  XCS_SOUND_VARIO = 1,
+  /** 0..100: its level in XCSoar's mixer; the system volume (media
+      stream on Android) applies on top [SoundVolume] */
+  XCS_SOUND_VARIO_VOLUME = 2,
+} xcs_sound_option;
+
+/** Set a sound option; saved in the profile.  XCS_ERROR_INVALID_ARGUMENT
+    for an unknown option or value, XCS_ERROR_FAILED if this device has
+    no audio output for the vario. */
+XCS_EXPORT xcs_status
+xcs_sound_set_option(xcs_core *core, uint32_t option, int32_t value);
+
+XCS_EXPORT xcs_status
+xcs_sound_get_option(xcs_core *core, uint32_t option, int32_t *value_r);
+
 /** Copy the latest snapshot. */
 XCS_EXPORT xcs_status
 xcs_get_snapshot(xcs_core *core, xcs_flight_snapshot *snapshot);

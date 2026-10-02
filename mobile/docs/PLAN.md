@@ -17,13 +17,13 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M1 | Headless core behind the C API, replay tests on the host | ☑ done |
 | M2 | Android skeleton: replay an IGC, see live InfoBoxes | ◐ demo works on the emulator |
 | M3 | Moving map in the new app | ◐ map, gestures, hold card on the phone |
-| M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ background service, Go To, MC/ballast/bugs, airspace warnings |
+| M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ background service, Go To, MC/ballast/bugs, airspace warnings, vario sound |
 | M5 | External devices: Bluetooth / BLE / USB, drivers, declaration | ☐ |
 | M6 | Settings, profiles, data management | ☐ |
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** M4 (vario audio, IGC logging, task)
+**Current focus:** M4 (IGC logging, task)
 
 ---
 
@@ -290,7 +290,12 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       second and on airspace events.  Tested live (inside CTR Montpellier).
       A tone (alarm stream) and vibration once per new warning and again
       when it gets worse (ahead → inside)
-- [ ] Vario / speed-to-fly audio (reuse `src/Audio` synthesizer through an AAudio sink)
+- [x] Vario / speed-to-fly audio: XCSoar's synthesiser through its own
+      OpenSL ES player (D18), switched by a speaker button over the map
+      (`xcs_sound_set_option` / `xcs_sound_get_option`, saved in the
+      profile, off by default like XCSoar); the volume keys set the media
+      volume.  Checked on a Pixel 7 during a replay.  Volume, mode
+      (auto / vario / STF) and dead band settings: later (M6)
 - [ ] IGC logging on by default; flight list with share/export
 - [ ] Analysis pages: barograph, climb history, task speed, contest (charts drawn
       in Compose from JSON data)
@@ -337,7 +342,7 @@ Newest first. One line per session: what was done and what's next.
   lock, notification). Checked on a Pixel 7. Flight setup screen: water
   ballast and bugs through the C API (TestCoreApi extended; not run
   locally, the Fedora host lacks fmt-devel and friends: CI runs it).
-  Next: vario audio, IGC logging.
+  Vario sound on/off (upstream's OpenSL player, D18). Next: IGC logging.
 
 - 2026-10-02 — Data files screen (map/airspace/waypoints via the system
   picker) and XCSoar's moving map in the app, both working on a Pixel 7

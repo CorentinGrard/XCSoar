@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -366,6 +367,49 @@ fun OrientationButton(orientation: MapOrientation, mapAngle: Double?, onClick: (
         }
         Text(label, color = colors.text, style = XcsTheme.numberStyle,
              fontWeight = FontWeight.Bold, fontSize = 14.sp)
+    }
+}
+
+/** The vario sound on or off: a speaker, with sound waves or crossed out. */
+@Composable
+fun VarioSoundButton(enabled: Boolean, onToggle: (Boolean) -> Unit,
+                     modifier: Modifier = Modifier) {
+    val colors = XcsTheme.colors
+    Box(
+        modifier
+            .size(TOUCH)
+            .background(colors.card, CircleShape)
+            .border(1.dp, colors.panelBorder, CircleShape)
+            .toggleable(enabled, role = Role.Switch, onValueChange = onToggle)
+            .semantics { contentDescription = "Vario sound" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(24.dp)) {
+            val w = size.width
+            val h = size.height
+            drawPath(Path().apply {
+                moveTo(0f, h * 0.35f)
+                lineTo(w * 0.22f, h * 0.35f)
+                lineTo(w * 0.5f, h * 0.1f)
+                lineTo(w * 0.5f, h * 0.9f)
+                lineTo(w * 0.22f, h * 0.65f)
+                lineTo(0f, h * 0.65f)
+                close()
+            }, colors.text)
+            val stroke = 2.25.dp.toPx()
+            if (enabled) {
+                for (r in listOf(0.18f, 0.36f))
+                    drawArc(colors.text, -50f, 100f, useCenter = false,
+                            topLeft = Offset(w * 0.5f - w * r, h / 2 - h * r),
+                            size = Size(w * r * 2, h * r * 2),
+                            style = Stroke(stroke, cap = StrokeCap.Round))
+            } else {
+                drawLine(colors.caution, Offset(w * 0.64f, h * 0.32f), Offset(w, h * 0.68f),
+                         stroke, StrokeCap.Round)
+                drawLine(colors.caution, Offset(w * 0.64f, h * 0.68f), Offset(w, h * 0.32f),
+                         stroke, StrokeCap.Round)
+            }
+        }
     }
 }
 

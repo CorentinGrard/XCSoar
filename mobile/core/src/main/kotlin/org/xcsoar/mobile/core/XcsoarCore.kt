@@ -93,6 +93,11 @@ interface XcsoarCore {
 
     suspend fun setMapOrientation(orientation: MapOrientation) {}
 
+    /** A sound option (saved in the profile); null without audio output. */
+    suspend fun soundOption(option: SoundOption): Int? = null
+
+    suspend fun setSoundOption(option: SoundOption, value: Int) {}
+
     /** A display option of the map; null without a map. */
     suspend fun mapOption(option: MapOption): Int? = null
 
@@ -171,6 +176,14 @@ enum class MapOrientation(val code: Int) {
     companion object {
         fun fromCode(code: Int) = entries.firstOrNull { it.code == code }
     }
+}
+
+/** Values of `xcs_sound_option` (core/api/xcsoar_core.h). */
+enum class SoundOption(val code: Int) {
+    /** 0/1: XCSoar's vario sound */
+    VARIO(1),
+    /** 0..100, under the system media volume */
+    VARIO_VOLUME(2),
 }
 
 /** Values of `xcs_map_option` (core/api/xcsoar_core.h). */

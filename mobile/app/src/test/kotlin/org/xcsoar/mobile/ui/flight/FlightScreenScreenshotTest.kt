@@ -28,7 +28,8 @@ class FlightScreenScreenshotTest {
     @Config(qualifiers = "w390dp-h844dp-xxhdpi")
     fun cruiseSunlight() = capture("cruise_sunlight") {
         XcsTheme(dark = false) {
-            FlightContent(FakeXcsoarCore.syntheticState(120), "Cruise", circling = false, {})
+            FlightContent(FakeXcsoarCore.syntheticState(120), "Cruise", circling = false, {},
+                          varioSound = true)
         }
     }
 
@@ -36,7 +37,8 @@ class FlightScreenScreenshotTest {
     @Config(qualifiers = "w390dp-h844dp-xxhdpi")
     fun circlingSunlight() = capture("circling_sunlight") {
         XcsTheme(dark = false) {
-            FlightContent(FakeXcsoarCore.syntheticState(320), "Climb", circling = true, {})
+            FlightContent(FakeXcsoarCore.syntheticState(320), "Climb", circling = true, {},
+                          varioSound = false)
         }
     }
 

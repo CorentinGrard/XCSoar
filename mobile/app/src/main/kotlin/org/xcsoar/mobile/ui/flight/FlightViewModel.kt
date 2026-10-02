@@ -24,6 +24,7 @@ import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.GlideComputerEvent
 import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOrientation
+import org.xcsoar.mobile.core.SoundOption
 import org.xcsoar.mobile.core.XcsoarCore
 import kotlin.math.roundToLong
 
@@ -62,6 +63,27 @@ class FlightViewModel(
     private val warningsFlow = MutableStateFlow<List<AirspaceWarningInfo>>(emptyList())
     /** Active airspace warnings, most severe first. */
     val airspaceWarnings: StateFlow<List<AirspaceWarningInfo>> = warningsFlow.asStateFlow()
+
+    private val varioSoundFlow = MutableStateFlow<Boolean?>(null)
+    /** The vario sound is on; null if this device has none (yet). */
+    val varioSound: StateFlow<Boolean?> = varioSoundFlow.asStateFlow()
+
+    fun setVarioSound(on: Boolean) {
+        varioSoundFlow.value = on
+        viewModelScope.launch {
+            try {
+                core.setSoundOption(SoundOption.VARIO, if (on) 1 else 0)
+            } catch (_: Exception) {
+                varioSoundFlow.value = readVarioSound()
+            }
+        }
+    }
+
+    private suspend fun readVarioSound(): Boolean? = try {
+        core.soundOption(SoundOption.VARIO)?.let { it != 0 }
+    } catch (_: Exception) {
+        null
+    }
 
     private val alertFlow = MutableSharedFlow<Alert>(extraBufferCapacity = 4)
     /** Something new the pilot must notice: sound and vibrate. */
@@ -109,6 +131,7 @@ class FlightViewModel(
         viewModelScope.launch {
             try {
                 core.start()
+                varioSoundFlow.value = readVarioSound()
             } catch (e: Exception) {
                 // never crash the app: show why and keep the UI usable
                 lastEventFlow.value = "Core failed to start: ${e.message}"

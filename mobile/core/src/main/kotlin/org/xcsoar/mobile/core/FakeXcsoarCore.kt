@@ -84,6 +84,14 @@ class FakeXcsoarCore(
         MapOption.TERRAIN to 1, MapOption.TERRAIN_RAMP to TerrainRamp.PASTEL.code,
         MapOption.TOPOGRAPHY to 1, MapOption.TRAIL to 2)
 
+    private val soundOptions = mutableMapOf(SoundOption.VARIO to 0, SoundOption.VARIO_VOLUME to 80)
+
+    override suspend fun soundOption(option: SoundOption): Int? = soundOptions[option]
+
+    override suspend fun setSoundOption(option: SoundOption, value: Int) {
+        soundOptions[option] = value
+    }
+
     override suspend fun mapOption(option: MapOption): Int? = mapOptions[option]
 
     override suspend fun setMapOption(option: MapOption, value: Int) {

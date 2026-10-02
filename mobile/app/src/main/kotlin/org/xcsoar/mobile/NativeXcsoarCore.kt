@@ -27,6 +27,7 @@ import org.xcsoar.mobile.core.WaypointFilter
 import org.xcsoar.mobile.core.WaypointInfo
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SnapshotDecoder
+import org.xcsoar.mobile.core.SoundOption
 import org.xcsoar.mobile.core.XcsoarCore
 import java.nio.ByteBuffer
 
@@ -165,6 +166,15 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun setMapOption(option: MapOption, value: Int) =
         command { NativeCore.nativeMapSetOption(it, option.code, value) }
+
+    override suspend fun soundOption(option: SoundOption): Int? = lock.withLock {
+        if (handle == 0L) return@withLock null
+        withContext(Dispatchers.IO) { NativeCore.nativeSoundGetOption(handle, option.code) }
+            .takeIf { it != Int.MIN_VALUE }
+    }
+
+    override suspend fun setSoundOption(option: SoundOption, value: Int) =
+        command { NativeCore.nativeSoundSetOption(it, option.code, value) }
 
     override suspend fun mapItemsAt(x: Int, y: Int): List<MapItemInfo> = lock.withLock {
         check(handle != 0L) { "core not started" }

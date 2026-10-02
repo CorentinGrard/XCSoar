@@ -57,6 +57,7 @@
 #include "Input/InputQueue.hpp"
 #include "Profile/Profile.hpp"
 #include "Profile/Keys.hpp"
+#include "Audio/VarioGlue.hpp"
 #include "DataComponents.hpp"
 #include "Terrain/RasterTerrain.hpp"
 #include "Engine/Airspace/Airspaces.hpp"
@@ -672,6 +673,69 @@ xcs_set_bugs(xcs_core *core, double bugs)
   return RunOnMain(*core, [bugs]{
     ActionInterface::SetBugs(bugs, true);
     return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_sound_set_option(xcs_core *core, uint32_t option, int32_t value)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  /* like InputEvents::eventSounds() and eventAudioVolume() */
+  return RunOnMain(*core, [option, value]{
+    if (!AudioVarioGlue::HaveAudioVario())
+      return XCS_ERROR_FAILED;
+
+    auto &settings = CommonInterface::SetUISettings().sound.vario;
+    switch (option) {
+    case XCS_SOUND_VARIO:
+      if (value != 0 && value != 1)
+        return XCS_ERROR_INVALID_ARGUMENT;
+      settings.enabled = value != 0;
+      Profile::Set(ProfileKeys::SoundAudioVario, settings.enabled);
+      break;
+
+    case XCS_SOUND_VARIO_VOLUME:
+      if (value < 0 || value > 100)
+        return XCS_ERROR_INVALID_ARGUMENT;
+      settings.volume = value;
+      Profile::Set(ProfileKeys::SoundVolume, unsigned(settings.volume));
+      break;
+
+    default:
+      return XCS_ERROR_INVALID_ARGUMENT;
+    }
+
+    AudioVarioGlue::Configure(settings);
+    Profile::Save();
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_sound_get_option(xcs_core *core, uint32_t option, int32_t *value_r)
+{
+  if (core == nullptr || value_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [option, value_r]{
+    if (!AudioVarioGlue::HaveAudioVario())
+      return XCS_ERROR_FAILED;
+
+    const auto &settings = CommonInterface::GetUISettings().sound.vario;
+    switch (option) {
+    case XCS_SOUND_VARIO:
+      *value_r = settings.enabled;
+      return XCS_OK;
+
+    case XCS_SOUND_VARIO_VOLUME:
+      *value_r = settings.volume;
+      return XCS_OK;
+
+    default:
+      return XCS_ERROR_INVALID_ARGUMENT;
+    }
   });
 }
 

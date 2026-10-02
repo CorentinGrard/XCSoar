@@ -69,6 +69,7 @@ fun FlightScreen(
     val mapOrientation by viewModel.mapOrientation.collectAsStateWithLifecycle()
     val mapItems by viewModel.mapItems.collectAsStateWithLifecycle()
     val warnings by viewModel.airspaceWarnings.collectAsStateWithLifecycle()
+    val varioSound by viewModel.varioSound.collectAsStateWithLifecycle()
 
     FlightContent(
         state = state,
@@ -80,6 +81,8 @@ fun FlightScreen(
         warnings = warnings,
         onAcknowledge = viewModel::acknowledgeAirspace,
         onNextWaypoint = onOpenWaypoints,
+        varioSound = varioSound,
+        onVarioSound = viewModel::setVarioSound,
         menu = listOf(
             MenuAction("Go to waypoint", enabled = true, onClick = onOpenWaypoints),
             MenuAction("Flight setup", enabled = true, onClick = onOpenFlightSetup),
@@ -159,6 +162,8 @@ fun FlightContent(
     warnings: List<AirspaceWarningInfo> = emptyList(),
     onAcknowledge: (AirspaceWarningInfo, day: Boolean) -> Unit = { _, _ -> },
     onNextWaypoint: () -> Unit = {},
+    varioSound: Boolean? = null,
+    onVarioSound: (Boolean) -> Unit = {},
 ) {
     val colors = XcsTheme.colors
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
@@ -169,6 +174,7 @@ fun FlightContent(
         if (maxWidth > maxHeight && maxWidth >= 600.dp) {
             Row(Modifier.fillMaxSize()) {
                 MapArea(state, lastEvent, map, warnings, onAcknowledge, onNextWaypoint,
+                        varioSound, onVarioSound,
                         Modifier.weight(1f).fillMaxHeight(),
                         WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical +
                                                       WindowInsetsSides.Start))
@@ -190,6 +196,7 @@ fun FlightContent(
             val sheetMax = maxHeight - 160.dp
             Column(Modifier.fillMaxSize()) {
                 MapArea(state, lastEvent, map, warnings, onAcknowledge, onNextWaypoint,
+                        varioSound, onVarioSound,
                         Modifier.weight(1f).fillMaxWidth(),
                         WindowInsets.safeDrawing.only(WindowInsetsSides.Top +
                                                       WindowInsetsSides.Horizontal))
@@ -226,6 +233,9 @@ private fun MapArea(
     warnings: List<AirspaceWarningInfo>,
     onAcknowledge: (AirspaceWarningInfo, day: Boolean) -> Unit,
     onNextWaypoint: () -> Unit,
+    /** null: no vario sound on this device, no button */
+    varioSound: Boolean?,
+    onVarioSound: (Boolean) -> Unit,
     modifier: Modifier,
     insets: WindowInsets,
 ) {
@@ -305,15 +315,16 @@ private fun MapArea(
                 .padding(start = 12.dp, end = 84.dp, bottom = 12.dp))
         }
 
-        if (map != null)
-            Column(
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .windowInsetsPadding(insets)
-                    .padding(12.dp),
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+        Column(
+            Modifier
+                .align(Alignment.BottomEnd)
+                .windowInsetsPadding(insets)
+                .padding(12.dp),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            varioSound?.let { VarioSoundButton(it, onVarioSound) }
+            if (map != null) {
                 map.orientation?.let {
                     OrientationButton(it, mapAngle(it, state), map.onOrientation)
                 }
@@ -321,6 +332,7 @@ private fun MapArea(
                     CentreButton(map.onFollow)
                 ZoomButtons(map.onZoom)
             }
+        }
     }
 }
 
