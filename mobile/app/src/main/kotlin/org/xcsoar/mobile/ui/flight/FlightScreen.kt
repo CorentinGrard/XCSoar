@@ -251,12 +251,27 @@ private fun MapArea(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                map.orientation?.let { OrientationButton(it, map.onOrientation) }
+                map.orientation?.let {
+                    OrientationButton(it, mapAngle(it, state), map.onOrientation)
+                }
                 if (!map.follows)
                     CentreButton(map.onFollow)
                 ZoomButtons(map.onZoom)
             }
     }
+}
+
+/**
+ * The direction at the top of the map, for the orientation button's
+ * north mark: the same references the core turns the map with
+ * (core/map/CoreMap.cpp ScreenAngle()); null when the core has none.
+ */
+private fun mapAngle(orientation: MapOrientation, s: FlightState?): Double? = when (orientation) {
+    MapOrientation.NORTH_UP -> 0.0
+    MapOrientation.TRACK_UP -> s?.track
+    MapOrientation.TARGET_UP -> s?.next?.bearing ?: s?.track
+    MapOrientation.WIND_UP -> s?.wind?.bearing ?: s?.track
+    MapOrientation.HEADING_UP -> null
 }
 
 @Composable

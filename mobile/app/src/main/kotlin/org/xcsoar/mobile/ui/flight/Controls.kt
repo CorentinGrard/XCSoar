@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -297,11 +298,14 @@ fun CentreButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 /**
- * Map orientation: "N" with the north mark when north up, else the
- * reference the map turns with (track, target...).
+ * Map orientation: a north mark turned to where north is on the map,
+ * over the reference the map turns with ("N", "TRK", "TGT"...).
+ *
+ * @param mapAngle the map's rotation (degrees, the direction shown at
+ * the top); null when unknown, which hides the mark
  */
 @Composable
-fun OrientationButton(orientation: MapOrientation, onClick: () -> Unit,
+fun OrientationButton(orientation: MapOrientation, mapAngle: Double?, onClick: () -> Unit,
                       modifier: Modifier = Modifier) {
     val colors = XcsTheme.colors
     val (label, description) = when (orientation) {
@@ -322,15 +326,17 @@ fun OrientationButton(orientation: MapOrientation, onClick: () -> Unit,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        if (orientation == MapOrientation.NORTH_UP)
-            Canvas(Modifier.size(width = 14.dp, height = 10.dp)) {
+        Canvas(Modifier.size(14.dp)) {
+            if (mapAngle == null) return@Canvas
+            rotate(-mapAngle.toFloat()) {
                 drawPath(Path().apply {
                     moveTo(size.width / 2, 0f)
-                    lineTo(size.width, size.height)
-                    lineTo(0f, size.height)
+                    lineTo(size.width * 0.9f, size.height * 0.8f)
+                    lineTo(size.width * 0.1f, size.height * 0.8f)
                     close()
                 }, colors.warning)
             }
+        }
         Text(label, color = colors.text, style = XcsTheme.numberStyle,
              fontWeight = FontWeight.Bold, fontSize = 14.sp)
     }

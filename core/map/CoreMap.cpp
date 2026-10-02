@@ -52,7 +52,12 @@ namespace {
 /** MapWindow without a parent window: the core paints it itself. */
 class CoreMapWindow final : public MapWindow {
 public:
-  using MapWindow::MapWindow;
+  CoreMapWindow(const MapLook &look, const TrafficLook &traffic_look) noexcept
+    :MapWindow(look, traffic_look) {
+    /* the app's orientation button shows where north is; XCSoar's
+       compass would sit under the status bar */
+    compass_visible = false;
+  }
 
   void Paint(Canvas &canvas) noexcept {
     /* like GlueMapWindow::OnPaintBuffer(): with OpenGL, the main
