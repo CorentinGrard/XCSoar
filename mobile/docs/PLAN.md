@@ -372,6 +372,12 @@ Newest first. One line per session: what was done and what's next.
   (C API + task screens), checked on a Pixel 7. TestCoreApi extended
   (not runnable on this Fedora host: thirdparty.py has no native Linux
   target; needs the -devel packages). Next: field test, then M5.
+- 2026-10-02 — `make core-check` runs on this Fedora host (139 TAP checks,
+  golden replays, Formatter golden all pass) after fixing the host build
+  of the task/units API and a test crash.  Fedora recipe: the -devel
+  packages incl. libsodium, dbus, netcdf, libgeotiff, proj; a
+  `lua5.4.pc` alias (`Requires: lua`) on `PKG_CONFIG_PATH`; and
+  `LIBGEOTIFF_USE_PKG_CONFIG=y` (headers in /usr/include/libgeotiff).
 - 2026-10-02 — Units: settings screen, XCSoar's formatting rules in
   Kotlin with a golden test against the C++ Formatter (D9 done). Next:
   field test, then M5.

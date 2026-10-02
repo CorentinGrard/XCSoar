@@ -37,11 +37,11 @@
 #include "CoreListener.hpp"
 #include "CoreEventLoop.hpp"
 #include "CoreReceive.hpp"
+#include "CoreTask.hpp"
+#include "CoreUnits.hpp"
 
 #ifdef ANDROID
 #include "CoreMap.hpp"
-#include "CoreTask.hpp"
-#include "CoreUnits.hpp"
 #include "MapSettings.hpp"
 #endif
 #include "Interface.hpp"
@@ -1285,7 +1285,8 @@ xcs_repository_list(const char *path, char *buffer, size_t size,
     FileLineReaderA reader{Path{path}};
     ParseFileRepository(repository, reader);
   } catch (...) {
-    LogError(std::current_exception(), "Repository");
+    /* no LogError(): this works without a core, and so without the
+       data path the log file lives in */
     return XCS_ERROR_FAILED;
   }
 
