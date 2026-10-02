@@ -76,6 +76,12 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
     override suspend fun setMacCready(macCready: Double) =
         command { NativeCore.nativeSetMacCready(it, macCready) }
 
+    override suspend fun setBallast(litres: Double) =
+        command { NativeCore.nativeSetBallast(it, litres) }
+
+    override suspend fun setBugs(bugs: Double) =
+        command { NativeCore.nativeSetBugs(it, bugs) }
+
     override suspend fun startReplay(path: String, timeScale: Double) =
         command { NativeCore.nativeReplayStart(it, path, timeScale) }
 

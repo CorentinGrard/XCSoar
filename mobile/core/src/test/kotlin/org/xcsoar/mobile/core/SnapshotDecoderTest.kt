@@ -29,6 +29,9 @@ class SnapshotDecoderTest {
         // doubles 280..360: 1000 + field index
         for (i in 0 until 11)
             b.putDouble(280 + i * 8, 1000.0 + i)
+        // doubles 368..392: 2000 + field index
+        for (i in 0 until 4)
+            b.putDouble(368 + i * 8, 2000.0 + i)
         return b
     }
 
@@ -64,6 +67,10 @@ class SnapshotDecoderTest {
         assertEquals(1004.0, s.taskSpeed!!, 0.0)
         assertEquals(Thermal(1005.0, 1006.0, 1007.0), s.currentThermal)
         assertEquals(Thermal(1008.0, 1009.0, 1010.0), s.lastThermal)
+        assertEquals(2000.0, s.ballast, 0.0)
+        assertEquals(2001.0, s.maxBallast, 0.0)
+        assertEquals(2002.0, s.bugs, 0.0)
+        assertEquals(2003.0, s.wingLoading!!, 0.0)
     }
 
     @Test

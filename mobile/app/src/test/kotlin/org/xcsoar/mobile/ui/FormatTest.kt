@@ -34,4 +34,14 @@ class FormatTest {
         assertEquals("+++", Format.requiredGlideRatio(0.0).text)
         assertEquals("27.4", Format.requiredGlideRatio(27.43).text)
     }
+
+    @Test
+    fun polar() {
+        assertEquals("120", Format.ballast(119.6).text)
+        assertEquals("0", Format.bugs(1.0).text)
+        assertEquals("15", Format.bugs(0.85).text)
+        assertEquals("50", Format.bugs(0.5).text)
+        assertEquals("32.5", Format.wingLoading(32.46).text)
+        assertEquals(Format.INVALID, Format.wingLoading(null).text)
+    }
 }

@@ -72,8 +72,32 @@ fun MacCreadyControl(
     onChange: (Double) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = XcsTheme.colors
     val text = macCready?.let { Format.macCready(it).text } ?: Format.INVALID
+    Stepper("MacCready", "MC · m/s", text, "$text m/s",
+            canDecrease = macCready != null, canIncrease = macCready != null,
+            onDecrease = { onChange(-0.1) }, onIncrease = { onChange(+0.1) },
+            modifier = modifier)
+}
+
+/**
+ * − value + stepper.
+ *
+ * @param name what the value is, for the buttons' labels ("MacCready")
+ * @param spoken the value as a screen reader says it ("1.5 m/s")
+ */
+@Composable
+fun Stepper(
+    name: String,
+    caption: String,
+    text: String,
+    spoken: String,
+    canDecrease: Boolean,
+    canIncrease: Boolean,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = XcsTheme.colors
     Row(
         modifier = modifier
             .background(colors.panel, RoundedCornerShape(12.dp))
@@ -81,14 +105,14 @@ fun MacCreadyControl(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        StepButton("Decrease MacCready", plus = false, enabled = macCready != null) { onChange(-0.1) }
+        StepButton("Decrease $name", plus = false, enabled = canDecrease, onClick = onDecrease)
         Column(horizontalAlignment = Alignment.CenterHorizontally,
-               modifier = Modifier.clearAndSetSemantics { contentDescription = "MacCready $text m/s" }) {
-            Caption("MC · m/s")
+               modifier = Modifier.clearAndSetSemantics { contentDescription = "$name $spoken" }) {
+            Caption(caption)
             Text(text, color = colors.text, style = XcsTheme.numberStyle,
                  fontWeight = FontWeight.Bold, fontSize = 26.sp, maxLines = 1)
         }
-        StepButton("Increase MacCready", plus = true, enabled = macCready != null) { onChange(+0.1) }
+        StepButton("Increase $name", plus = true, enabled = canIncrease, onClick = onIncrease)
     }
 }
 

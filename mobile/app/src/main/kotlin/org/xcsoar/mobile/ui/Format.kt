@@ -40,6 +40,15 @@ object Format {
 
     fun macCready(ms: Double) = Value(f("%.1f", ms), "m/s")
 
+    fun ballast(litres: Double) = Value(litres.roundToInt().toString(), "l")
+
+    /** Bugs as XCSoar shows them: the performance lost, "0" (clean) to "50". */
+    fun bugs(bugs: Double) = Value(bugsPercent(bugs).toString(), "%")
+
+    fun bugsPercent(bugs: Double) = ((1 - bugs) * 100).roundToInt()
+
+    fun wingLoading(kgm2: Double?) = Value(kgm2?.let { f("%.1f", it) } ?: INVALID, "kg/m²")
+
     /** Hours and minutes, "2:05"; for flight time. */
     fun duration(s: Double?) = Value(
         s?.takeIf { it >= 0 }?.let {

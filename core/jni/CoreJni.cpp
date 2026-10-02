@@ -200,6 +200,20 @@ Java_org_xcsoar_mobile_NativeCore_nativeSetMacCready(JNIEnv *, jclass,
 }
 
 JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeSetBallast(JNIEnv *, jclass,
+                                                   jlong core, jdouble litres)
+{
+  return xcs_set_ballast(ToCore(core), litres);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeSetBugs(JNIEnv *, jclass,
+                                                jlong core, jdouble bugs)
+{
+  return xcs_set_bugs(ToCore(core), bugs);
+}
+
+JNIEXPORT jint JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeReplayStart(JNIEnv *env, jclass,
                                                     jlong core, jstring path,
                                                     jdouble time_scale)

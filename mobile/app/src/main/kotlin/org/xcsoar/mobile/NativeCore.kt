@@ -36,6 +36,8 @@ internal object NativeCore {
     @JvmStatic external fun nativeStop(core: Long): Int
     @JvmStatic external fun nativeDestroy(core: Long)
     @JvmStatic external fun nativeSetMacCready(core: Long, macCready: Double): Int
+    @JvmStatic external fun nativeSetBallast(core: Long, litres: Double): Int
+    @JvmStatic external fun nativeSetBugs(core: Long, bugs: Double): Int
     @JvmStatic external fun nativeReplayStart(core: Long, path: String, timeScale: Double): Int
     @JvmStatic external fun nativeReplayStop(core: Long): Int
     /** @param kind an `xcs_data_file`; [path] null removes the file */

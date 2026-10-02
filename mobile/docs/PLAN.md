@@ -17,13 +17,13 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M1 | Headless core behind the C API, replay tests on the host | ☑ done |
 | M2 | Android skeleton: replay an IGC, see live InfoBoxes | ◐ demo works on the emulator |
 | M3 | Moving map in the new app | ◐ map, gestures, hold card on the phone |
-| M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ background service, Go To, airspace warnings |
+| M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ background service, Go To, MC/ballast/bugs, airspace warnings |
 | M5 | External devices: Bluetooth / BLE / USB, drivers, declaration | ☐ |
 | M6 | Settings, profiles, data management | ☐ |
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** M4 (MC / ballast / bugs, vario audio, IGC logging, task)
+**Current focus:** M4 (vario audio, IGC logging, task)
 
 ---
 
@@ -270,7 +270,13 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       stays in `XcsoarApp`.  Checked on a Pixel 7 (Android 16): GPS fixes
       keep reaching the app with the screen off and another app in front
 - [ ] Internal GPS + barometer → core (reuse `InternalGPS.java`, `NonGPSSensors.java`)
-- [ ] MC / ballast / bugs quick controls
+- [x] MC / ballast / bugs: MC −/+ on the flight screen; Menu → Flight
+      setup for water ballast (5 l steps, Empty / Full, up to the plane's
+      maximum), bugs (5 % steps, 0–50 % like XCSoar) and the wing loading.
+      Snapshot fields `ballast`, `max_ballast`, `bugs`, `wing_loading`
+      (struct_size 400), `xcs_set_ballast` / `xcs_set_bugs` (XCSoar's
+      ActionInterface, so devices get them too).  Ballast dump timer and
+      crew mass: later, with the plane settings (M6)
 - [x] Go To: from the map's hold card and from a waypoint list (Menu → Go
       to waypoint, or tap the next waypoint card): nearest first, landable /
       airports / all, name search, distance, bearing and arrival height
@@ -328,8 +334,10 @@ Newest first. One line per session: what was done and what's next.
 
 - 2026-10-02 — `FlightService`: the flight computer keeps running with the
   screen off or another app in front (location foreground service, wake
-  lock, notification). Checked on a Pixel 7. Next: MC / ballast / bugs
-  quick controls, vario audio, IGC logging.
+  lock, notification). Checked on a Pixel 7. Flight setup screen: water
+  ballast and bugs through the C API (TestCoreApi extended; not run
+  locally, the Fedora host lacks fmt-devel and friends: CI runs it).
+  Next: vario audio, IGC logging.
 
 - 2026-10-02 — Data files screen (map/airspace/waypoints via the system
   picker) and XCSoar's moving map in the app, both working on a Pixel 7

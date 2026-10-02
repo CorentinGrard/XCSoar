@@ -123,6 +123,8 @@ TestNotStarted(xcs_core *core)
 
   ok1(xcs_stop(core) == XCS_ERROR_STATE);
   ok1(xcs_set_mac_cready(core, 1) == XCS_ERROR_STATE);
+  ok1(xcs_set_ballast(core, 0) == XCS_ERROR_STATE);
+  ok1(xcs_set_bugs(core, 1) == XCS_ERROR_STATE);
   ok1(xcs_get_snapshot(core, &s) == XCS_ERROR_STATE);
   ok1(xcs_replay_run(core, FLIGHT, 60, nullptr) == XCS_ERROR_STATE);
   ok1(xcs_set_data_file(core, XCS_DATA_AIRSPACE, AIRSPACE) == XCS_ERROR_STATE);
@@ -211,6 +213,18 @@ TestStarted(xcs_core *core, Recorder &recorder)
   ok1(xcs_set_mac_cready(core, std::numeric_limits<double>::quiet_NaN()) == XCS_ERROR_INVALID_ARGUMENT);
   ok1(xcs_set_mac_cready(core, 1.5) == XCS_OK);
 
+  /* the profile's plane decides the maximum (0 without water) */
+  const double ballast = s.max_ballast / 2;
+  ok1(xcs_set_ballast(core, -1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_ballast(core, std::numeric_limits<double>::quiet_NaN()) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_ballast(core, s.max_ballast + 1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_ballast(core, ballast) == XCS_OK);
+
+  ok1(xcs_set_bugs(core, 0.4) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_bugs(core, 1.1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_bugs(core, std::numeric_limits<double>::quiet_NaN()) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_bugs(core, 0.8) == XCS_OK);
+
   ok1(xcs_replay_run(core, "test/data/does-not-exist.igc", 60, nullptr)
       == XCS_ERROR_FAILED);
 
@@ -226,7 +240,7 @@ TestStarted(xcs_core *core, Recorder &recorder)
     ok1(recorder.replay_finished == 1);
 
     bool increasing = true, flew = false, located = false,
-      mc_kept = true;
+      mc_kept = true, polar_kept = true;
     uint64_t last = 0;
     for (const auto &snapshot : recorder.snapshots) {
       increasing = increasing && snapshot.sequence > last;
@@ -234,11 +248,14 @@ TestStarted(xcs_core *core, Recorder &recorder)
       flew = flew || (snapshot.flags & XCS_FLAG_FLYING);
       located = located || (snapshot.valid & XCS_VALID_LOCATION);
       mc_kept = mc_kept && equals(snapshot.mac_cready, 1.5);
+      polar_kept = polar_kept && equals(snapshot.ballast, ballast) &&
+        equals(snapshot.bugs, 0.8) && snapshot.wing_loading >= 0;
     }
     ok1(increasing);
     ok1(flew);
     ok1(located);
     ok1(mc_kept);
+    ok1(polar_kept);
   }
 
   ok1(recorder.HasEvent(XCS_GCE_TAKEOFF));
@@ -309,7 +326,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 8 + 6 + 25 + 15 + 7);
+  plan_tests(9 + 10 + 6 + 34 + 15 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);

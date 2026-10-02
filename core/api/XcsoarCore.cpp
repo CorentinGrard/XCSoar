@@ -103,7 +103,8 @@ static_assert(offsetof(xcs_flight_snapshot, time_utc) == 24);
 static_assert(offsetof(xcs_flight_snapshot, next_name) == 216);
 static_assert(offsetof(xcs_flight_snapshot, speed_to_fly) == 280);
 static_assert(offsetof(xcs_flight_snapshot, last_thermal_duration) == 360);
-static_assert(sizeof(xcs_flight_snapshot) == 368);
+static_assert(offsetof(xcs_flight_snapshot, ballast) == 368);
+static_assert(sizeof(xcs_flight_snapshot) == 400);
 
 #ifdef ANDROID
 /* xcs_map_orientation is XCSoar's MapOrientation */
@@ -302,7 +303,12 @@ FillSnapshot(xcs_flight_snapshot &s) noexcept
     s.wind_bearing = calculated.wind.bearing.Degrees();
   }
 
-  s.mac_cready = settings.polar.glide_polar_task.GetMC();
+  const GlidePolar &polar = settings.polar.glide_polar_task;
+  s.mac_cready = polar.GetMC();
+  s.ballast = polar.GetBallastLitres();
+  s.max_ballast = polar.IsBallastable() ? polar.GetMaxBallast() : 0;
+  s.bugs = settings.polar.bugs;
+  s.wing_loading = polar.GetWingLoading();
 
   /* the conditions of the matching InfoBoxes (src/InfoBoxes/Content) */
   if (const auto stf = GetSTFSpeed(basic, calculated)) {
@@ -635,6 +641,36 @@ xcs_set_mac_cready(xcs_core *core, double mac_cready)
 
   return RunOnMain(*core, [mac_cready]{
     ActionInterface::SetManualMacCready(mac_cready, true);
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_set_ballast(xcs_core *core, double litres)
+{
+  if (core == nullptr || !(litres >= 0))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [litres]{
+    const GlidePolar &polar =
+      CommonInterface::GetComputerSettings().polar.glide_polar_task;
+    const double max = polar.IsBallastable() ? polar.GetMaxBallast() : 0;
+    if (litres > max)
+      return XCS_ERROR_INVALID_ARGUMENT;
+
+    ActionInterface::SetBallastLitres(litres, true);
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_set_bugs(xcs_core *core, double bugs)
+{
+  if (core == nullptr || !(bugs >= 0.5 && bugs <= 1))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [bugs]{
+    ActionInterface::SetBugs(bugs, true);
     return XCS_OK;
   });
 }

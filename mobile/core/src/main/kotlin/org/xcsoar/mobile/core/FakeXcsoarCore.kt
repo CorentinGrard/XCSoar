@@ -34,6 +34,8 @@ class FakeXcsoarCore(
 
     private var job: Job? = null
     private var macCready = 1.0
+    private var ballast = 0.0
+    private var bugs = 1.0
 
     override suspend fun start() {
         if (job != null) return
@@ -41,7 +43,7 @@ class FakeXcsoarCore(
             var second = 0
             var wasCircling = false
             while (true) {
-                val s = syntheticState(second, macCready)
+                val s = syntheticState(second, macCready).copy(ballast = ballast, bugs = bugs)
                 state.value = s
                 if (s.circling != wasCircling) {
                     eventFlow.emit(CoreEvent.GlideComputer(
@@ -64,6 +66,18 @@ class FakeXcsoarCore(
         require(macCready in 0.0..5.0) { "MacCready $macCready" }
         this.macCready = macCready
         state.value = state.value?.copy(macCready = macCready)
+    }
+
+    override suspend fun setBallast(litres: Double) {
+        require(litres in 0.0..FAKE_MAX_BALLAST) { "ballast $litres" }
+        ballast = litres
+        state.value = state.value?.copy(ballast = litres)
+    }
+
+    override suspend fun setBugs(bugs: Double) {
+        require(bugs in 0.5..1.0) { "bugs $bugs" }
+        this.bugs = bugs
+        state.value = state.value?.copy(bugs = bugs)
     }
 
     private val mapOptions = mutableMapOf(
@@ -99,6 +113,8 @@ class FakeXcsoarCore(
     }
 
     companion object {
+        private const val FAKE_MAX_BALLAST = 150.0
+
         /** A flight second: 5 min cruise then 3 min thermal, repeated. */
         fun syntheticState(second: Int, macCready: Double = 1.0): FlightState {
             val cycle = second % 480
@@ -144,6 +160,8 @@ class FakeXcsoarCore(
                 currentThermal = if (circling)
                     Thermal(2.1, (cycle - 300) * 2.0, (cycle - 300).toDouble()) else null,
                 lastThermal = Thermal(2.1, 420.0, 204.0),
+                maxBallast = FAKE_MAX_BALLAST,
+                wingLoading = 32.5,
             )
         }
     }

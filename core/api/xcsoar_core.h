@@ -190,6 +190,18 @@ typedef struct xcs_flight_snapshot {
   double last_thermal_lift;
   double last_thermal_gain;
   double last_thermal_duration;
+
+  /* appended in API version 1 (struct_size 400); always valid */
+
+  /** Water ballast on board, litres. */
+  double ballast;
+  /** The plane's maximum water ballast, litres; 0 if it carries none. */
+  double max_ballast;
+  /** Performance left by bugs, XCSoar's convention: 1 clean, 0.5
+      means the sink rate is doubled. */
+  double bugs;
+  /** Wing loading, kg/m²; 0 if the plane's wing area is unknown. */
+  double wing_loading;
 } xcs_flight_snapshot;
 
 /*
@@ -310,6 +322,16 @@ xcs_api_version(void);
 /** Set the MacCready value (m/s, 0..5) and send it to the devices. */
 XCS_EXPORT xcs_status
 xcs_set_mac_cready(xcs_core *core, double mac_cready);
+
+/** Set the water ballast (litres, 0..max_ballast of the snapshot) and
+    send it to the devices. */
+XCS_EXPORT xcs_status
+xcs_set_ballast(xcs_core *core, double litres);
+
+/** Set the bugs (0.5..1, 1 = clean, as in the snapshot) and send them
+    to the devices. */
+XCS_EXPORT xcs_status
+xcs_set_bugs(xcs_core *core, double bugs);
 
 /** Copy the latest snapshot. */
 XCS_EXPORT xcs_status

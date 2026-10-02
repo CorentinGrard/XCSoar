@@ -27,6 +27,12 @@ interface XcsoarCore {
     /** MacCready setting, m/s (0..5). */
     suspend fun setMacCready(macCready: Double)
 
+    /** Water ballast, litres (0..[FlightState.maxBallast]). */
+    suspend fun setBallast(litres: Double)
+
+    /** Bugs, 0.5..1 (1 = clean), as in [FlightState.bugs]. */
+    suspend fun setBugs(bugs: Double)
+
     /**
      * Use [path] for [kind] (null removes it), save the profile and load
      * the data again.  Suspends while the core loads.

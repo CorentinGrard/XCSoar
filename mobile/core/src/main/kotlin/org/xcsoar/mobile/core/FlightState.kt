@@ -67,6 +67,15 @@ data class FlightState(
     /** The thermal being climbed. */
     val currentThermal: Thermal? = null,
     val lastThermal: Thermal? = null,
+
+    /** Water ballast on board, litres. */
+    val ballast: Double = 0.0,
+    /** The plane's maximum water ballast, litres; 0 if it carries none. */
+    val maxBallast: Double = 0.0,
+    /** Performance left by bugs: 1 clean, 0.5 = sink rate doubled. */
+    val bugs: Double = 1.0,
+    /** kg/m², null if the plane's wing area is unknown. */
+    val wingLoading: Double? = null,
 )
 
 /** One climb: average lift (m/s), height gained (m), time (s). */

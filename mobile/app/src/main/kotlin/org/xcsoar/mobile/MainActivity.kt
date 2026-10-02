@@ -30,10 +30,12 @@ import org.xcsoar.mobile.ui.map.MapSettingsScreen
 import org.xcsoar.mobile.ui.waypoints.WaypointsScreen
 import org.xcsoar.mobile.ui.waypoints.WaypointsViewModel
 import org.xcsoar.mobile.ui.map.MapSettingsViewModel
+import org.xcsoar.mobile.ui.setup.FlightSetupScreen
+import org.xcsoar.mobile.ui.setup.FlightSetupViewModel
 import org.xcsoar.mobile.ui.flight.FlightViewModel
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
-private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS }
+private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP }
 
 class MainActivity : ComponentActivity() {
     private val app get() = application as XcsoarApp
@@ -110,6 +112,10 @@ class MainActivity : ComponentActivity() {
                     initializer { WaypointsViewModel(app.anyCore) }
                 })
 
+                val setupViewModel: FlightSetupViewModel = viewModel(factory = viewModelFactory {
+                    initializer { FlightSetupViewModel(app.anyCore) }
+                })
+
                 LaunchedEffect(flightViewModel) {
                     flightViewModel.alerts.collect { alerts.play(it) }
                 }
@@ -121,6 +127,7 @@ class MainActivity : ComponentActivity() {
                         onOpenDataFiles = { screen = Screen.DATA_FILES },
                         onOpenMapSettings = { screen = Screen.MAP_SETTINGS },
                         onOpenWaypoints = { screen = Screen.WAYPOINTS },
+                        onOpenFlightSetup = { screen = Screen.FLIGHT_SETUP },
                     )
                     Screen.DATA_FILES -> DataFilesScreen(
                         dataViewModel,
@@ -141,6 +148,8 @@ class MainActivity : ComponentActivity() {
                         waypointsViewModel, onDone = { screen = Screen.FLIGHT })
                     Screen.MAP_SETTINGS -> MapSettingsScreen(
                         mapViewModel, onBack = { screen = Screen.FLIGHT })
+                    Screen.FLIGHT_SETUP -> FlightSetupScreen(
+                        setupViewModel, onBack = { screen = Screen.FLIGHT })
                 }
             }
         }
