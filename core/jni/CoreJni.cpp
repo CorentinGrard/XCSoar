@@ -359,4 +359,11 @@ Java_org_xcsoar_mobile_NativeCore_nativeMapGetOption(JNIEnv *, jclass,
     : INT32_MIN;
 }
 
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeGotoWaypoint(JNIEnv *, jclass,
+                                                     jlong core, jint id)
+{
+  return xcs_goto_waypoint(ToCore(core), id);
+}
+
 } // extern "C"

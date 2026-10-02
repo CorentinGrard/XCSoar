@@ -36,6 +36,12 @@ interface XcsoarCore {
     /** The configured data files and what was loaded from them. */
     suspend fun dataStatus(): DataStatus
 
+    /**
+     * Fly directly to this waypoint (XCSoar's "Go to"); it becomes the
+     * next point.  Fails if the profile only allows landable targets.
+     */
+    suspend fun gotoWaypoint(id: Int) {}
+
     /** Whether this core draws XCSoar's moving map ([attachMap]). */
     val hasMap: Boolean get() = false
 

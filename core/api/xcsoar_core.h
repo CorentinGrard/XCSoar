@@ -283,6 +283,15 @@ xcs_set_mac_cready(xcs_core *core, double mac_cready);
 XCS_EXPORT xcs_status
 xcs_get_snapshot(xcs_core *core, xcs_flight_snapshot *snapshot);
 
+/**
+ * Fly directly to a waypoint (XCSoar's "Go to"): the next point of the
+ * snapshot becomes that waypoint.  waypoint_id comes from
+ * xcs_map_items_at().  XCS_ERROR_FAILED when the profile only allows
+ * landable go-to targets and this one is not.
+ */
+XCS_EXPORT xcs_status
+xcs_goto_waypoint(xcs_core *core, uint32_t waypoint_id);
+
 /*
  * Data files: the same files and profile settings as XCSoar.
  */
@@ -421,7 +430,7 @@ xcs_map_get_option(xcs_core *core, uint32_t option, int32_t *value_r);
  *
  *   [{"type": "airspace", "name": "LF-R 46 N", "class": "Restricted",
  *     "top": "FL95", "base": "SFC"},
- *    {"type": "waypoint", "name": "Anduze", "landable": false,
+ *    {"type": "waypoint", "id": 42, "name": "Anduze", "landable": false,
  *     "elevation": 136.0, "frequency": "123.500", "detail": "..."},
  *    {"type": "location", "elevation": 646.0}, ...]
  *

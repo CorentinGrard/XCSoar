@@ -87,6 +87,9 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
         DataStatus.parse(checkNotNull(json) { "xcs_get_data_status failed" })
     }
 
+    override suspend fun gotoWaypoint(id: Int) =
+        command { NativeCore.nativeGotoWaypoint(it, id) }
+
     override val hasMap get() = true
 
     override suspend fun attachMap(surface: Any, width: Int, height: Int, dpi: Int) =

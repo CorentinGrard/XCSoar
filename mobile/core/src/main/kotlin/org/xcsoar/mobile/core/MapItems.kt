@@ -16,6 +16,8 @@ import kotlinx.serialization.json.Json
 data class MapItemInfo(
     /** location, self, task, airspace, thermal, waypoint, traffic, other */
     val type: String,
+    /** Waypoints: for [XcsoarCore.gotoWaypoint]. */
+    val id: Int? = null,
     val name: String? = null,
     val detail: String? = null,
     /** Airspace class or type, formatted by XCSoar. */

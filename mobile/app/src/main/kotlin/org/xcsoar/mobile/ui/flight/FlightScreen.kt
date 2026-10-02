@@ -96,6 +96,7 @@ fun FlightScreen(
             onHold = viewModel::showMapItems,
             items = mapItems,
             onCloseItems = viewModel::hideMapItems,
+            onGoto = viewModel::gotoWaypoint,
         ) else null,
     )
 }
@@ -113,6 +114,7 @@ fun FlightScreen(
  * @param onOrientation switch to the next orientation
  * @param onHold the pilot held this point (pixels): show what is there
  * @param items what is at the held point; null when not shown
+ * @param onGoto fly directly to a waypoint of [items]
  */
 class MapSlot(
     val content: @Composable (Modifier) -> Unit,
@@ -126,6 +128,7 @@ class MapSlot(
     val onHold: (x: Int, y: Int) -> Unit = { _, _ -> },
     val items: List<MapItemInfo>? = null,
     val onCloseItems: () -> Unit = {},
+    val onGoto: (waypointId: Int) -> Unit = {},
 )
 
 /**
@@ -272,7 +275,7 @@ private fun MapArea(
         }
 
         map?.items?.let {
-            MapItemsCard(it, map.onCloseItems, Modifier
+            MapItemsCard(it, map.onCloseItems, map.onGoto, Modifier
                 .align(Alignment.BottomStart)
                 .windowInsetsPadding(insets)
                 .padding(start = 12.dp, end = 84.dp, bottom = 12.dp))

@@ -424,6 +424,7 @@ Describe(const MapItem &item) noexcept
   case MapItem::Type::WAYPOINT: {
     const auto &waypoint = *static_cast<const WaypointMapItem &>(item).waypoint;
     o["type"] = "waypoint";
+    o["id"] = waypoint.id;
     o["name"] = waypoint.name.c_str();
     o["landable"] = waypoint.IsLandable();
     if (waypoint.has_elevation)

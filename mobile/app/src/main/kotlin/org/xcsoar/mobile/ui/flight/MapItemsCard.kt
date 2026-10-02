@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -40,7 +43,12 @@ import org.xcsoar.mobile.ui.theme.XcsTheme
  * (ARCHITECTURE.md §1, no dialogs over the map in flight).
  */
 @Composable
-fun MapItemsCard(items: List<MapItemInfo>, onClose: () -> Unit, modifier: Modifier = Modifier) {
+fun MapItemsCard(
+    items: List<MapItemInfo>,
+    onClose: () -> Unit,
+    onGoto: (waypointId: Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = XcsTheme.colors
     FloatingCard(modifier, RoundedCornerShape(16.dp)) {
         Column(Modifier.fillMaxWidth()) {
@@ -72,14 +80,33 @@ fun MapItemsCard(items: List<MapItemInfo>, onClose: () -> Unit, modifier: Modifi
                         HorizontalDivider(color = colors.panelBorder,
                                           modifier = Modifier.padding(horizontal = 14.dp))
                     val (title, detail) = describe(item)
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-                           verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(title, color = colors.text, fontSize = 17.sp,
-                             fontWeight = FontWeight.SemiBold, maxLines = 2,
-                             overflow = TextOverflow.Ellipsis)
-                        if (detail.isNotEmpty())
-                            Text(detail, color = colors.textSecondary, fontSize = 15.sp,
-                                 maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f).padding(vertical = 10.dp),
+                               verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(title, color = colors.text, fontSize = 17.sp,
+                                 fontWeight = FontWeight.SemiBold, maxLines = 2,
+                                 overflow = TextOverflow.Ellipsis)
+                            if (detail.isNotEmpty())
+                                Text(detail, color = colors.textSecondary, fontSize = 15.sp,
+                                     maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        }
+                        val waypointId = item.id
+                        if (item.type == "waypoint" && waypointId != null)
+                            Box(Modifier
+                                    .padding(start = 8.dp)
+                                    .height(48.dp)
+                                    .widthIn(min = 72.dp)
+                                    .background(colors.task, RoundedCornerShape(10.dp))
+                                    .clickable(role = Role.Button,
+                                               onClickLabel = "Go to ${item.name}") {
+                                        onGoto(waypointId)
+                                    }
+                                    .padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.Center) {
+                                Text("Go to", color = colors.onSelected, fontSize = 15.sp,
+                                     fontWeight = FontWeight.SemiBold)
+                            }
                     }
                 }
             }

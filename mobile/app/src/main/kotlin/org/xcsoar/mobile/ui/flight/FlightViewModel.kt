@@ -222,6 +222,18 @@ class FlightViewModel(
         }
     }
 
+    /** "Go to" from the map items; closes them. */
+    fun gotoWaypoint(id: Int) {
+        mapItemsFlow.value = null
+        viewModelScope.launch {
+            try {
+                core.gotoWaypoint(id)
+            } catch (_: Exception) {
+                lastEventFlow.value = "Go to: only landable waypoints (profile setting)"
+            }
+        }
+    }
+
     fun hideMapItems() {
         mapItemsFlow.value = null
     }

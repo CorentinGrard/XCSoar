@@ -258,7 +258,9 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 - [ ] Location permission + foreground service (GPS keeps running with screen off)
 - [ ] Internal GPS + barometer → core (reuse `InternalGPS.java`, `NonGPSSensors.java`)
 - [ ] MC / ballast / bugs quick controls
-- [ ] Waypoint search (nearest, name, type) + Go To
+- [~] Go To: "Go to" on waypoints in the map's hold card
+      (`xcs_goto_waypoint`, like XCSoar's map item list); waypoint search
+      (nearest, name, type) still to do
 - [ ] Task: view, edit (points, sectors, AAT), load/save `.tsk`/`.cup`, advance/restart
 - [ ] Airspace warnings: banner + acknowledge actions + sound
 - [ ] Vario / speed-to-fly audio (reuse `src/Audio` synthesizer through an AAudio sink)

@@ -48,7 +48,7 @@ class MapItemInfoTest {
         val items = MapItemInfo.parseList(
             """[{"type":"airspace","name":"LF-R 46 N","class":"Restricted",""" +
                 """"top":"FL95","base":"SFC"},""" +
-                """{"type":"waypoint","name":"Anduze","landable":false,"elevation":136.0,""" +
+                """{"type":"waypoint","id":42,"name":"Anduze","landable":false,"elevation":136.0,""" +
                 """"frequency":"123.500"},{"type":"location","elevation":646.5},""" +
                 """{"type":"traffic"}]""")
 
@@ -56,6 +56,7 @@ class MapItemInfoTest {
         assertEquals("Restricted", items[0].`class`)
         assertEquals("FL95", items[0].top)
         assertEquals(false, items[1].landable)
+        assertEquals(42, items[1].id)
         assertEquals("123.500", items[1].frequency)
         assertEquals(646.5, items[2].elevation!!, 0.0)
         assertEquals(null, items[3].name)

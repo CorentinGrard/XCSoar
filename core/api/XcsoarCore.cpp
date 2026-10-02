@@ -13,6 +13,7 @@
  */
 
 #include "xcsoar_core.h"
+#include "Protection.hpp"
 #include "CoreStartup.hpp"
 #include "CoreListener.hpp"
 #include "CoreEventLoop.hpp"
@@ -883,6 +884,30 @@ xcs_map_get_option(xcs_core *core, uint32_t option, int32_t *value_r)
   (void)option;
   return XCS_ERROR_FAILED;
 #endif
+}
+
+xcs_status
+xcs_goto_waypoint(xcs_core *core, uint32_t waypoint_id)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [waypoint_id]{
+    auto &waypoints = *data_components->waypoints;
+    auto waypoint = waypoints.LookupId(waypoint_id);
+    if (waypoint == nullptr)
+      return XCS_ERROR_INVALID_ARGUMENT;
+
+    /* like MapItemListWidget::OnGotoClicked() */
+    {
+      const ScopeSuspendAllThreads suspend;
+      waypoints.EraseTempGoto();
+    }
+
+    return backend_components->protected_task_manager->DoGoto(std::move(waypoint))
+      ? XCS_OK
+      : XCS_ERROR_FAILED;
+  });
 }
 
 static xcs_status
