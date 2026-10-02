@@ -293,6 +293,38 @@ XCS_EXPORT xcs_status
 xcs_goto_waypoint(xcs_core *core, uint32_t waypoint_id);
 
 /*
+ * Airspace warnings, as XCSoar's warning manager computes them.
+ */
+
+/**
+ * The active (not acknowledged) airspace warnings, most severe first, as
+ * a JSON array (UTF-8, null-terminated):
+ *
+ *   [{"id": "0x7c3a...", "state": "inside", "name": "LF-R 46 N",
+ *     "class": "Restricted", "top": "FL95", "base": "SFC",
+ *     "distance": 1200.0, "time": 85.0}, ...]
+ *
+ * "state" is inside, near (predicted to be entered soon) or task (the
+ * task crosses it); "distance" (m) and "time" (s) to the airspace are
+ * present when known.  "id" is for xcs_airspace_acknowledge().  Buffer
+ * rules as for xcs_get_data_status().  XCS_GCE_AIRSPACE_* events tell
+ * when to ask again.
+ */
+XCS_EXPORT xcs_status
+xcs_get_airspace_warnings(xcs_core *core, char *buffer, size_t size,
+                          size_t *length_r);
+
+enum {
+  /** Until the warning changes (e.g. from near to inside). */
+  XCS_ACK_WARNING = 0,
+  /** For the rest of the day. */
+  XCS_ACK_DAY = 1,
+};
+
+XCS_EXPORT xcs_status
+xcs_airspace_acknowledge(xcs_core *core, const char *id, uint32_t mode);
+
+/*
  * Data files: the same files and profile settings as XCSoar.
  */
 

@@ -44,12 +44,14 @@ bool
 ScanBitmapForColors(JNIEnv *env, jobject bmp) noexcept
 {
   AndroidBitmapInfo info;
-  if (AndroidBitmap_getInfo(env, bmp, &info) != ANDROID_BITMAP_RESULT_SUCCESS ||
+  if (AndroidBitmap_getInfo(env, bmp, &info) !=
+      ANDROID_BITMAP_RESULT_SUCCESS ||
       info.format != ANDROID_BITMAP_FORMAT_RGBA_8888)
     return false;
 
   void *pixels;
-  if (AndroidBitmap_lockPixels(env, bmp, &pixels) != ANDROID_BITMAP_RESULT_SUCCESS)
+  if (AndroidBitmap_lockPixels(env, bmp, &pixels) !=
+      ANDROID_BITMAP_RESULT_SUCCESS)
     return false;
 
   bool found = false;

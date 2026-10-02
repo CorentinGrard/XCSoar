@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.xcsoar.mobile.core.AirspaceWarningInfo
 import org.xcsoar.mobile.core.CoreEvent
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.GlideComputerEvent
@@ -55,7 +56,38 @@ class FlightViewModel(
             override ?: (state?.circling == true)
         }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
+    private val warningsFlow = MutableStateFlow<List<AirspaceWarningInfo>>(emptyList())
+    /** Active airspace warnings, most severe first. */
+    val airspaceWarnings: StateFlow<List<AirspaceWarningInfo>> = warningsFlow.asStateFlow()
+
+    private suspend fun refreshWarnings() {
+        warningsFlow.value = try {
+            core.airspaceWarnings()
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    fun acknowledgeAirspace(warning: AirspaceWarningInfo, day: Boolean) {
+        viewModelScope.launch {
+            try {
+                core.acknowledgeAirspace(warning.id, day)
+            } catch (_: Exception) {
+                // gone meanwhile
+            }
+            refreshWarnings()
+        }
+    }
+
     init {
+        // warnings change slowly; the airspace events below speed this up
+        viewModelScope.launch {
+            while (true) {
+                if (flightState.value != null)
+                    refreshWarnings()
+                delay(WARNING_POLL_MS)
+            }
+        }
         viewModelScope.launch {
             try {
                 core.start()
@@ -66,6 +98,9 @@ class FlightViewModel(
         }
         viewModelScope.launch {
             core.events.collect { event ->
+                if (event is CoreEvent.GlideComputer &&
+                    event.event in AIRSPACE_EVENTS)
+                    launch { refreshWarnings() }
                 if (event is CoreEvent.GlideComputer &&
                     (event.event == GlideComputerEvent.FLIGHTMODE_CLIMB ||
                      event.event == GlideComputerEvent.FLIGHTMODE_CRUISE))
@@ -277,3 +312,9 @@ class FlightViewModel(
 
 /** 5 screen updates per second: smooth enough for the vario. */
 private const val UI_INTERVAL_MS = 200L
+
+private const val WARNING_POLL_MS = 1000L
+
+private val AIRSPACE_EVENTS = setOf(
+    GlideComputerEvent.AIRSPACE_NEAR, GlideComputerEvent.AIRSPACE_ENTER,
+    GlideComputerEvent.AIRSPACE_LEAVE)

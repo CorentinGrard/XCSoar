@@ -13,6 +13,11 @@
  */
 
 #include "xcsoar_core.h"
+#include "Formatter/AirspaceFormatter.hpp"
+#include "Engine/Airspace/AbstractAirspace.hpp"
+#include "Engine/Airspace/AirspaceWarning.hpp"
+#include "Engine/Airspace/AirspaceWarningManager.hpp"
+#include "Airspace/ProtectedAirspaceWarningManager.hpp"
 #include "util/HexFormat.hxx"
 #include "io/FileLineReader.hpp"
 #include "Repository/FileType.hpp"
@@ -910,7 +915,8 @@ xcs_goto_waypoint(xcs_core *core, uint32_t waypoint_id)
       waypoints.EraseTempGoto();
     }
 
-    return backend_components->protected_task_manager->DoGoto(std::move(waypoint))
+    auto &task_manager = *backend_components->protected_task_manager;
+    return task_manager.DoGoto(std::move(waypoint))
       ? XCS_OK
       : XCS_ERROR_FAILED;
   });
@@ -991,6 +997,119 @@ xcs_repository_list(const char *path, char *buffer, size_t size,
 
   std::memcpy(buffer, json.c_str(), json.size() + 1);
   return XCS_OK;
+}
+
+/** An opaque id for an airspace, valid while it is loaded. */
+static std::string
+AirspaceId(const AbstractAirspace &airspace) noexcept
+{
+  char buffer[32];
+  snprintf(buffer, sizeof(buffer), "%p", (const void *)&airspace);
+  return buffer;
+}
+
+static const char *
+WarningStateName(AirspaceWarning::State state) noexcept
+{
+  switch (state) {
+  case AirspaceWarning::WARNING_INSIDE:
+    return "inside";
+  case AirspaceWarning::WARNING_GLIDE:
+  case AirspaceWarning::WARNING_FILTER:
+    return "near";
+  case AirspaceWarning::WARNING_TASK:
+    return "task";
+  case AirspaceWarning::WARNING_CLEAR:
+    break;
+  }
+  return "clear";
+}
+
+xcs_status
+xcs_get_airspace_warnings(xcs_core *core, char *buffer, size_t size,
+                          size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [buffer, size, length_r]{
+    boost::json::array warnings;
+
+    if (auto *manager = backend_components->GetAirspaceWarnings()) {
+      const ProtectedAirspaceWarningManager::Lease lease{*manager};
+      const AirspaceWarningManager &list = lease;
+      /* most severe first, like the warning dialog */
+      for (const auto &warning : list) {
+        if (!warning.IsActive() || !warning.IsWarning())
+          continue;
+
+        const auto &airspace = warning.GetAirspace();
+        char top[64], base[64];
+        AirspaceFormatter::FormatAltitudeShort(top, airspace.GetTop());
+        AirspaceFormatter::FormatAltitudeShort(base, airspace.GetBase());
+
+        boost::json::object o{
+          {"id", AirspaceId(airspace)},
+          {"state", WarningStateName(warning.GetWarningState())},
+          {"name", airspace.GetName()},
+          {"class", AirspaceFormatter::GetClassOrType(airspace)},
+          {"top", top},
+          {"base", base},
+        };
+
+        const auto &solution = warning.GetSolution();
+        if (solution.IsValid()) {
+          o["distance"] = solution.distance;
+          o["time"] = solution.elapsed_time.count();
+        }
+
+        warnings.emplace_back(std::move(o));
+      }
+    }
+
+    StringOutputStream os;
+    Json::Serialize(os, warnings);
+    const auto &json = os.GetValue();
+    *length_r = json.size();
+    if (json.size() >= size)
+      return XCS_ERROR_INVALID_ARGUMENT;
+
+    std::memcpy(buffer, json.c_str(), json.size() + 1);
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_airspace_acknowledge(xcs_core *core, const char *id, uint32_t mode)
+{
+  if (core == nullptr || id == nullptr || mode > XCS_ACK_DAY)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  const std::string wanted{id};
+  return RunOnMain(*core, [wanted, mode]{
+    auto *manager = backend_components->GetAirspaceWarnings();
+    if (manager == nullptr)
+      return XCS_ERROR_STATE;
+
+    ConstAirspacePtr airspace;
+    {
+      const ProtectedAirspaceWarningManager::Lease lease{*manager};
+      const AirspaceWarningManager &list = lease;
+      for (const auto &warning : list)
+        if (AirspaceId(warning.GetAirspace()) == wanted)
+          airspace = warning.GetAirspacePtr();
+    }
+
+    if (!airspace)
+      return XCS_ERROR_INVALID_ARGUMENT;
+
+    /* like the buttons of XCSoar's airspace warning widget */
+    if (mode == XCS_ACK_DAY)
+      manager->AcknowledgeDay(std::move(airspace));
+    else
+      manager->Acknowledge(std::move(airspace));
+    return XCS_OK;
+  });
 }
 
 static xcs_status

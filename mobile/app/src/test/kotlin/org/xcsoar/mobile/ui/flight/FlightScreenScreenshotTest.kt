@@ -65,3 +65,22 @@ class FlightScreenScreenshotTest {
         }
     }
 }
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [36], qualifiers = "w390dp-h844dp-xxhdpi")
+class AirspaceWarningScreenshotTest {
+    @Test
+    fun insideAndAhead() = captureRoboImage("src/test/screenshots/airspace_warning.png") {
+        XcsTheme(dark = false) {
+            FlightContent(
+                FakeXcsoarCore.syntheticState(120), null, circling = false, {},
+                warnings = listOf(
+                    org.xcsoar.mobile.core.AirspaceWarningInfo(
+                        "1", "near", "LF-R 46 N MONTAGNE NOIRE", "Restricted", "FL95", "SFC",
+                        distance = 1800.0, time = 85.0),
+                    org.xcsoar.mobile.core.AirspaceWarningInfo(
+                        "2", "task", "CTA LIMOGES", "Class D", "FL145", "FL115")))
+        }
+    }
+}

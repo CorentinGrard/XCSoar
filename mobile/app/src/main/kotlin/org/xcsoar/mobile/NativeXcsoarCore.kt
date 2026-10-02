@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.xcsoar.mobile.core.AirspaceWarningInfo
 import org.xcsoar.mobile.core.CoreEvent
 import org.xcsoar.mobile.core.CoreEventType
 import org.xcsoar.mobile.core.DataFile
@@ -92,6 +93,15 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
         val json = withContext(Dispatchers.IO) { NativeCore.nativeRepositoryList(indexPath) }
         return RepositoryFile.parseList(checkNotNull(json) { "cannot read the repository index" })
     }
+
+    override suspend fun airspaceWarnings(): List<AirspaceWarningInfo> = lock.withLock {
+        if (handle == 0L) return@withLock emptyList()
+        val json = withContext(Dispatchers.IO) { NativeCore.nativeGetAirspaceWarnings(handle) }
+        AirspaceWarningInfo.parseList(checkNotNull(json) { "xcs_get_airspace_warnings failed" })
+    }
+
+    override suspend fun acknowledgeAirspace(id: String, day: Boolean) =
+        command { NativeCore.nativeAirspaceAcknowledge(it, id, if (day) 1 else 0) }
 
     override suspend fun gotoWaypoint(id: Int) =
         command { NativeCore.nativeGotoWaypoint(it, id) }

@@ -45,6 +45,12 @@ interface XcsoarCore {
      */
     suspend fun gotoWaypoint(id: Int) {}
 
+    /** Active airspace warnings, most severe first. */
+    suspend fun airspaceWarnings(): List<AirspaceWarningInfo> = emptyList()
+
+    /** Acknowledge a warning until it changes, or for the whole [day]. */
+    suspend fun acknowledgeAirspace(id: String, day: Boolean) {}
+
     /** Whether this core draws XCSoar's moving map ([attachMap]). */
     val hasMap: Boolean get() = false
 

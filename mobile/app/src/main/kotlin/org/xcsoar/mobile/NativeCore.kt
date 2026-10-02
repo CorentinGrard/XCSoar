@@ -55,6 +55,10 @@ internal object NativeCore {
     @JvmStatic external fun nativeMapGetOrientation(core: Long): Int
     /** @return the JSON of `xcs_repository_list`, or null on error */
     @JvmStatic external fun nativeRepositoryList(path: String): String?
+    /** @return the JSON of `xcs_get_airspace_warnings`, or null on error */
+    @JvmStatic external fun nativeGetAirspaceWarnings(core: Long): String?
+    /** @param mode XCS_ACK_WARNING (0) or XCS_ACK_DAY (1) */
+    @JvmStatic external fun nativeAirspaceAcknowledge(core: Long, id: String, mode: Int): Int
     @JvmStatic external fun nativeGotoWaypoint(core: Long, id: Int): Int
     @JvmStatic external fun nativeMapSetOption(core: Long, option: Int, value: Int): Int
     /** @return the value, or Int.MIN_VALUE on error */

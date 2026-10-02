@@ -78,3 +78,19 @@ class RepositoryFileTest {
         assertEquals("", files[1].area)
     }
 }
+
+class AirspaceWarningInfoTest {
+    @Test
+    fun parsesCoreJson() {
+        val w = AirspaceWarningInfo.parseList(
+            """[{"id":"0x7c3a","state":"inside","name":"LF-R 46 N","class":"Restricted",""" +
+                """"top":"FL95","base":"SFC"},{"id":"0x1","state":"near","name":"CTA",""" +
+                """"distance":1200.0,"time":85.0}]""")
+
+        assertEquals(true, w[0].inside)
+        assertEquals("FL95", w[0].top)
+        assertEquals(null, w[0].time)
+        assertEquals(false, w[1].inside)
+        assertEquals(85.0, w[1].time!!, 0.0)
+    }
+}

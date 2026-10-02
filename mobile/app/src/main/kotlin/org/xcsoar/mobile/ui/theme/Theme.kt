@@ -62,6 +62,11 @@ data class XcsColors(
     val instrumentSink: Color,
     /** Averaged climb (updraft data) on the instrument. */
     val instrumentUpdraft: Color,
+    /** Alert banners: warning (inside airspace) and caution (ahead), with
+        [onAlert] text at 4.5:1 or more in every theme. */
+    val warningContainer: Color,
+    val cautionContainer: Color,
+    val onAlert: Color,
 )
 
 /**
@@ -96,6 +101,9 @@ private val sunlight = XcsColors(
     instrumentLift = Color(0xFF3BD1A6),
     instrumentSink = Color(0xFFFF9F6B),
     instrumentUpdraft = Color(0xFF7CC8F0),
+    warningContainer = Color(0xFFB42A30),
+    cautionContainer = Color(0xFFC2410C),
+    onAlert = Color(0xFFFFFFFF),
 )
 
 /** Low light: dark surfaces, no pure white glare. */
@@ -126,6 +134,9 @@ private val night = XcsColors(
     instrumentLift = Color(0xFF3BD1A6),
     instrumentSink = Color(0xFFFF9F6B),
     instrumentUpdraft = Color(0xFF7CC8F0),
+    warningContainer = Color(0xFF9F1F25),
+    cautionContainer = Color(0xFF9A3412),
+    onAlert = Color(0xFFFFFFFF),
 )
 
 /** Barlow for text, Barlow Condensed for numbers (bundled, SIL OFL). */

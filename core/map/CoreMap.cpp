@@ -405,7 +405,8 @@ Describe(const MapItem &item) noexcept
   }
 
   case MapItem::Type::AIRSPACE: {
-    const auto &airspace = *static_cast<const AirspaceMapItem &>(item).airspace;
+    const auto &airspace =
+      *static_cast<const AirspaceMapItem &>(item).airspace;
     o["type"] = "airspace";
     o["name"] = airspace.GetName();
     o["class"] = AirspaceFormatter::GetClassOrType(airspace);
@@ -422,7 +423,8 @@ Describe(const MapItem &item) noexcept
     break;
 
   case MapItem::Type::WAYPOINT: {
-    const auto &waypoint = *static_cast<const WaypointMapItem &>(item).waypoint;
+    const auto &waypoint =
+      *static_cast<const WaypointMapItem &>(item).waypoint;
     o["type"] = "waypoint";
     o["id"] = waypoint.id;
     o["name"] = waypoint.name.c_str();

@@ -384,4 +384,31 @@ Java_org_xcsoar_mobile_NativeCore_nativeRepositoryList(JNIEnv *env, jclass,
   return status == XCS_OK ? env->NewStringUTF(buffer.c_str()) : nullptr;
 }
 
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeGetAirspaceWarnings(JNIEnv *env, jclass,
+                                                            jlong core)
+{
+  std::string buffer(8192, '\0');
+  size_t length;
+  xcs_status status = xcs_get_airspace_warnings(ToCore(core), buffer.data(),
+                                                buffer.size(), &length);
+  if (status == XCS_ERROR_INVALID_ARGUMENT && length >= buffer.size()) {
+    buffer.resize(length + 1);
+    status = xcs_get_airspace_warnings(ToCore(core), buffer.data(),
+                                       buffer.size(), &length);
+  }
+
+  return status == XCS_OK ? env->NewStringUTF(buffer.c_str()) : nullptr;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeAirspaceAcknowledge(JNIEnv *env, jclass,
+                                                            jlong core,
+                                                            jstring id,
+                                                            jint mode)
+{
+  const auto i = Java::String::GetUTFChars(env, id);
+  return xcs_airspace_acknowledge(ToCore(core), i.c_str(), mode);
+}
+
 } // extern "C"

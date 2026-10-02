@@ -265,7 +265,12 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       (`xcs_goto_waypoint`, like XCSoar's map item list); waypoint search
       (nearest, name, type) still to do
 - [ ] Task: view, edit (points, sectors, AAT), load/save `.tsk`/`.cup`, advance/restart
-- [ ] Airspace warnings: banner + acknowledge actions + sound
+- [~] Airspace warnings: banner above the cards (red inside, orange
+      ahead or crossing the task, time and distance to it), "Ack" until it
+      changes and "Day" (`xcs_get_airspace_warnings`,
+      `xcs_airspace_acknowledge`, XCSoar's warning manager); polled every
+      second and on airspace events.  Tested live (inside CTR Montpellier).
+      Sound and vibration still to do
 - [ ] Vario / speed-to-fly audio (reuse `src/Audio` synthesizer through an AAudio sink)
 - [ ] IGC logging on by default; flight list with share/export
 - [ ] Analysis pages: barograph, climb history, task speed, contest (charts drawn
