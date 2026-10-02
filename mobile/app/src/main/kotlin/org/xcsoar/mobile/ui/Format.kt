@@ -40,6 +40,13 @@ object Format {
 
     fun macCready(ms: Double) = Value(f("%.1f", ms), "m/s")
 
+    /** Hours and minutes, "2:05"; for flight time. */
+    fun duration(s: Double?) = Value(
+        s?.takeIf { it >= 0 }?.let {
+            val minutes = (it / 60).toLong()
+            f("%d:%02d", minutes / 60, minutes % 60)
+        } ?: INVALID, "")
+
     /* "." as decimal separator for now, like XCSoar's Formatter */
     private fun f(format: String, vararg args: Any) = String.format(Locale.ROOT, format, *args)
 

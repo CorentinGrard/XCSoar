@@ -14,18 +14,14 @@ CORE_SRC_DIR = $(topdir)/core
 # backend events by showing UI (monitors, settings-changed handlers).
 CORE_UI_SOURCES = \
 	$(SRC)/Dialogs/% \
-	$(SRC)/Renderer/% \
 	$(SRC)/Gauge/% \
 	$(SRC)/Menu/% \
 	$(SRC)/Input/% \
-	$(SRC)/Look/% \
 	$(SRC)/UIUtil/% \
-	$(SRC)/Screen/% \
 	$(SRC)/ui/% \
 	$(SRC)/CrossSection/% \
 	$(SRC)/Monitor/% \
 	$(SRC)/Weather/MapOverlay/% \
-	$(SRC)/Weather/Rasp/RaspRenderer.cpp \
 	$(SRC)/Hardware/Display% \
 	$(SRC)/Hardware/RotateDisplay.cpp \
 	$(SRC)/Apple/MacOSMainMenu.cpp \
@@ -55,16 +51,14 @@ CORE_UI_SOURCES = \
 	$(SRC)/DisplayMode.cpp
 
 # Kept although they live in UI directories: settings (the core owns
-# the profile, so existing profiles load unchanged) and the layout
-# scale used by the map renderer's look.
+# the profile, so existing profiles load unchanged) and the display
+# density used by the map (Renderer/ and Screen/ stay whole: the map
+# draws with them, D6).
 CORE_KEEP_SOURCES = \
-	$(SRC)/Renderer/WaypointRendererSettings.cpp \
-	$(SRC)/Renderer/AirspaceRendererSettings.cpp \
 	$(SRC)/Gauge/VarioSettings.cpp \
 	$(SRC)/Gauge/TrafficSettings.cpp \
 	$(SRC)/Dialogs/DialogSettings.cpp \
 	$(SRC)/Input/TaskEventObserver.cpp \
-	$(SRC)/Screen/Layout.cpp \
 	$(SRC)/Hardware/DisplayDPI.cpp
 
 CORE_CANDIDATES_SOURCES = \
@@ -85,12 +79,23 @@ $(CORE_CANDIDATES_BIN): $(topdir)/build/core.mk
 # LOOK and SCREEN stay: the map renderer (with its canvas) will be part
 # of the core (D6); static archives only contribute what is referenced.
 CORE_UI_DEPENDS = \
-	LIBMAPWINDOW LIBINFOBOX \
-	WIDGET FORM DATA_FIELD
+	LIBINFOBOX \
+	FORM DATA_FIELD
 
 CORE_DEPENDS = \
 	CORE_CANDIDATES \
 	$(filter-out $(CORE_UI_DEPENDS),$(XCSOAR_DEPENDS))
+
+ifeq ($(TARGET),ANDROID)
+# The screen library without its Android bitmap loader, which needs
+# the old UI's NativeView; core/map/AndroidBitmap.cpp replaces it.
+CORE_SCREEN_SOURCES = \
+	$(filter-out $(CANVAS_SRC_DIR)/android/Bitmap.cpp,$(SCREEN_SOURCES))
+CORE_SCREEN_CPPFLAGS = $(SCREEN_CPPFLAGS)
+CORE_SCREEN_DEPENDS = $(SCREEN_DEPENDS)
+$(eval $(call link-library,core-screen,CORE_SCREEN))
+CORE_DEPENDS := $(patsubst SCREEN,CORE_SCREEN,$(CORE_DEPENDS))
+endif
 
 CORE_LDLIBS =
 ifeq ($(TARGET_IS_DARWIN),y)
@@ -121,14 +126,19 @@ CORE_HOST_SOURCES = \
 	$(CORE_SRC_DIR)/host/CoreEventLoop.cpp
 
 ifeq ($(TARGET),ANDROID)
-CORE_HOST_SOURCES += $(CORE_SRC_DIR)/host/AndroidGlobals.cpp
+CORE_HOST_SOURCES += \
+	$(CORE_SRC_DIR)/host/AndroidGlobals.cpp \
+	$(CORE_SRC_DIR)/map/CoreMap.cpp \
+	$(CORE_SRC_DIR)/map/MapSeams.cpp \
+	$(CORE_SRC_DIR)/map/AndroidBitmap.cpp \
+	$(SRC)/Renderer/BoxShadowRenderer.cpp
 endif
 
 CORE_API_SOURCES = \
 	$(CORE_HOST_SOURCES) \
 	$(CORE_SRC_DIR)/api/XcsoarCore.cpp
 
-CORE_CPPFLAGS = -I$(CORE_SRC_DIR)/host -I$(CORE_SRC_DIR)/api
+CORE_CPPFLAGS = -I$(CORE_SRC_DIR)/host -I$(CORE_SRC_DIR)/api -I$(CORE_SRC_DIR)/map
 
 # XCSoar builds with -ffast-math, and GCC builds keep its
 # -ffinite-math-only, which lets the compiler drop NaN checks.  The API
@@ -136,7 +146,7 @@ CORE_CPPFLAGS = -I$(CORE_SRC_DIR)/host -I$(CORE_SRC_DIR)/api
 $(call SRC_TO_OBJ,$(CORE_SRC_DIR)/api/XcsoarCore.cpp): CXXFLAGS += -fno-finite-math-only
 $(call SRC_TO_OBJ,$(CORE_SRC_DIR)/test/XcsReplay.cpp): CXXFLAGS += -fno-finite-math-only
 
-.PHONY: core core-check
+.PHONY: core core-check core-drawables
 
 ifeq ($(TARGET),ANDROID)
 
@@ -152,6 +162,9 @@ $(eval $(call link-shared-library,xcsoar_core,LIBXCSOAR_CORE))
 $(eval $(call core-link-group,LIBXCSOAR_CORE))
 
 core: $(LIBXCSOAR_CORE_BIN)
+
+# The map's icons as Android drawables (packaged by mobile/app)
+core-drawables: $(PNG_FILES)
 
 else
 

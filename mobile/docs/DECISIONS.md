@@ -156,3 +156,43 @@ whose CoreLocation code needs the process main thread, which a test blocks
 while waiting in `xcs_stop()`. For the iOS app (M8) this means the host's
 main thread must never block on the core while devices are open.
 
+## D16 — Flight screen follows the "modern cockpit" design canvas
+**Status:** Accepted (2026-10-02)
+
+The flight screen follows the design canvas "XCSoar — modern cockpit"
+(claude.ai artifact DNgXpmeJEMwtP2HTs1qzNy): pale map ground, white
+floating cards, one dark vario instrument, Barlow / Barlow Condensed
+(SIL OFL, bundled in `res/font`, licence in `assets/licenses`). Its
+palette becomes the daylight theme and replaces the pure white/black
+sunlight theme; every text colour keeps at least 4.5:1 contrast.
+
+Where the design conflicts with ARCHITECTURE §7, §7 wins:
+- controls are 56 dp, not the design's 44 px;
+- MacCready steps by 0.1 m/s, like XCSoar, not 0.5;
+- the 30 s average is drawn in updraft sky blue, not amber, because
+  amber means caution;
+- values the core does not publish yet are left out instead of shown
+  with sample numbers, and the map area stays a placeholder until M3.
+
+## D17 — The core draws the map on its main thread, into the app's surface
+**Status:** Accepted (2026-10-02)
+
+Refines D6. In XCSoar's OpenGL builds the UI thread paints the map
+(`GlueMapWindow::OnPaintBuffer`), reading the blackboard directly. The
+core does the same on its main thread, which also owns the EGL context:
+the app passes the `Surface` of a `SurfaceView` (`xcs_map_attach`), the
+core creates the EGL surface, paints a plain `MapWindow` (no parent
+window, `Window::Create(nullptr, …)`) and swaps buffers after every
+snapshot. No separate render thread, no locking beyond upstream's.
+
+The core does its own projection (north up, aircraft position from the
+app, zoom along XCSoar's scale list) instead of `GlueMapWindow`, whose
+display modes, gestures and overlays belong to the old UI.
+
+Seams (D5) for the map: images are decoded by the app's
+`org.xcsoar.CoreGraphics` instead of the old `NativeView`
+(`core/map/AndroidBitmap.cpp` replaces `ui/canvas/android/Bitmap.cpp` in
+a core-only screen library); SkySight overlays, `GlueMapWindow` lookups
+and download progress widgets are no-ops (`core/map/MapSeams.cpp`). One
+upstream change: `TextUtil` uses the calling thread's `JNIEnv` instead of
+the one cached at initialisation.

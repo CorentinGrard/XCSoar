@@ -23,11 +23,17 @@
 #include "java/InputStream.hxx"
 #include "java/Closeable.hxx"
 #include "java/String.hxx"
+#include "Android/Bitmap.hpp"
+#include "Android/TextUtil.hpp"
+#include "AndroidGraphics.hpp"
 #include "LogFile.hpp"
+
+#include <android/native_window_jni.h>
 
 #include <jni.h>
 
 #include <cassert>
+#include <string>
 
 namespace {
 
@@ -125,6 +131,11 @@ JNI_OnLoad(JavaVM *vm, [[maybe_unused]] void *reserved)
   NativeSensorListener::Initialise(env);
   InternalSensors::Initialise(env);
 
+  /* text and images of the map */
+  AndroidBitmap::Initialise(env);
+  TextUtil::Initialise(env);
+  CoreGraphics::Initialise(env);
+
   if (!core_class.Initialise(env))
     return JNI_ERR;
 
@@ -202,6 +213,75 @@ Java_org_xcsoar_mobile_NativeCore_nativeReplayStop(JNIEnv *, jclass,
                                                    jlong core)
 {
   return xcs_replay_stop(ToCore(core));
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeSetDataFile(JNIEnv *env, jclass,
+                                                    jlong core, jint kind,
+                                                    jstring path)
+{
+  if (path == nullptr)
+    return xcs_set_data_file(ToCore(core), kind, nullptr);
+
+  const auto p = Java::String::GetUTFChars(env, path);
+  return xcs_set_data_file(ToCore(core), kind, p.c_str());
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeGetDataStatus(JNIEnv *env, jclass,
+                                                      jlong core)
+{
+  std::string buffer(4096, '\0');
+  size_t length;
+  xcs_status status = xcs_get_data_status(ToCore(core), buffer.data(),
+                                          buffer.size(), &length);
+  if (status == XCS_ERROR_INVALID_ARGUMENT && length >= buffer.size()) {
+    buffer.resize(length + 1);
+    status = xcs_get_data_status(ToCore(core), buffer.data(),
+                                 buffer.size(), &length);
+  }
+
+  if (status != XCS_OK)
+    return nullptr;
+
+  return env->NewStringUTF(buffer.c_str());
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMapAttach(JNIEnv *env, jclass,
+                                                  jlong core, jobject surface,
+                                                  jint width, jint height,
+                                                  jint dpi)
+{
+  ANativeWindow *window = ANativeWindow_fromSurface(env, surface);
+  if (window == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  /* xcs_map_attach() takes its own reference */
+  const auto status = xcs_map_attach(ToCore(core), window, width, height, dpi);
+  ANativeWindow_release(window);
+  return status;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMapDetach(JNIEnv *, jclass, jlong core)
+{
+  return xcs_map_detach(ToCore(core));
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMapSetAircraftPosition(JNIEnv *, jclass,
+                                                               jlong core,
+                                                               jint x, jint y)
+{
+  return xcs_map_set_aircraft_position(ToCore(core), x, y);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMapZoom(JNIEnv *, jclass, jlong core,
+                                                jint steps)
+{
+  return xcs_map_zoom(ToCore(core), steps);
 }
 
 } // extern "C"

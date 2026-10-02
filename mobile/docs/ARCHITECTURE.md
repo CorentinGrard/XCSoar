@@ -166,10 +166,9 @@ Thread overview inside `libxcsoar_core`:
 
 | Thread | Owner | Role |
 |---|---|---|
-| core main | `core/host` | event loop, `UI::Notify`, ProcessTimer, commands, snapshot publishing |
+| core main | `core/host` | event loop, `UI::Notify`, ProcessTimer, commands, snapshot publishing, map drawing (OpenGL ES, D17) |
 | MergeThread / CalculationThread | upstream | sensor merge and glide computer (unchanged) |
 | asio | upstream `GlobalAsioThread` | HTTP, NOTAM, weather, tracking |
-| map render | `core/map` | draws into the app's surface (OpenGL ES) |
 | device I/O | platform (Java) | Bluetooth/USB threads push bytes into the core |
 
 Shutdown follows the order in `doc/architecture.rst` (network → threads →

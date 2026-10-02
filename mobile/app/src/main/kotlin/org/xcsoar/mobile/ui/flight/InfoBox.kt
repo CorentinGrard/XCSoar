@@ -4,76 +4,70 @@
 package org.xcsoar.mobile.ui.flight
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 /**
- * One InfoBox: a title, a large value and its unit.  The value size
- * follows the box height so it stays readable on any screen.
+ * One InfoBox: a small caption over a large value and its unit.
  *
- * [accent] is an optional functional colour (e.g. lift/sink) for a thin
- * bar under the title; the value text itself stays monochrome.
+ * [valueColor] is an optional functional colour (lift/sink, safe/caution);
+ * leave it `null` for plain data, which stays monochrome.
  */
 @Composable
 fun InfoBox(
     title: String,
     value: Format.Value,
     modifier: Modifier = Modifier,
-    accent: Color? = null,
+    valueColor: Color? = null,
 ) {
     val colors = XcsTheme.colors
-    val shape = RoundedCornerShape(6.dp)
-
-    BoxWithConstraints(
+    Column(
         modifier = modifier
-            .background(colors.panel, shape)
-            .border(1.dp, colors.panelBorder, shape)
-            .padding(horizontal = 6.dp, vertical = 4.dp)
-            .semantics { contentDescription = "$title ${value.text} ${value.unit}" },
+            .background(colors.panel, RoundedCornerShape(12.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .clearAndSetSemantics { contentDescription = "$title ${value.text} ${value.unit}" },
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        val valueSize = (maxHeight.value * 0.42f).coerceIn(18f, 64f).sp
-        Column(modifier = Modifier.fillMaxWidth(),
-               verticalArrangement = Arrangement.SpaceBetween) {
-            Text(title, color = colors.textSecondary, fontSize = 13.sp, maxLines = 1)
-            Box(Modifier
-                .fillMaxWidth()
-                .padding(vertical = 1.dp)
-                .background(accent ?: Color.Transparent)
-                .padding(top = 2.dp))
-            Row(verticalAlignment = Alignment.Bottom,
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End) {
-                Text(value.text,
-                     color = colors.text,
-                     fontSize = valueSize,
-                     fontWeight = FontWeight.Bold,
-                     maxLines = 1,
-                     textAlign = TextAlign.End)
-                Text(" " + value.unit,
-                     color = colors.textSecondary,
-                     fontSize = 13.sp,
-                     modifier = Modifier.padding(bottom = 4.dp))
-            }
-        }
+        Caption(title)
+        Text(valueWithUnit(value, 28.sp, valueColor ?: colors.text, colors.textSecondary),
+             style = XcsTheme.numberStyle, maxLines = 1)
     }
+}
+
+/** Upper-case caption above a value. */
+@Composable
+fun Caption(text: String, color: Color = XcsTheme.colors.textSecondary) {
+    Text(text.uppercase(), color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+         letterSpacing = 0.06.em, maxLines = 1)
+}
+
+/** "1842 m": the value large, the unit small and secondary. */
+fun valueWithUnit(
+    value: Format.Value,
+    size: TextUnit,
+    color: Color,
+    unitColor: Color,
+): AnnotatedString = buildAnnotatedString {
+    withStyle(SpanStyle(fontSize = size, color = color)) { append(value.text) }
+    if (value.unit.isNotEmpty())
+        withStyle(SpanStyle(fontSize = 14.sp, color = unitColor)) { append(" " + value.unit) }
 }

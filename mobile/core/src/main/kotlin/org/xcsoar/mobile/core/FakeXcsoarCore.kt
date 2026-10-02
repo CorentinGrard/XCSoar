@@ -66,6 +66,19 @@ class FakeXcsoarCore(
         state.value = state.value?.copy(macCready = macCready)
     }
 
+    private var files = mapOf<DataFile, String>()
+
+    /* remembers the files; there is nothing to load */
+    override suspend fun setDataFile(kind: DataFile, path: String?) {
+        files = if (path.isNullOrEmpty()) files - kind else files + (kind to path)
+    }
+
+    override suspend fun dataStatus() = DataStatus(
+        map = MapStatus(listOfNotNull(files[DataFile.MAP]), terrain = false),
+        airspace = FileStatus(listOfNotNull(files[DataFile.AIRSPACE]), count = 0),
+        waypoints = FileStatus(listOfNotNull(files[DataFile.WAYPOINTS]), count = 0),
+    )
+
     override suspend fun startReplay(path: String, timeScale: Double) {
         start()
     }

@@ -284,6 +284,82 @@ XCS_EXPORT xcs_status
 xcs_get_snapshot(xcs_core *core, xcs_flight_snapshot *snapshot);
 
 /*
+ * Data files: the same files and profile settings as XCSoar.
+ */
+
+typedef enum xcs_data_file {
+  /** Map (.xcm): terrain and topography; may also contain waypoints
+      and airspace.  Profile key MapFile. */
+  XCS_DATA_MAP = 1,
+  /** Airspace (OpenAir .txt/.air, .sua).  Profile key AirspaceFileList. */
+  XCS_DATA_AIRSPACE = 2,
+  /** Waypoints (.cup, .dat, ...).  Profile key WPFileList. */
+  XCS_DATA_WAYPOINTS = 3,
+} xcs_data_file;
+
+/**
+ * Use this file for one kind of data (replacing the files configured
+ * for it), save the profile and load the data again.  Blocks while
+ * loading.  Load errors are reported as XCS_EVENT_MESSAGE.
+ *
+ * @param kind an xcs_data_file value
+ * @param path UTF-8; files inside the data directory are stored
+ * relative to it, like XCSoar does.  NULL or "" removes the file.
+ */
+XCS_EXPORT xcs_status
+xcs_set_data_file(xcs_core *core, uint32_t kind, const char *path);
+
+/**
+ * Describe the configured data files and what was loaded from them, as
+ * a JSON object (UTF-8, null-terminated):
+ *
+ *   {"map": {"files": ["..."], "terrain": true},
+ *    "airspace": {"files": ["..."], "count": 123},
+ *    "waypoints": {"files": ["..."], "count": 456}}
+ *
+ * "count" includes what came from the map file.
+ *
+ * @param length_r receives the JSON length without the terminator; if
+ * it does not fit into size bytes, nothing is written and the call
+ * fails with XCS_ERROR_INVALID_ARGUMENT (retry with a larger buffer)
+ */
+XCS_EXPORT xcs_status
+xcs_get_data_status(xcs_core *core, char *buffer, size_t size,
+                    size_t *length_r);
+
+/*
+ * Moving map: XCSoar's map drawn by the core with OpenGL ES into a
+ * surface of the app.  Android only for now; elsewhere these return
+ * XCS_ERROR_FAILED.  The map is north up; it is redrawn after every
+ * snapshot and after each of these calls.
+ */
+
+/**
+ * Draw into this surface (Android: an ANativeWindow *, which gains a
+ * reference), replacing a previous one.  Call again when the size
+ * changes.
+ *
+ * @param width, height the surface size in pixels
+ * @param dpi the screen density, for symbol and text sizes
+ */
+XCS_EXPORT xcs_status
+xcs_map_attach(xcs_core *core, void *native_window, uint32_t width,
+               uint32_t height, uint32_t dpi);
+
+/** Stop drawing; call before the surface is destroyed. */
+XCS_EXPORT xcs_status
+xcs_map_detach(xcs_core *core);
+
+/** Where to draw the aircraft, in pixels from the top left corner
+    (e.g. the middle of the part not covered by the app's cards). */
+XCS_EXPORT xcs_status
+xcs_map_set_aircraft_position(xcs_core *core, int32_t x, int32_t y);
+
+/** Zoom in (steps < 0) or out (steps > 0) along XCSoar's scale list. */
+XCS_EXPORT xcs_status
+xcs_map_zoom(xcs_core *core, int32_t steps);
+
+/*
  * Replay of IGC or NMEA files.
  */
 

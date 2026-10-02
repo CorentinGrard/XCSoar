@@ -185,14 +185,14 @@ jobs:
           key: mobile-android-arm64-ccache
           max-size: 2G
 
-      - name: Build the app and run the Kotlin tests
+      - name: Build the app and run the Kotlin and screenshot tests
         shell: bash
         working-directory: mobile
         env:
           ANDROID_HOME: /github/home/opt/android-sdk-linux
         run: |
           set -o pipefail
-          ./gradlew --no-daemon --console=plain :core:test :app:assembleDebug 2>&1 | tee build.log || {
+          ./gradlew --no-daemon --console=plain :core:test :app:verifyRoborazziDebug :app:assembleDebug 2>&1 | tee build.log || {
             grep -E "^e: | error:|error:|FAILED|What went wrong" -A3 build.log | head -30 | sed 's/^/::error::/'
             exit 1
           }

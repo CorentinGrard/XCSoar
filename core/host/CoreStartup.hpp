@@ -22,6 +22,17 @@ bool
 CoreStartup(OperationEnvironment &operation, bool open_devices = true);
 
 /**
+ * Load the configured data files again after their profile keys
+ * changed: the headless counterpart of the file handling in
+ * SettingsLeave() (src/UtilsSettings.cpp).  A map file may contain
+ * waypoints and airspace, so @p map reloads those too.  Runs on the
+ * core main thread, with the calculation threads suspended.
+ */
+void
+CoreReloadDataFiles(bool map, bool waypoints, bool airspace,
+                    OperationEnvironment &operation) noexcept;
+
+/**
  * Stop everything CoreStartup() started, in the order documented in
  * doc/architecture.rst (network, threads, storage, components).
  */

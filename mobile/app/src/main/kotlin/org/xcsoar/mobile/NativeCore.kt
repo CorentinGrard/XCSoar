@@ -38,6 +38,15 @@ internal object NativeCore {
     @JvmStatic external fun nativeSetMacCready(core: Long, macCready: Double): Int
     @JvmStatic external fun nativeReplayStart(core: Long, path: String, timeScale: Double): Int
     @JvmStatic external fun nativeReplayStop(core: Long): Int
+    /** @param kind an `xcs_data_file`; [path] null removes the file */
+    @JvmStatic external fun nativeSetDataFile(core: Long, kind: Int, path: String?): Int
+    /** @return the JSON of `xcs_get_data_status`, or null on error */
+    @JvmStatic external fun nativeGetDataStatus(core: Long): String?
+    /** @param surface an android.view.Surface */
+    @JvmStatic external fun nativeMapAttach(core: Long, surface: Any, width: Int, height: Int, dpi: Int): Int
+    @JvmStatic external fun nativeMapDetach(core: Long): Int
+    @JvmStatic external fun nativeMapSetAircraftPosition(core: Long, x: Int, y: Int): Int
+    @JvmStatic external fun nativeMapZoom(core: Long, steps: Int): Int
 
     /* called from native code */
 

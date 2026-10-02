@@ -8,7 +8,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -99,24 +98,9 @@ class SnapshotDecoderTest {
 
     /* The constants must match core/api/xcsoar_core.h. */
 
-    private val header: String by lazy {
-        var dir: File? = File("").absoluteFile
-        while (dir != null && !File(dir, "core/api/xcsoar_core.h").exists())
-            dir = dir.parentFile
-        File(dir ?: error("xcsoar_core.h not found"), "core/api/xcsoar_core.h").readText()
-    }
-
-    /** NAME = value, and NAME = 1u << bit, from the header. */
-    private fun headerConstants(prefix: String): Map<String, Int> {
-        val plain = Regex("""\b($prefix\w+)\s*=\s*(\d+)\s*,""")
-        val shifted = Regex("""\b($prefix\w+)\s*=\s*1u\s*<<\s*(\d+)\s*,""")
-        return plain.findAll(header).associate { it.groupValues[1] to it.groupValues[2].toInt() } +
-            shifted.findAll(header).associate { it.groupValues[1] to (1 shl it.groupValues[2].toInt()) }
-    }
-
     @Test
     fun glideComputerEventsMatchHeader() {
-        val c = headerConstants("XCS_GCE_")
+        val c = CoreHeader.constants("XCS_GCE_")
         assertEquals(GlideComputerEvent.entries.size, c.size)
         for (e in GlideComputerEvent.entries)
             assertEquals(e.name, c["XCS_GCE_${e.name}"], e.code)
@@ -124,8 +108,8 @@ class SnapshotDecoderTest {
 
     @Test
     fun validityAndFlagBitsMatchHeader() {
-        val valid = headerConstants("XCS_VALID_")
-        val flags = headerConstants("XCS_FLAG_")
+        val valid = CoreHeader.constants("XCS_VALID_")
+        val flags = CoreHeader.constants("XCS_FLAG_")
         val kotlin = SnapshotDecoder::class.java.declaredFields
             .filter { it.name.startsWith("VALID_") || it.name.startsWith("FLAG_") }
             .associate { it.isAccessible = true; "XCS_${it.name}" to it.getInt(null) }
@@ -135,7 +119,7 @@ class SnapshotDecoderTest {
 
     @Test
     fun eventTypesMatchHeader() {
-        val c = headerConstants("XCS_EVENT_")
+        val c = CoreHeader.constants("XCS_EVENT_")
         val kotlin = CoreEventType::class.java.declaredFields
             .filter { it.type == Int::class.javaPrimitiveType && it.name != "INSTANCE" }
             .associate { it.isAccessible = true; "XCS_EVENT_${it.name}" to it.getInt(null) }
@@ -144,7 +128,7 @@ class SnapshotDecoderTest {
 
     @Test
     fun apiVersionMatchesHeader() {
-        val version = Regex("""#define XCS_API_VERSION (\d+)""").find(header)!!.groupValues[1]
+        val version = Regex("""#define XCS_API_VERSION (\d+)""").find(CoreHeader.text)!!.groupValues[1]
         assertEquals(version.toInt(), SnapshotDecoder.API_VERSION)
     }
 }

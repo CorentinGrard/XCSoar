@@ -15,6 +15,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.xcsoar.mobile.core.CoreEvent
 import org.xcsoar.mobile.core.CoreEventType
+import org.xcsoar.mobile.core.DataFile
+import org.xcsoar.mobile.core.DataStatus
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.GlideComputerEvent
 import org.xcsoar.mobile.core.SnapshotDecoder
@@ -37,6 +39,7 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
     override val events: SharedFlow<CoreEvent> = eventFlow.asSharedFlow()
 
     private val lock = Mutex()
+    @Volatile
     private var handle = 0L
 
     override suspend fun start() = lock.withLock {
@@ -71,6 +74,33 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun stopReplay() =
         command { NativeCore.nativeReplayStop(it) }
+
+    override suspend fun setDataFile(kind: DataFile, path: String?) =
+        command { NativeCore.nativeSetDataFile(it, kind.code, path) }
+
+    override suspend fun dataStatus(): DataStatus = lock.withLock {
+        check(handle != 0L) { "core not started" }
+        val json = withContext(Dispatchers.IO) { NativeCore.nativeGetDataStatus(handle) }
+        DataStatus.parse(checkNotNull(json) { "xcs_get_data_status failed" })
+    }
+
+    override val hasMap get() = true
+
+    override suspend fun attachMap(surface: Any, width: Int, height: Int, dpi: Int) =
+        command { NativeCore.nativeMapAttach(it, surface, width, height, dpi) }
+
+    /* on the caller's thread: SurfaceHolder.Callback.surfaceDestroyed must
+       not return before the core stopped drawing */
+    override fun detachMap() {
+        val h = handle
+        if (h != 0L) NativeCore.nativeMapDetach(h)
+    }
+
+    override suspend fun setMapAircraftPosition(x: Int, y: Int) =
+        command { NativeCore.nativeMapSetAircraftPosition(it, x, y) }
+
+    override suspend fun zoomMap(steps: Int) =
+        command { NativeCore.nativeMapZoom(it, steps) }
 
     private suspend fun command(block: (Long) -> Int) = lock.withLock {
         check(handle != 0L) { "core not started" }

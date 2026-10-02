@@ -4,8 +4,17 @@
 package org.xcsoar.mobile
 
 import android.app.Application
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withContext
 import org.xcsoar.AppPermissionManager
+import org.xcsoar.CoreGraphics
+import org.xcsoar.mobile.core.DataFile
+import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.XcsoarCore
 import java.io.File
 
@@ -29,12 +38,47 @@ class XcsoarApp : Application() {
      */
     val core: XcsoarCore? by lazy {
         try {
+            CoreGraphics.initialise(this)
             NativeCore.nativeInit(this, permissionManager)
             NativeXcsoarCore(xcsoarDataDir.path)
         } catch (e: UnsatisfiedLinkError) {
             Log.w(TAG, "no native core, using the fake one", e)
             null
         }
+    }
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** The core every screen shares: the native one, else the fake one. */
+    val anyCore: XcsoarCore by lazy { core ?: FakeXcsoarCore(appScope) }
+
+    /**
+     * Copy a file the user picked into XCSoarData, into the folder
+     * XCSoar uses for its kind (GetFileTypeDefaultDir() in
+     * src/Repository/FileType.cpp), keeping its name.
+     *
+     * @return the path of the copy
+     */
+    suspend fun importDataFile(uri: Uri, kind: DataFile): String = withContext(Dispatchers.IO) {
+        val folder = when (kind) {
+            DataFile.MAP -> "maps"
+            DataFile.AIRSPACE -> "airspace"
+            DataFile.WAYPOINTS -> "waypoints"
+        }
+        val target = File(File(xcsoarDataDir, folder).apply { mkdirs() }, displayName(uri))
+        val input = checkNotNull(contentResolver.openInputStream(uri)) { "cannot open $uri" }
+        input.use { source -> target.outputStream().use { source.copyTo(it) } }
+        target.path
+    }
+
+    /** The file name of a picked document, safe to use as a file name. */
+    private fun displayName(uri: Uri): String {
+        val name = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME),
+                                         null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        } ?: uri.lastPathSegment ?: "imported"
+        val base = name.substringAfterLast('/').replace('\\', '_')
+        return if (base.isBlank() || base == "." || base == "..") "imported" else base
     }
 
     /** The bundled demo flight, copied to the data directory. */

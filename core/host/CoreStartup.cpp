@@ -294,6 +294,71 @@ CoreStartup(OperationEnvironment &operation, bool open_devices)
 }
 
 void
+CoreReloadDataFiles(bool map, bool waypoints, bool airspace,
+                    OperationEnvironment &operation) noexcept
+{
+  if (map)
+    waypoints = airspace = true;
+
+  const ScopeSuspendAllThreads suspend;
+
+  auto &glide_computer = *backend_components->glide_computer;
+
+  if (map) {
+    /* like DataGlobals::UnsetTerrain() / SetTerrain() */
+    glide_computer.SetTerrain(nullptr);
+    data_components->terrain.reset();
+    LoadTerrain(operation);
+    glide_computer.SetTerrain(data_components->terrain.get());
+  }
+
+  if (waypoints) {
+    auto &way_points = *data_components->waypoints;
+    WaypointGlue::LoadWaypoints(way_points, data_components->terrain.get(),
+                                operation);
+
+    try {
+      WaypointDetails::ReadFileFromProfile(way_points, operation);
+    } catch (...) {
+      LogError(std::current_exception());
+    }
+
+    {
+      ProtectedTaskManager::ExclusiveLease lease{
+        *backend_components->protected_task_manager};
+      auto task = lease->Clone(CommonInterface::GetComputerSettings().task);
+      if (task) {
+        task->CheckDuplicateWaypoints(way_points);
+        way_points.Optimise();
+      }
+    }
+
+    /* DataGlobals::UpdateHome(true) */
+    if (!way_points.IsEmpty()) {
+      auto &settings = CommonInterface::SetComputerSettings();
+      WaypointGlue::SetHome(way_points, settings.poi, settings.team_code,
+                            true);
+      ActionInterface::SetStartupLocation();
+      WaypointGlue::SaveHome(Profile::map, settings.poi, settings.team_code);
+      Profile::Save();
+    }
+  }
+
+  if (airspace) {
+    glide_computer.GetAirspaceWarnings().Clear();
+    glide_computer.ClearAirspaces();
+
+    auto &airspaces = *data_components->airspaces;
+    airspaces.Clear();
+    ReadAirspace(airspaces, CommonInterface::GetComputerSettings().pressure,
+                 operation);
+
+    if (data_components->terrain)
+      SetAirspaceGroundLevels(airspaces, *data_components->terrain);
+  }
+}
+
+void
 CoreShutdown() noexcept
 {
   auto &live_blackboard = CommonInterface::GetLiveBlackboard();

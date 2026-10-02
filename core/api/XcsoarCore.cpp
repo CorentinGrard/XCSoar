@@ -17,6 +17,10 @@
 #include "CoreListener.hpp"
 #include "CoreEventLoop.hpp"
 #include "CoreReceive.hpp"
+
+#ifdef ANDROID
+#include "CoreMap.hpp"
+#endif
 #include "Interface.hpp"
 #include "ActionInterface.hpp"
 #include "Components.hpp"
@@ -31,6 +35,11 @@
 #include "Engine/Waypoint/Waypoint.hpp"
 #include "Input/InputQueue.hpp"
 #include "Profile/Profile.hpp"
+#include "Profile/Keys.hpp"
+#include "DataComponents.hpp"
+#include "Terrain/RasterTerrain.hpp"
+#include "Engine/Airspace/Airspaces.hpp"
+#include "Engine/Waypoint/Waypoints.hpp"
 #include "LocalPath.hpp"
 #include "LogFile.hpp"
 #include "Language/Language.hpp"
@@ -50,6 +59,10 @@
 #include "system/Path.hpp"
 #include "thread/Debug.hpp"
 #include "util/UTF8.hpp"
+#include "json/Serialize.hxx"
+#include "io/StringOutputStream.hxx"
+
+#include <boost/json.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -323,6 +336,10 @@ xcs_core::PublishSnapshot() noexcept
 
   if (on_snapshot != nullptr)
     on_snapshot(callback_ctx, &s);
+
+#ifdef ANDROID
+  CoreMap::Render();
+#endif
 }
 
 void
@@ -407,6 +424,9 @@ xcs_core::Run(std::promise<xcs_status> &started_promise) noexcept
         report(XCS_ERROR_FAILED);
 
       replay_watch.reset();
+#ifdef ANDROID
+      CoreMap::Deinitialise();
+#endif
       CoreShutdown();
 
       SetCoreListener(nullptr);
@@ -554,6 +574,160 @@ xcs_get_snapshot(xcs_core *core, xcs_flight_snapshot *snapshot)
   const std::lock_guard lock{core->snapshot_mutex};
   *snapshot = core->latest;
   return XCS_OK;
+}
+
+/** The profile key holding the files of an xcs_data_file. */
+static constexpr std::string_view
+DataFileKey(uint32_t kind) noexcept
+{
+  switch (kind) {
+  case XCS_DATA_MAP:
+    return ProfileKeys::MapFile;
+  case XCS_DATA_AIRSPACE:
+    return ProfileKeys::AirspaceFileList;
+  case XCS_DATA_WAYPOINTS:
+    return ProfileKeys::WaypointFileList;
+  }
+
+  return {};
+}
+
+xcs_status
+xcs_set_data_file(xcs_core *core, uint32_t kind, const char *path)
+{
+  const auto key = DataFileKey(kind);
+  if (core == nullptr || key.empty() ||
+      (path != nullptr && !ValidateUTF8(path)))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [kind, key, path]{
+    /* a single file is also a valid "list" for the list keys */
+    Profile::SetPath(key, Path{path != nullptr ? path : ""});
+    Profile::Save();
+
+    PopupOperationEnvironment operation;
+    CoreReloadDataFiles(kind == XCS_DATA_MAP, kind == XCS_DATA_WAYPOINTS,
+                        kind == XCS_DATA_AIRSPACE, operation);
+#ifdef ANDROID
+    CoreMap::OnDataChanged();
+#endif
+    return XCS_OK;
+  });
+}
+
+static boost::json::array
+ConfiguredFiles(std::string_view key) noexcept
+{
+  boost::json::array files;
+  for (const auto &path : Profile::GetMultiplePaths(key, nullptr))
+    files.emplace_back(path.c_str());
+  return files;
+}
+
+xcs_status
+xcs_get_data_status(xcs_core *core, char *buffer, size_t size,
+                    size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [buffer, size, length_r]{
+    const auto &data = *data_components;
+    const boost::json::value status = boost::json::object{
+      {"map", {
+          {"files", ConfiguredFiles(ProfileKeys::MapFile)},
+          {"terrain", data.terrain != nullptr},
+        }},
+      {"airspace", {
+          {"files", ConfiguredFiles(ProfileKeys::AirspaceFileList)},
+          {"count", data.airspaces->GetSize()},
+        }},
+      {"waypoints", {
+          {"files", ConfiguredFiles(ProfileKeys::WaypointFileList)},
+          {"count", data.waypoints->size()},
+        }},
+    };
+
+    StringOutputStream os;
+    Json::Serialize(os, status);
+    const auto &json = os.GetValue();
+    *length_r = json.size();
+    if (json.size() >= size)
+      return XCS_ERROR_INVALID_ARGUMENT;
+
+    std::memcpy(buffer, json.c_str(), json.size() + 1);
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_map_attach(xcs_core *core, void *native_window, uint32_t width,
+               uint32_t height, uint32_t dpi)
+{
+  if (core == nullptr || native_window == nullptr || width == 0 ||
+      height == 0 || width >= 0x8000 || height >= 0x8000 || dpi == 0)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+#ifdef ANDROID
+  return RunOnMain(*core, [=]{
+    return CoreMap::Attach(static_cast<ANativeWindow *>(native_window),
+                           width, height, dpi)
+      ? XCS_OK
+      : XCS_ERROR_FAILED;
+  });
+#else
+  return XCS_ERROR_FAILED;
+#endif
+}
+
+xcs_status
+xcs_map_detach(xcs_core *core)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+#ifdef ANDROID
+  return RunOnMain(*core, []{
+    CoreMap::Detach();
+    return XCS_OK;
+  });
+#else
+  return XCS_OK;
+#endif
+}
+
+xcs_status
+xcs_map_set_aircraft_position(xcs_core *core, int32_t x, int32_t y)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+#ifdef ANDROID
+  return RunOnMain(*core, [x, y]{
+    CoreMap::SetAircraftPosition(x, y);
+    return XCS_OK;
+  });
+#else
+  (void)x;
+  (void)y;
+  return XCS_ERROR_FAILED;
+#endif
+}
+
+xcs_status
+xcs_map_zoom(xcs_core *core, int32_t steps)
+{
+  if (core == nullptr || steps < -20 || steps > 20)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+#ifdef ANDROID
+  return RunOnMain(*core, [steps]{
+    CoreMap::Zoom(steps);
+    return XCS_OK;
+  });
+#else
+  return XCS_ERROR_FAILED;
+#endif
 }
 
 static xcs_status

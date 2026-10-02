@@ -27,6 +27,33 @@ interface XcsoarCore {
     /** MacCready setting, m/s (0..5). */
     suspend fun setMacCready(macCready: Double)
 
+    /**
+     * Use [path] for [kind] (null removes it), save the profile and load
+     * the data again.  Suspends while the core loads.
+     */
+    suspend fun setDataFile(kind: DataFile, path: String?)
+
+    /** The configured data files and what was loaded from them. */
+    suspend fun dataStatus(): DataStatus
+
+    /** Whether this core draws XCSoar's moving map ([attachMap]). */
+    val hasMap: Boolean get() = false
+
+    /**
+     * Draw the map into [surface] (an `android.view.Surface` on Android),
+     * [width] × [height] pixels.  Call again when the size changes.
+     */
+    suspend fun attachMap(surface: Any, width: Int, height: Int, dpi: Int) {}
+
+    /** Stop drawing; blocks until done, so the surface may be destroyed. */
+    fun detachMap() {}
+
+    /** Where the aircraft is drawn on the map, in pixels. */
+    suspend fun setMapAircraftPosition(x: Int, y: Int) {}
+
+    /** Zoom in (negative) or out (positive) along XCSoar's scale list. */
+    suspend fun zoomMap(steps: Int) {}
+
     /** Replay an IGC or NMEA file; [timeScale] 1 = real time. */
     suspend fun startReplay(path: String, timeScale: Double = 1.0)
     suspend fun stopReplay()

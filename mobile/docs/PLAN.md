@@ -16,7 +16,7 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M0 | Foundations: build, branch, CI baseline | ◐ reference app install left |
 | M1 | Headless core behind the C API, replay tests on the host | ☑ done |
 | M2 | Android skeleton: replay an IGC, see live InfoBoxes | ◐ demo works on the emulator |
-| M3 | Moving map in the new app | ☐ |
+| M3 | Moving map in the new app | ◐ map draws on the phone |
 | M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ☐ |
 | M5 | External devices: Bluetooth / BLE / USB, drivers, declaration | ☐ |
 | M6 | Settings, profiles, data management | ☐ |
@@ -189,23 +189,45 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       (`XCS_GCE_*`, `XCS_VALID_*`, `XCS_FLAG_*`, API version) parsed from
       `xcsoar_core.h` so the two sides cannot drift
 - [ ] Unit formatting (m/ft, km/h/kt, m/s/kt, …) + tests
-- [~] Flight screen v0: status line, 10 InfoBoxes (value size follows box
-      height, dashes when invalid, lift/sink/task accents), MC −/+ (≥56 dp,
-      fire on release), sunlight and night themes with colours named by
-      function; screen kept on. Configurable content later
-- [ ] Data directory: pick or import `XCSoarData` via SAF; copy a sample data set
+- [x] Flight screen v0: status line, 10 InfoBoxes, MC −/+, sunlight and
+      night themes; screen kept on
+- [~] Flight screen v1 after the design canvas "XCSoar — modern cockpit"
+      (D16): daylight theme, bundled Barlow fonts, map area with next
+      waypoint card, wind and status chips; vario instrument, 6 InfoBoxes
+      per mode, MC stepper, final glide tile, Cruise/Circling switch
+      (follows the flight mode, a tap overrides until the next change),
+      menu (replay demo / stop). Portrait bottom sheet, landscape side
+      panel. Missing until the snapshot grows: task leg/ETE, speed to
+      fly, L/D, thermal stats, thermal assistant, climb per turn
+- [x] Data files screen (Menu → Data files): pick a map (.xcm), airspace
+      (OpenAir/.sua) and waypoint file with the system picker; copied into
+      the XCSoarData folder of its kind, saved in the profile and loaded at
+      once (`xcs_set_data_file`, `xcs_get_data_status` JSON). Tested on a
+      Pixel 7 with benalla9.xcm, FRA_FULL.xcm and the French OpenAir file
+- [ ] Download maps/airspace from XCSoar's repository (like its file manager)
 - [~] Replay: "Replay demo" (bundled IGC, 10×) on the ground; choosing a
       file, play/pause/speed later
-- [ ] **L4** screenshot tests of InfoBoxes (day/sunlight/night themes)
+- [x] **L4** Roborazzi screenshot tests of the flight screen against the
+      fake core (cruise, circling, night, no data, landscape); reference
+      images in `app/src/test/screenshots`, checked in CI
+      (`:app:verifyRoborazziDebug`; update with `:app:recordRoborazziDebug`)
 - [x] **Demo:** replay an IGC on the phone and watch the InfoBoxes update
       (emulator; your phone next)
 
 ## M3 — Moving map
-- [ ] `core/map`: build `Renderer` + `MapWindow` drawing code with the
-      `ui/canvas/opengl` backend against an EGL surface, headless (no `ui/window`)
-- [ ] `xcs_map_attach_surface` / `detach` / resize; render thread tied to the
-      app lifecycle (pause/resume, rotation)
-- [ ] `SurfaceView` in Compose; gestures (pan, pinch-zoom, rotate/north-up) → `xcs_map_gesture`
+- [x] `core/map`: `MapWindow` + renderers with the OpenGL ES canvas on an
+      EGL surface of the app, drawn on the core main thread (D17); looks and
+      fonts as in MainWindow; icons are XCSoar's drawables
+      (`make core-drawables`, packaged by Gradle) decoded by
+      `org.xcsoar.CoreGraphics`; text via the reused `TextUtil.java`
+- [x] `xcs_map_attach` / `detach` / `set_aircraft_position` / `zoom`;
+      SurfaceView behind the Compose cards, attach on every size change,
+      detach before the surface goes away; redrawn after every snapshot
+- [x] Zoom buttons (XCSoar's scale list); north up; aircraft in the middle
+      of the area the cards leave free
+- [ ] Gestures: pan, pinch-zoom; track-up / circling zoom like GlueMapWindow
+- [ ] Draw only when something changed (now ~10 frames/s, one per snapshot)
+- [ ] Daylight map look matching the design (terrain ramp, airspace style)
 - [ ] Map settings: orientation, zoom, trail, terrain/topography toggles
 - [ ] Long-press → `xcs_map_items_at` → bottom sheet (waypoint, airspace, traffic)
 - [ ] Overlays in Compose: vario bar, final-glide bar, wind arrow, status icons
@@ -260,6 +282,17 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 
 ## Log
 Newest first. One line per session: what was done and what's next.
+
+- 2026-10-02 — Data files screen (map/airspace/waypoints via the system
+  picker) and XCSoar's moving map in the app, both working on a Pixel 7
+  with the French map and airspace. Upstream: `TextUtil` uses the calling
+  thread's JNIEnv. Next: map gestures, redraw only on change, design look.
+
+- 2026-10-02 — Flight screen v1 from the design canvas: theme, components,
+  phone and landscape layouts against the current snapshot; L4 screenshot
+  tests. Linux build: needs a full JDK (Fedora's default is a JRE without
+  `javac`; Temurin 21 works) and `ANDROID_HOME`. Next: snapshot v2 (speed
+  to fly, L/D, task progress, climb stats) to fill the design's gaps.
 
 - 2026-09-30 — M2: Gradle project, Kotlin binding, JNI glue, flight screen. The
   app runs XCSoar's engine on the emulator: internal GPS (with permission

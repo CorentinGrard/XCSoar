@@ -12,15 +12,20 @@
 #include "TestUtil.hpp"
 
 #include <atomic>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <limits>
 #include <mutex>
 #include <set>
+#include <string>
 #include <thread>
 #include <vector>
 
 static constexpr const char *DATA_PATH = "output/test/TestCoreApi";
 static constexpr const char *FLIGHT = "test/data/01lz1hq1.igc";
+static constexpr const char *AIRSPACE = "test/data/AirspaceAus-DAA.txt";
+static constexpr const char *MAP = "test/data/benalla9.xcm";
 
 struct Recorder {
   std::mutex mutex;
@@ -119,6 +124,71 @@ TestNotStarted(xcs_core *core)
   ok1(xcs_set_mac_cready(core, 1) == XCS_ERROR_STATE);
   ok1(xcs_get_snapshot(core, &s) == XCS_ERROR_STATE);
   ok1(xcs_replay_run(core, FLIGHT, 60, nullptr) == XCS_ERROR_STATE);
+  ok1(xcs_set_data_file(core, XCS_DATA_AIRSPACE, AIRSPACE) == XCS_ERROR_STATE);
+
+  char buffer[64];
+  size_t length;
+  ok1(xcs_get_data_status(core, buffer, sizeof(buffer), &length)
+      == XCS_ERROR_STATE);
+}
+
+static std::string
+DataStatus(xcs_core *core)
+{
+  char buffer[8192];
+  size_t length = 0;
+  if (xcs_get_data_status(core, buffer, sizeof(buffer), &length) != XCS_OK ||
+      length != std::strlen(buffer))
+    return {};
+  return buffer;
+}
+
+/** The number after "count": in the section of @p section. */
+static long
+DataCount(const std::string &status, const char *section)
+{
+  const auto start = status.find(std::string{"\""} + section + "\":");
+  if (start == std::string::npos)
+    return -1;
+  const auto count = status.find("\"count\":", start);
+  if (count == std::string::npos)
+    return -1;
+  return std::strtol(status.c_str() + count + 8, nullptr, 10);
+}
+
+static void
+TestDataFiles(xcs_core *core)
+{
+  const auto airspace = std::filesystem::absolute(AIRSPACE).string();
+  const auto map = std::filesystem::absolute(MAP).string();
+
+  ok1(xcs_set_data_file(core, 0, airspace.c_str()) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_data_file(core, 4, airspace.c_str()) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_data_file(core, XCS_DATA_AIRSPACE, "\xff") == XCS_ERROR_INVALID_ARGUMENT);
+
+  /* too small: nothing written, the needed length reported */
+  char small[8] = "x";
+  size_t length = 0;
+  ok1(xcs_get_data_status(core, small, sizeof(small), &length)
+      == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(length >= sizeof(small) && small[0] == 'x');
+
+  ok1(xcs_set_data_file(core, XCS_DATA_AIRSPACE, airspace.c_str()) == XCS_OK);
+  auto status = DataStatus(core);
+  ok1(status.find(airspace) != std::string::npos);
+  ok1(DataCount(status, "airspace") > 0);
+
+  ok1(xcs_set_data_file(core, XCS_DATA_MAP, map.c_str()) == XCS_OK);
+  status = DataStatus(core);
+  ok1(status.find("\"terrain\":true") != std::string::npos);
+  ok1(DataCount(status, "waypoints") > 0);
+
+  /* removing the files unloads their data */
+  ok1(xcs_set_data_file(core, XCS_DATA_AIRSPACE, nullptr) == XCS_OK);
+  ok1(xcs_set_data_file(core, XCS_DATA_MAP, "") == XCS_OK);
+  status = DataStatus(core);
+  ok1(status.find("\"terrain\":false") != std::string::npos);
+  ok1(DataCount(status, "airspace") == 0);
 }
 
 static void
@@ -202,7 +272,7 @@ TestStarted(xcs_core *core, Recorder &recorder)
 int
 main()
 {
-  plan_tests(9 + 4 + 25 + 7);
+  plan_tests(9 + 6 + 25 + 15 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -218,6 +288,7 @@ main()
 
   ok1(xcs_start(core) == XCS_OK);
   TestStarted(core, recorder);
+  TestDataFiles(core);
   ok1(xcs_stop(core) == XCS_OK);
 
   /* the same core can be started again */
