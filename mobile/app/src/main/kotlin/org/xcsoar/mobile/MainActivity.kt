@@ -46,6 +46,9 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             permissionResult?.invoke(granted)
             permissionResult = null
+            // the location permission may just have been granted
+            if (granted)
+                FlightService.start(this)
         }
 
     /* the data file kind waiting for the system file picker */
@@ -65,6 +68,10 @@ class MainActivity : ComponentActivity() {
 
         // in flight the screen must stay on
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        // the notification of FlightService (it runs without it, unseen)
+        if (savedInstanceState == null)
+            app.permissionManager.requestNotificationPermissionDirect()
 
         setContent {
             XcsTheme {
@@ -139,6 +146,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        // keeps flying when the screen goes off or another app is in front
+        FlightService.start(this)
+    }
+
     override fun onResume() {
         super.onResume()
         app.permissionManager.requester = AppPermissionManager.Requester { permission, onResult ->
@@ -152,6 +165,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        if (isFinishing)
+            FlightService.stop(this)
         alerts.release()
         super.onDestroy()
     }

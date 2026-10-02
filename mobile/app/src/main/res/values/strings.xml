@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">XCSoar Mobile</string>
+    <string name="flight_channel">Flight</string>
+    <string name="flight_running">Flight computer running. Tap to open.</string>
 </resources>

@@ -70,8 +70,8 @@ internal class AppPermissionManager(private val context: Context) : PermissionMa
     override fun areLocationPermissionsGranted(): Boolean {
         if (!isGranted(Manifest.permission.ACCESS_FINE_LOCATION))
             return false
-        // background location comes with the foreground service (M4); until
-        // then, foreground location is all the app asks for
+        // FlightService (a location foreground service) keeps the
+        // updates flowing in the background: no background location
         return true
     }
 

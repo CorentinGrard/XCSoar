@@ -16,14 +16,14 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M0 | Foundations: build, branch, CI baseline | ◐ reference app install left |
 | M1 | Headless core behind the C API, replay tests on the host | ☑ done |
 | M2 | Android skeleton: replay an IGC, see live InfoBoxes | ◐ demo works on the emulator |
-| M3 | Moving map in the new app | ◐ map draws on the phone |
-| M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ☐ |
+| M3 | Moving map in the new app | ◐ map, gestures, hold card on the phone |
+| M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ background service, Go To, airspace warnings |
 | M5 | External devices: Bluetooth / BLE / USB, drivers, declaration | ☐ |
 | M6 | Settings, profiles, data management | ☐ |
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** M2 (run on your phone, data files, unit formatting)
+**Current focus:** M4 (MC / ballast / bugs, vario audio, IGC logging, task)
 
 ---
 
@@ -262,7 +262,13 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 - [ ] **Demo:** replay with a live moving map + InfoBoxes
 
 ## M4 — Flyable with the internal GPS
-- [ ] Location permission + foreground service (GPS keeps running with screen off)
+- [x] Location permission + foreground service: `FlightService`
+      (foregroundServiceType "location", partial wake lock, low-importance
+      notification back to the flight screen) starts whenever the app comes
+      to the front with the location permission, or right after it is
+      granted; removing the app from the recent apps stops it.  The core
+      stays in `XcsoarApp`.  Checked on a Pixel 7 (Android 16): GPS fixes
+      keep reaching the app with the screen off and another app in front
 - [ ] Internal GPS + barometer → core (reuse `InternalGPS.java`, `NonGPSSensors.java`)
 - [ ] MC / ballast / bugs quick controls
 - [x] Go To: from the map's hold card and from a waypoint list (Menu → Go
@@ -319,6 +325,11 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 
 ## Log
 Newest first. One line per session: what was done and what's next.
+
+- 2026-10-02 — `FlightService`: the flight computer keeps running with the
+  screen off or another app in front (location foreground service, wake
+  lock, notification). Checked on a Pixel 7. Next: MC / ballast / bugs
+  quick controls, vario audio, IGC logging.
 
 - 2026-10-02 — Data files screen (map/airspace/waypoints via the system
   picker) and XCSoar's moving map in the app, both working on a Pixel 7
