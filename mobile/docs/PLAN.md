@@ -246,7 +246,12 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       not modal: terrain, airspace with class and limits, waypoints with
       elevation and frequency, task points, thermals, traffic
 - [ ] Overlays in Compose: vario bar, final-glide bar, wind arrow, status icons
-- [ ] Measure: frame time, CPU, battery over a 1-hour replay
+- [~] Measure: frame time, CPU, battery over a 1-hour replay.  First look
+      (debug build, Pixel 7, on the ground): core thread incl. map ~4 % of
+      a core, Android main thread ~30 % (debug Compose, ~14 ms per frame).
+      The flight screen now recomposes at most 5×/s.  Next: a release
+      (R8) build for real numbers; simpleperf needs a rooted or
+      perf-enabled device
 - [ ] **Demo:** replay with a live moving map + InfoBoxes
 
 ## M4 — Flyable with the internal GPS

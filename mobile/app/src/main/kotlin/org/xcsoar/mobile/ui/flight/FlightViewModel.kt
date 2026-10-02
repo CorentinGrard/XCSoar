@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.xcsoar.mobile.core.CoreEvent
@@ -31,7 +33,14 @@ class FlightViewModel(
     private val core: XcsoarCore,
     private val demoFlight: () -> String,
 ) : ViewModel() {
-    val flightState: StateFlow<FlightState?> = core.flightState
+    /**
+     * The latest state, at most [UI_INTERVAL_MS] apart: the core
+     * publishes on every sensor update (about ten per second), more than
+     * the screen needs and costly to recompose each time.
+     */
+    val flightState: StateFlow<FlightState?> = core.flightState  // conflated
+        .transform { emit(it); delay(UI_INTERVAL_MS) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, core.flightState.value)
 
     private val lastEventFlow = MutableStateFlow<String?>(null)
     /** A short text for the latest glide computer event, for the status line. */
@@ -253,3 +262,6 @@ class FlightViewModel(
         else -> null
     }
 }
+
+/** 5 screen updates per second: smooth enough for the vario. */
+private const val UI_INTERVAL_MS = 200L
