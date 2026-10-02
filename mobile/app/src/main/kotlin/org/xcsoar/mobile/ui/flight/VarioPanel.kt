@@ -61,7 +61,7 @@ fun VarioPanel(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.SpaceBetween) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Caption("Vario · m/s", colors.instrumentTextSecondary)
+                Caption("Vario · m/s", color = colors.instrumentTextSecondary)
                 Text(varioText.text, color = climbColor(vario) ?: colors.instrumentText,
                      style = XcsTheme.numberStyle, fontWeight = FontWeight.Bold,
                      fontSize = 52.sp, lineHeight = 48.sp, maxLines = 1)
@@ -88,7 +88,7 @@ private fun climbColor(value: Double?): Color? = when {
 @Composable
 private fun SecondaryValue(caption: String, text: String, color: Color) {
     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Caption(caption, XcsTheme.colors.instrumentTextSecondary)
+        Caption(caption, color = XcsTheme.colors.instrumentTextSecondary)
         Text(text, color = color, style = XcsTheme.numberStyle, fontSize = 26.sp, maxLines = 1)
     }
 }

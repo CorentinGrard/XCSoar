@@ -393,6 +393,24 @@ xcs_map_set_orientation(xcs_core *core, uint32_t orientation);
 XCS_EXPORT xcs_status
 xcs_map_get_orientation(xcs_core *core, uint32_t *orientation_r);
 
+/**
+ * What is on the map around pixel (x, y) (XCSoar's map item list), as a
+ * JSON array, nearest first (UTF-8, null-terminated):
+ *
+ *   [{"type": "airspace", "name": "LF-R 46 N", "class": "Restricted",
+ *     "top": "FL95", "base": "SFC"},
+ *    {"type": "waypoint", "name": "Anduze", "landable": false,
+ *     "elevation": 136.0, "frequency": "123.500", "detail": "..."},
+ *    {"type": "location", "elevation": 646.0}, ...]
+ *
+ * "type" is one of location, self, task, airspace, thermal, waypoint,
+ * traffic, other; elevations are metres; airspace limits are formatted
+ * like XCSoar does.  Buffer rules as for xcs_get_data_status().
+ */
+XCS_EXPORT xcs_status
+xcs_map_items_at(xcs_core *core, int32_t x, int32_t y, char *buffer,
+                 size_t size, size_t *length_r);
+
 /*
  * Replay of IGC or NMEA files.
  */

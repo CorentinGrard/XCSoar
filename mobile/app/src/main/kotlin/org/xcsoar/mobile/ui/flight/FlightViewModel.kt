@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import org.xcsoar.mobile.core.CoreEvent
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.GlideComputerEvent
+import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.XcsoarCore
 import kotlin.math.roundToLong
@@ -194,6 +195,26 @@ class FlightViewModel(
             } catch (_: Exception) {
             }
         }
+    }
+
+    private val mapItemsFlow = MutableStateFlow<List<MapItemInfo>?>(null)
+    /** The items at the last held point of the map; null when none is shown. */
+    val mapItems: StateFlow<List<MapItemInfo>?> = mapItemsFlow.asStateFlow()
+
+    /** The pilot held a point of the map (pixels). */
+    fun showMapItems(x: Int, y: Int) {
+        viewModelScope.launch {
+            mapItemsFlow.value = try {
+                core.mapItemsAt(x, y)
+            } catch (e: Exception) {
+                lastEventFlow.value = "Map items: ${e.message}"
+                null
+            }
+        }
+    }
+
+    fun hideMapItems() {
+        mapItemsFlow.value = null
     }
 
     fun followMap() {

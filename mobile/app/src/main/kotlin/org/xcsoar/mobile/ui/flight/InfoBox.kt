@@ -55,9 +55,10 @@ fun InfoBox(
 
 /** Upper-case caption above a value. */
 @Composable
-fun Caption(text: String, color: Color = XcsTheme.colors.textSecondary) {
+fun Caption(text: String, modifier: Modifier = Modifier,
+            color: Color = XcsTheme.colors.textSecondary) {
     Text(text.uppercase(), color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-         letterSpacing = 0.06.em, maxLines = 1)
+         letterSpacing = 0.06.em, maxLines = 1, modifier = modifier)
 }
 
 /** "1842 m": the value large, the unit small and secondary. */

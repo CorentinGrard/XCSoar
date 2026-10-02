@@ -821,6 +821,31 @@ xcs_map_get_orientation(xcs_core *core, uint32_t *orientation_r)
 #endif
 }
 
+xcs_status
+xcs_map_items_at(xcs_core *core, int32_t x, int32_t y, char *buffer,
+                 size_t size, size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+#ifdef ANDROID
+  return RunOnMain(*core, [=]{
+    const auto json = CoreMap::ItemsAt(x, y);
+    *length_r = json.size();
+    if (json.size() >= size)
+      return XCS_ERROR_INVALID_ARGUMENT;
+
+    std::memcpy(buffer, json.c_str(), json.size() + 1);
+    return XCS_OK;
+  });
+#else
+  (void)x;
+  (void)y;
+  (void)size;
+  return XCS_ERROR_FAILED;
+#endif
+}
+
 static xcs_status
 StartReplay(const char *path) noexcept
 try {

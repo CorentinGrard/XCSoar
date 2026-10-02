@@ -68,6 +68,9 @@ interface XcsoarCore {
 
     suspend fun setMapOrientation(orientation: MapOrientation) {}
 
+    /** What is on the map around pixel ([x], [y]), nearest first. */
+    suspend fun mapItemsAt(x: Int, y: Int): List<MapItemInfo> = emptyList()
+
     /** Replay an IGC or NMEA file; [timeScale] 1 = real time. */
     suspend fun startReplay(path: String, timeScale: Double = 1.0)
     suspend fun stopReplay()

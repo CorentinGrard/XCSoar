@@ -19,6 +19,7 @@ import org.xcsoar.mobile.core.DataFile
 import org.xcsoar.mobile.core.DataStatus
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.GlideComputerEvent
+import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SnapshotDecoder
 import org.xcsoar.mobile.core.XcsoarCore
@@ -117,6 +118,12 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
         MapOrientation.fromCode(withContext(Dispatchers.IO) {
             NativeCore.nativeMapGetOrientation(handle)
         })
+    }
+
+    override suspend fun mapItemsAt(x: Int, y: Int): List<MapItemInfo> = lock.withLock {
+        check(handle != 0L) { "core not started" }
+        val json = withContext(Dispatchers.IO) { NativeCore.nativeMapItemsAt(handle, x, y) }
+        MapItemInfo.parseList(checkNotNull(json) { "xcs_map_items_at failed" })
     }
 
     override suspend fun setMapOrientation(orientation: MapOrientation) =

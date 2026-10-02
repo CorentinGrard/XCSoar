@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.FlightState
+import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.XcsTheme
@@ -58,6 +60,7 @@ fun FlightScreen(viewModel: FlightViewModel, onOpenDataFiles: () -> Unit = {}) {
     val circling by viewModel.showCircling.collectAsStateWithLifecycle()
     val mapFollows by viewModel.mapFollows.collectAsStateWithLifecycle()
     val mapOrientation by viewModel.mapOrientation.collectAsStateWithLifecycle()
+    val mapItems by viewModel.mapItems.collectAsStateWithLifecycle()
 
     FlightContent(
         state = state,
@@ -85,6 +88,9 @@ fun FlightScreen(viewModel: FlightViewModel, onOpenDataFiles: () -> Unit = {}) {
             onFollow = viewModel::followMap,
             orientation = mapOrientation,
             onOrientation = viewModel::cycleMapOrientation,
+            onHold = viewModel::showMapItems,
+            items = mapItems,
+            onCloseItems = viewModel::hideMapItems,
         ) else null,
     )
 }
@@ -100,6 +106,8 @@ fun FlightScreen(viewModel: FlightViewModel, onOpenDataFiles: () -> Unit = {}) {
  * @param onFollow centre on the aircraft again
  * @param orientation which way is up; null hides the button
  * @param onOrientation switch to the next orientation
+ * @param onHold the pilot held this point (pixels): show what is there
+ * @param items what is at the held point; null when not shown
  */
 class MapSlot(
     val content: @Composable (Modifier) -> Unit,
@@ -110,6 +118,9 @@ class MapSlot(
     val onFollow: () -> Unit = {},
     val orientation: MapOrientation? = null,
     val onOrientation: () -> Unit = {},
+    val onHold: (x: Int, y: Int) -> Unit = { _, _ -> },
+    val items: List<MapItemInfo>? = null,
+    val onCloseItems: () -> Unit = {},
 )
 
 /**
@@ -211,11 +222,24 @@ private fun MapArea(
             // a recomposition (e.g. "follows" turning false) must not
             // restart the gesture under the finger
             val onGesture by rememberUpdatedState(map.onGesture)
-            Box(Modifier.fillMaxSize().pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    onGesture(pan.x, pan.y, zoom)
+            val onHold by rememberUpdatedState(map.onHold)
+            var holdPoint by remember { mutableStateOf<Offset?>(null) }
+            Box(Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        onGesture(pan.x, pan.y, zoom)
+                    }
                 }
-            })
+                .pointerInput(Unit) {
+                    detectHoldRelease(
+                        onArmed = { holdPoint = it },
+                        onRelease = { p, commit ->
+                            holdPoint = null
+                            if (commit) onHold(p.x.toInt(), p.y.toInt())
+                        })
+                })
+            holdPoint?.let { HoldMarker(it) }
         } else
             MapPlaceholder(state?.track, cardsBottom, Modifier.fillMaxSize())
 
@@ -240,6 +264,13 @@ private fun MapArea(
                 }
                 if (lastEvent != null) StatusChip(lastEvent, colors.textSecondary)
             }
+        }
+
+        map?.items?.let {
+            MapItemsCard(it, map.onCloseItems, Modifier
+                .align(Alignment.BottomStart)
+                .windowInsetsPadding(insets)
+                .padding(start = 12.dp, end = 84.dp, bottom = 12.dp))
         }
 
         if (map != null)

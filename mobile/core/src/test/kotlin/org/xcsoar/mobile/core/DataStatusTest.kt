@@ -33,3 +33,23 @@ class DataStatusTest {
         assertEquals(c, MapOrientation.entries.associate { "XCS_MAP_${it.name}" to it.code })
     }
 }
+
+class MapItemInfoTest {
+    @Test
+    fun parsesCoreJson() {
+        val items = MapItemInfo.parseList(
+            """[{"type":"airspace","name":"LF-R 46 N","class":"Restricted",""" +
+                """"top":"FL95","base":"SFC"},""" +
+                """{"type":"waypoint","name":"Anduze","landable":false,"elevation":136.0,""" +
+                """"frequency":"123.500"},{"type":"location","elevation":646.5},""" +
+                """{"type":"traffic"}]""")
+
+        assertEquals(4, items.size)
+        assertEquals("Restricted", items[0].`class`)
+        assertEquals("FL95", items[0].top)
+        assertEquals(false, items[1].landable)
+        assertEquals("123.500", items[1].frequency)
+        assertEquals(646.5, items[2].elevation!!, 0.0)
+        assertEquals(null, items[3].name)
+    }
+}

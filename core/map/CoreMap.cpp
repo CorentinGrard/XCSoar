@@ -38,6 +38,19 @@
 #include "Profile/Map.hpp"
 #include "Profile/Keys.hpp"
 #include "NMEA/Derived.hpp"
+#include "MapWindow/Items/MapItem.hpp"
+#include "MapWindow/Items/List.hpp"
+#include "MapWindow/Items/Builder.hpp"
+#include "Formatter/AirspaceFormatter.hpp"
+#include "Engine/Airspace/AbstractAirspace.hpp"
+#include "Engine/Waypoint/Waypoint.hpp"
+#include "Engine/Airspace/Airspaces.hpp"
+#include "Engine/Waypoint/Waypoints.hpp"
+#include "Airspace/ProtectedAirspaceWarningManager.hpp"
+#include "json/Serialize.hxx"
+#include "io/StringOutputStream.hxx"
+
+#include <boost/json.hpp>
 #include "LogFile.hpp"
 #include "thread/Debug.hpp"
 #include "ui/event/Timer.hpp"
@@ -363,6 +376,120 @@ unsigned
 CoreMap::GetOrientation() noexcept
 {
   return unsigned(CommonInterface::GetMapSettings().cruise_orientation);
+}
+
+static boost::json::object
+Describe(const MapItem &item) noexcept
+{
+  boost::json::object o;
+  switch (item.type) {
+  case MapItem::Type::LOCATION: {
+    const auto &i = static_cast<const LocationMapItem &>(item);
+    o["type"] = "location";
+    if (i.HasElevation())
+      o["elevation"] = i.elevation;
+    break;
+  }
+
+  case MapItem::Type::SELF:
+    o["type"] = "self";
+    break;
+
+  case MapItem::Type::TASK_OZ: {
+    const auto &i = static_cast<const TaskOZMapItem &>(item);
+    o["type"] = "task";
+    o["name"] = i.waypoint->name.c_str();
+    break;
+  }
+
+  case MapItem::Type::AIRSPACE: {
+    const auto &airspace = *static_cast<const AirspaceMapItem &>(item).airspace;
+    o["type"] = "airspace";
+    o["name"] = airspace.GetName();
+    o["class"] = AirspaceFormatter::GetClassOrType(airspace);
+    char buffer[64];
+    AirspaceFormatter::FormatAltitudeShort(buffer, airspace.GetTop());
+    o["top"] = buffer;
+    AirspaceFormatter::FormatAltitudeShort(buffer, airspace.GetBase());
+    o["base"] = buffer;
+    break;
+  }
+
+  case MapItem::Type::THERMAL:
+    o["type"] = "thermal";
+    break;
+
+  case MapItem::Type::WAYPOINT: {
+    const auto &waypoint = *static_cast<const WaypointMapItem &>(item).waypoint;
+    o["type"] = "waypoint";
+    o["name"] = waypoint.name.c_str();
+    o["landable"] = waypoint.IsLandable();
+    if (waypoint.has_elevation)
+      o["elevation"] = waypoint.elevation;
+    char buffer[32];
+    if (waypoint.radio_frequency.Format(buffer, sizeof(buffer)) != nullptr)
+      o["frequency"] = buffer;
+    if (!waypoint.comment.empty())
+      o["detail"] = waypoint.comment.c_str();
+    break;
+  }
+
+  case MapItem::Type::TRAFFIC:
+    o["type"] = "traffic";
+    break;
+
+  default:
+    o["type"] = "other";
+    break;
+  }
+  return o;
+}
+
+std::string
+CoreMap::ItemsAt(int x, int y) noexcept
+{
+  boost::json::array items;
+
+  if (graphics != nullptr && graphics->map->Projection().IsValid()) {
+    const auto &projection = graphics->map->Projection();
+    const auto location = projection.ScreenToGeo({x, y});
+    const auto range =
+      projection.DistancePixelsToMeters(Layout::GetHitRadius());
+
+    const auto &basic = CommonInterface::Basic();
+    const auto &calculated = CommonInterface::Calculated();
+    const auto &computer_settings = CommonInterface::GetComputerSettings();
+    const auto &settings = CommonInterface::GetMapSettings();
+    auto &data = *data_components;
+    auto &backend = *backend_components;
+
+    /* the same sources as GlueMapWindow::ShowMapItems() */
+    MapItemList list;
+    MapItemListBuilder builder(list, location, range);
+    if (settings.item_list.add_location)
+      builder.AddLocation(basic, data.terrain.get());
+    if (basic.location_available)
+      builder.AddSelfIfNear(basic.location, basic.attitude.heading);
+    builder.AddTaskOZs(*backend.protected_task_manager);
+    builder.AddVisibleAirspace(*data.airspaces,
+                               &backend.glide_computer->GetAirspaceWarnings(),
+                               computer_settings.airspace, settings.airspace,
+                               basic, calculated);
+    if (projection.GetMapScale() <= 4000)
+      builder.AddThermals(calculated.thermal_locator, basic, calculated);
+    builder.AddWaypoints(*data.waypoints,
+                         &backend.glide_computer->GetProtectedRoutePlanner(),
+                         basic, calculated, computer_settings);
+    builder.AddTraffic(basic.flarm.traffic);
+    list.Sort();
+
+    for (const auto *item : list)
+      items.emplace_back(Describe(*item));
+  }
+
+  StringOutputStream os;
+  Json::Serialize(os, items);
+  return std::move(os).GetValue();
 }
 
 void

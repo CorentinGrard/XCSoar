@@ -323,4 +323,21 @@ Java_org_xcsoar_mobile_NativeCore_nativeMapGetOrientation(JNIEnv *, jclass,
     : -1;
 }
 
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMapItemsAt(JNIEnv *env, jclass,
+                                                   jlong core, jint x, jint y)
+{
+  std::string buffer(8192, '\0');
+  size_t length;
+  xcs_status status = xcs_map_items_at(ToCore(core), x, y, buffer.data(),
+                                       buffer.size(), &length);
+  if (status == XCS_ERROR_INVALID_ARGUMENT && length >= buffer.size()) {
+    buffer.resize(length + 1);
+    status = xcs_map_items_at(ToCore(core), x, y, buffer.data(),
+                              buffer.size(), &length);
+  }
+
+  return status == XCS_OK ? env->NewStringUTF(buffer.c_str()) : nullptr;
+}
+
 } // extern "C"

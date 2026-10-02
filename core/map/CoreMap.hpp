@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <string>
+
 struct ANativeWindow;
 
 /**
@@ -64,6 +66,16 @@ SetOrientation(unsigned orientation) noexcept;
 [[gnu::pure]]
 unsigned
 GetOrientation() noexcept;
+
+/**
+ * What is on the map around pixel (x, y), like GlueMapWindow's map item
+ * list: a JSON array, nearest first.  Each item has "type" (location,
+ * self, task, airspace, thermal, waypoint, traffic, other) and, where it
+ * applies, "name", "detail", "class", "top", "base" (formatted like
+ * XCSoar), "elevation" (m), "frequency" (MHz text), "landable".
+ */
+std::string
+ItemsAt(int x, int y) noexcept;
 
 /** Redraw soon (at most a few times per second); for new data. */
 void
