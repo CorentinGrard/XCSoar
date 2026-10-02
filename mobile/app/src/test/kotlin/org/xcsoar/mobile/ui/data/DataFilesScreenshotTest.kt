@@ -29,6 +29,30 @@ class DataFilesScreenshotTest {
                         FileStatus(emptyList(), 0),
                         FileStatus(listOf("/data/XCSoarData/waypoints/alps.cup"), 1250)),
                     error = "Airspace: unknown file format"),
+                {}, {}, {}, onDownload = {})
+        }
+    }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [36], qualifiers = "w390dp-h844dp-xxhdpi")
+class DownloadScreenshotTest {
+    @Test
+    fun frenchAirspace() = captureRoboImage("src/test/screenshots/download.png") {
+        XcsTheme(dark = false) {
+            DownloadContent(
+                DownloadState(
+                    kind = org.xcsoar.mobile.core.DataFile.AIRSPACE,
+                    files = listOf(
+                        org.xcsoar.mobile.core.RepositoryFile(
+                            "FR-ASP-National-OpenAIP.txt", "u", "airspace", "fr",
+                            "France Airspace from OpenAIP", "2026-10-01"),
+                        org.xcsoar.mobile.core.RepositoryFile(
+                            "FR-ASP-National-PlaneurNet.txt", "u", "airspace", "fr",
+                            "Airspace of France", "2026-08-24")),
+                    query = "fr",
+                    downloading = "FR-ASP-National-OpenAIP.txt", progress = 0.4f),
                 {}, {}, {})
         }
     }

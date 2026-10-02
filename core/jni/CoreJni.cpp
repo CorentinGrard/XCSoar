@@ -366,4 +366,22 @@ Java_org_xcsoar_mobile_NativeCore_nativeGotoWaypoint(JNIEnv *, jclass,
   return xcs_goto_waypoint(ToCore(core), id);
 }
 
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeRepositoryList(JNIEnv *env, jclass,
+                                                       jstring path)
+{
+  const auto p = Java::String::GetUTFChars(env, path);
+  std::string buffer(1 << 20, '\0');
+  size_t length;
+  xcs_status status = xcs_repository_list(p.c_str(), buffer.data(),
+                                          buffer.size(), &length);
+  if (status == XCS_ERROR_INVALID_ARGUMENT && length >= buffer.size()) {
+    buffer.resize(length + 1);
+    status = xcs_repository_list(p.c_str(), buffer.data(), buffer.size(),
+                                 &length);
+  }
+
+  return status == XCS_OK ? env->NewStringUTF(buffer.c_str()) : nullptr;
+}
+
 } // extern "C"

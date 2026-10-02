@@ -15,6 +15,7 @@ import org.xcsoar.AppPermissionManager
 import org.xcsoar.CoreGraphics
 import org.xcsoar.mobile.core.DataFile
 import org.xcsoar.mobile.core.FakeXcsoarCore
+import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.XcsoarCore
 import java.io.File
 
@@ -69,6 +70,21 @@ class XcsoarApp : Application() {
         val input = checkNotNull(contentResolver.openInputStream(uri)) { "cannot open $uri" }
         input.use { source -> target.outputStream().use { source.copyTo(it) } }
         target.path
+    }
+
+    val downloader by lazy { Downloader(cacheDir) }
+
+    /**
+     * Download a repository file into the XCSoarData folder XCSoar uses
+     * for its kind.
+     *
+     * @return the path of the file
+     */
+    suspend fun downloadDataFile(file: RepositoryFile, progress: (Float) -> Unit): String {
+        val folder = file.folder ?: error("${file.name}: unknown kind of file")
+        val target = File(File(xcsoarDataDir, folder), File(file.name).name)
+        downloader.download(file.uri, target, file.sha256, progress)
+        return target.path
     }
 
     /** The file name of a picked document, safe to use as a file name. */

@@ -53,6 +53,8 @@ internal object NativeCore {
     @JvmStatic external fun nativeMapSetOrientation(core: Long, orientation: Int): Int
     /** @return an xcs_map_orientation, or -1 on error */
     @JvmStatic external fun nativeMapGetOrientation(core: Long): Int
+    /** @return the JSON of `xcs_repository_list`, or null on error */
+    @JvmStatic external fun nativeRepositoryList(path: String): String?
     @JvmStatic external fun nativeGotoWaypoint(core: Long, id: Int): Int
     @JvmStatic external fun nativeMapSetOption(core: Long, option: Int, value: Int): Int
     /** @return the value, or Int.MIN_VALUE on error */

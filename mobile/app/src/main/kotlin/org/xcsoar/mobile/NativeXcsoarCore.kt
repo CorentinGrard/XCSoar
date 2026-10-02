@@ -21,6 +21,7 @@ import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.GlideComputerEvent
 import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOption
+import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SnapshotDecoder
 import org.xcsoar.mobile.core.XcsoarCore
@@ -85,6 +86,11 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
         check(handle != 0L) { "core not started" }
         val json = withContext(Dispatchers.IO) { NativeCore.nativeGetDataStatus(handle) }
         DataStatus.parse(checkNotNull(json) { "xcs_get_data_status failed" })
+    }
+
+    override suspend fun repositoryFiles(indexPath: String): List<RepositoryFile> {
+        val json = withContext(Dispatchers.IO) { NativeCore.nativeRepositoryList(indexPath) }
+        return RepositoryFile.parseList(checkNotNull(json) { "cannot read the repository index" })
     }
 
     override suspend fun gotoWaypoint(id: Int) =

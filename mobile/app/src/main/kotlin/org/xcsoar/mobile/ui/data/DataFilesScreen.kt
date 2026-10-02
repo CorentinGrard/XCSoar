@@ -50,12 +50,13 @@ import org.xcsoar.mobile.ui.theme.XcsTheme
 fun DataFilesScreen(
     viewModel: DataFilesViewModel,
     onChoose: (DataFile) -> Unit,
+    onDownload: (DataFile) -> Unit,
     onBack: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.refresh() }
     BackHandler(onBack = onBack)
-    DataFilesContent(state, onChoose, viewModel::remove, onBack)
+    DataFilesContent(state, onChoose, viewModel::remove, onBack, onDownload)
 }
 
 /**
@@ -69,6 +70,7 @@ fun DataFilesContent(
     onChoose: (DataFile) -> Unit,
     onRemove: (DataFile) -> Unit,
     onBack: () -> Unit,
+    onDownload: ((DataFile) -> Unit)? = null,
 ) {
     val colors = XcsTheme.colors
     Column(
@@ -96,6 +98,7 @@ fun DataFilesContent(
             busy = state.busy == DataFile.MAP,
             onChoose = { onChoose(DataFile.MAP) },
             onRemove = { onRemove(DataFile.MAP) },
+            onDownload = onDownload?.let { { it(DataFile.MAP) } },
         )
         FileCard(
             title = "Airspace",
@@ -105,6 +108,7 @@ fun DataFilesContent(
             busy = state.busy == DataFile.AIRSPACE,
             onChoose = { onChoose(DataFile.AIRSPACE) },
             onRemove = { onRemove(DataFile.AIRSPACE) },
+            onDownload = onDownload?.let { { it(DataFile.AIRSPACE) } },
         )
         FileCard(
             title = "Waypoints",
@@ -114,6 +118,7 @@ fun DataFilesContent(
             busy = state.busy == DataFile.WAYPOINTS,
             onChoose = { onChoose(DataFile.WAYPOINTS) },
             onRemove = { onRemove(DataFile.WAYPOINTS) },
+            onDownload = onDownload?.let { { it(DataFile.WAYPOINTS) } },
         )
 
         if (state.error != null)
@@ -136,6 +141,7 @@ private fun FileCard(
     busy: Boolean,
     onChoose: () -> Unit,
     onRemove: () -> Unit,
+    onDownload: (() -> Unit)?,
 ) {
     val colors = XcsTheme.colors
     Column(
@@ -161,6 +167,8 @@ private fun FileCard(
             } else {
                 ActionButton(if (name == null) "Choose file" else "Replace", primary = true,
                              onClick = onChoose)
+                if (onDownload != null)
+                    ActionButton("Download", primary = false, onClick = onDownload)
                 if (name != null)
                     ActionButton("Remove", primary = false, onClick = onRemove)
             }

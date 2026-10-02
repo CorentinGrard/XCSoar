@@ -336,6 +336,23 @@ XCS_EXPORT xcs_status
 xcs_get_data_status(xcs_core *core, char *buffer, size_t size,
                     size_t *length_r);
 
+/**
+ * Parse a repository index file (XCSoar's https://download.xcsoar.org/
+ * repository format, downloaded by the app) into a JSON array:
+ *
+ *   [{"name": "FRA_FULL.xcm", "uri": "http://...", "type": "map",
+ *     "area": "fr", "description": "...", "updated": "2026-05-01",
+ *     "folder": "maps", "sha256": "ab12..."}, ...]
+ *
+ * "type" is map, airspace, waypoint or other; "folder" is where XCSoar
+ * keeps that kind of file inside XCSoarData.  Optional fields may be
+ * missing.  Needs no core: it only parses.  Buffer rules as for
+ * xcs_get_data_status().
+ */
+XCS_EXPORT xcs_status
+xcs_repository_list(const char *path, char *buffer, size_t size,
+                    size_t *length_r);
+
 /*
  * Moving map: XCSoar's map drawn by the core with OpenGL ES into a
  * surface of the app.  Android only for now; elsewhere these return

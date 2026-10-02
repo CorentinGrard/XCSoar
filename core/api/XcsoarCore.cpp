@@ -13,6 +13,11 @@
  */
 
 #include "xcsoar_core.h"
+#include "util/HexFormat.hxx"
+#include "io/FileLineReader.hpp"
+#include "Repository/FileType.hpp"
+#include "Repository/Parser.hpp"
+#include "Repository/FileRepository.hpp"
 #include "Protection.hpp"
 #include "CoreStartup.hpp"
 #include "CoreListener.hpp"
@@ -69,6 +74,7 @@
 #include <atomic>
 #include <cmath>
 #include <chrono>
+#include <cstdio>
 #include <cstring>
 #include <future>
 #include <iterator>
@@ -908,6 +914,83 @@ xcs_goto_waypoint(xcs_core *core, uint32_t waypoint_id)
       ? XCS_OK
       : XCS_ERROR_FAILED;
   });
+}
+
+static const char *
+RepositoryTypeName(FileType type) noexcept
+{
+  switch (type) {
+  case FileType::MAP:
+    return "map";
+  case FileType::AIRSPACE:
+    return "airspace";
+  case FileType::WAYPOINT:
+    return "waypoint";
+  default:
+    return "other";
+  }
+}
+
+xcs_status
+xcs_repository_list(const char *path, char *buffer, size_t size,
+                    size_t *length_r)
+{
+  if (path == nullptr || buffer == nullptr || length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  FileRepository repository;
+  try {
+    FileLineReaderA reader{Path{path}};
+    ParseFileRepository(repository, reader);
+  } catch (...) {
+    LogError(std::current_exception(), "Repository");
+    return XCS_ERROR_FAILED;
+  }
+
+  boost::json::array files;
+  for (const auto &file : repository) {
+    if (!file.IsValid())
+      continue;
+
+    boost::json::object o{
+      {"name", file.name},
+      {"uri", file.uri},
+      {"type", RepositoryTypeName(file.type)},
+      {"area", file.area.c_str()},
+      {"description", file.description},
+    };
+
+    if (file.update_date.IsPlausible()) {
+      char date[16];
+      snprintf(date, sizeof(date), "%04u-%02u-%02u", file.update_date.year,
+               file.update_date.month, file.update_date.day);
+      o["updated"] = date;
+    }
+
+    if (const auto dir = GetFileTypeDefaultDir(file.type); dir != nullptr)
+      o["folder"] = dir.c_str();
+
+    if (file.HasHash()) {
+      char hex[65];
+      char *p = hex;
+      for (auto b : file.sha256_hash)
+        p = HexFormatUint8Fixed(p, uint8_t(b));
+      *p = 0;
+      o["sha256"] = hex;
+    }
+
+    files.emplace_back(std::move(o));
+  }
+
+  StringOutputStream os;
+  Json::Serialize(os, files);
+  const auto &json = os.GetValue();
+  *length_r = json.size();
+  if (json.size() >= size)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  std::memcpy(buffer, json.c_str(), json.size() + 1);
+  return XCS_OK;
 }
 
 static xcs_status

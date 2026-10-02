@@ -62,3 +62,19 @@ class MapItemInfoTest {
         assertEquals(null, items[3].name)
     }
 }
+
+class RepositoryFileTest {
+    @Test
+    fun parsesCoreJson() {
+        val files = RepositoryFile.parseList(
+            """[{"name":"FRA_FULL.xcm","uri":"http://x/FRA_FULL.xcm","type":"map",""" +
+                """"area":"fr","description":"France","updated":"2026-05-01","folder":"maps",""" +
+                """"sha256":"ab"},{"name":"x.dat","uri":"http://x/x.dat","type":"other"}]""")
+
+        assertEquals(DataFile.MAP, files[0].dataFile)
+        assertEquals("maps", files[0].folder)
+        assertEquals("ab", files[0].sha256)
+        assertEquals(null, files[1].dataFile)
+        assertEquals("", files[1].area)
+    }
+}

@@ -12,6 +12,7 @@
 #include "TestUtil.hpp"
 
 #include <atomic>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -269,13 +270,50 @@ TestStarted(xcs_core *core, Recorder &recorder)
   ok1(failures == 0);
 }
 
+static void
+TestRepositoryList()
+{
+  std::filesystem::create_directories(DATA_PATH);
+  const std::string path = std::string{DATA_PATH} + "/repository";
+  {
+    FILE *f = fopen(path.c_str(), "w");
+    fputs("name=FRA_FULL.xcm\n"
+          "uri=http://download.xcsoar.org/source/map/region/FRA_FULL.xcm\n"
+          "type=map\n"
+          "area=fr\n"
+          "update=2026-05-01\n"
+          "\n"
+          "name=france.txt\n"
+          "uri=https://example.org/france.txt\n"
+          "type=airspace\n", f);
+    fclose(f);
+  }
+
+  char buffer[4096];
+  size_t length = 0;
+  ok1(xcs_repository_list(nullptr, buffer, sizeof(buffer), &length)
+      == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_repository_list("does/not/exist", buffer, sizeof(buffer), &length)
+      == XCS_ERROR_FAILED);
+  ok1(xcs_repository_list(path.c_str(), buffer, sizeof(buffer), &length)
+      == XCS_OK);
+
+  const std::string json{buffer};
+  ok1(json.find("\"name\":\"FRA_FULL.xcm\"") != std::string::npos);
+  ok1(json.find("\"type\":\"map\"") != std::string::npos);
+  ok1(json.find("\"folder\":\"maps\"") != std::string::npos);
+  ok1(json.find("\"updated\":\"2026-05-01\"") != std::string::npos);
+  ok1(json.find("\"type\":\"airspace\"") != std::string::npos);
+}
+
 int
 main()
 {
-  plan_tests(9 + 6 + 25 + 15 + 7);
+  plan_tests(9 + 8 + 6 + 25 + 15 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);
+  TestRepositoryList();
 
   const auto config = MakeConfig(recorder);
   xcs_core *core = nullptr;

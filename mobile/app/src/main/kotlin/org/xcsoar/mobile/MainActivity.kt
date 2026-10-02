@@ -19,7 +19,10 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import org.xcsoar.AppPermissionManager
 import org.xcsoar.mobile.core.DataFile
+import org.xcsoar.mobile.core.REPOSITORY_URI
 import org.xcsoar.mobile.ui.data.DataFilesScreen
+import org.xcsoar.mobile.ui.data.DownloadScreen
+import org.xcsoar.mobile.ui.data.DownloadViewModel
 import org.xcsoar.mobile.ui.data.DataFilesViewModel
 import org.xcsoar.mobile.ui.flight.FlightScreen
 import org.xcsoar.mobile.ui.map.MapSettingsScreen
@@ -27,7 +30,7 @@ import org.xcsoar.mobile.ui.map.MapSettingsViewModel
 import org.xcsoar.mobile.ui.flight.FlightViewModel
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
-private enum class Screen { FLIGHT, DATA_FILES, MAP_SETTINGS }
+private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS }
 
 class MainActivity : ComponentActivity() {
     private val app get() = application as XcsoarApp
@@ -81,6 +84,16 @@ class MainActivity : ComponentActivity() {
                     initializer { MapSettingsViewModel(app.anyCore) }
                 })
 
+                val downloadViewModel: DownloadViewModel = viewModel(factory = viewModelFactory {
+                    initializer {
+                        DownloadViewModel(
+                            app.anyCore,
+                            index = { app.downloader.index(REPOSITORY_URI).path },
+                            download = app::downloadDataFile,
+                        )
+                    }
+                })
+
                 var screen by rememberSaveable { mutableStateOf(Screen.FLIGHT) }
                 when (screen) {
                     Screen.FLIGHT -> FlightScreen(
@@ -95,8 +108,14 @@ class MainActivity : ComponentActivity() {
                             // file types are not reliable for .xcm/.txt: offer every file
                             filePicker.launch(arrayOf("*/*"))
                         },
+                        onDownload = { kind ->
+                            downloadViewModel.open(kind)
+                            screen = Screen.DOWNLOAD
+                        },
                         onBack = { screen = Screen.FLIGHT },
                     )
+                    Screen.DOWNLOAD -> DownloadScreen(
+                        downloadViewModel, onDone = { screen = Screen.DATA_FILES })
                     Screen.MAP_SETTINGS -> MapSettingsScreen(
                         mapViewModel, onBack = { screen = Screen.FLIGHT })
                 }

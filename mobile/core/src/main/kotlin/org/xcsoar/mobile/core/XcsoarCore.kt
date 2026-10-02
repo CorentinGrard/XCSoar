@@ -36,6 +36,9 @@ interface XcsoarCore {
     /** The configured data files and what was loaded from them. */
     suspend fun dataStatus(): DataStatus
 
+    /** Parse a downloaded repository index ([REPOSITORY_URI]); null if unsupported. */
+    suspend fun repositoryFiles(indexPath: String): List<RepositoryFile>? = null
+
     /**
      * Fly directly to this waypoint (XCSoar's "Go to"); it becomes the
      * next point.  Fails if the profile only allows landable targets.

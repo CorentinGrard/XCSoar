@@ -204,7 +204,10 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       the XCSoarData folder of its kind, saved in the profile and loaded at
       once (`xcs_set_data_file`, `xcs_get_data_status` JSON). Tested on a
       Pixel 7 with benalla9.xcm, FRA_FULL.xcm and the French OpenAir file
-- [ ] Download maps/airspace from XCSoar's repository (like its file manager)
+- [x] Download maps, airspace and waypoints from XCSoar's repository
+      (Data files → Download): the app fetches the index and the file
+      (https, SHA-256 checked when listed), the core parses the index
+      (`xcs_repository_list`, XCSoar's parser) and loads the file
 - [~] Replay: "Replay demo" (bundled IGC, 10×) on the ground; choosing a
       file, play/pause/speed later
 - [x] **L4** Roborazzi screenshot tests of the flight screen against the
