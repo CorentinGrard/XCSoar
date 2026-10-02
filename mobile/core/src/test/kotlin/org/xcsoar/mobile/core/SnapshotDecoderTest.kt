@@ -26,12 +26,15 @@ class SnapshotDecoderTest {
         val bytes = name.toByteArray(Charsets.UTF_8)
         for (i in bytes.indices)
             b.put(216 + i, bytes[i])
+        // doubles 280..360: 1000 + field index
+        for (i in 0 until 11)
+            b.putDouble(280 + i * 8, 1000.0 + i)
         return b
     }
 
     @Test
     fun decodesAllValidFields() {
-        val s = SnapshotDecoder.decode(snapshot(0x7fff, 0x1f, "Saint-Crépin"))
+        val s = SnapshotDecoder.decode(snapshot(0x3fffff, 0x1f, "Saint-Crépin"))
 
         assertEquals(42L, s.sequence)
         assertEquals(1.0, s.timeUtc!!, 0.0)
@@ -54,6 +57,13 @@ class SnapshotDecoderTest {
         assertEquals(NextWaypoint("Saint-Crépin", 191.0, 201.0, 211.0), s.next)
         assertEquals(FinalGlide(221.0, 231.0), s.finalGlide)
         assertTrue(s.gpsReal && s.flying && s.circling && s.aboveFinalGlide && s.replay)
+        assertEquals(1000.0, s.speedToFly!!, 0.0)
+        assertEquals(1001.0, s.ld!!, 0.0)
+        assertEquals(1002.0, s.ldRequired!!, 0.0)
+        assertEquals(1003.0, s.nextTimeRemaining!!, 0.0)
+        assertEquals(1004.0, s.taskSpeed!!, 0.0)
+        assertEquals(Thermal(1005.0, 1006.0, 1007.0), s.currentThermal)
+        assertEquals(Thermal(1008.0, 1009.0, 1010.0), s.lastThermal)
     }
 
     @Test
@@ -67,6 +77,8 @@ class SnapshotDecoderTest {
         assertNull(s.wind)
         assertNull(s.next)
         assertNull(s.finalGlide)
+        assertNull(s.speedToFly)
+        assertNull(s.currentThermal)
         // always valid
         assertEquals(181.0, s.macCready, 0.0)
         assertFalse(s.flying)

@@ -79,6 +79,13 @@ enum {
   XCS_VALID_TASK = 1u << 12,
   XCS_VALID_NEXT_WAYPOINT = 1u << 13,
   XCS_VALID_FINAL_GLIDE = 1u << 14,
+  XCS_VALID_SPEED_TO_FLY = 1u << 15,
+  XCS_VALID_LD = 1u << 16,
+  XCS_VALID_LD_REQUIRED = 1u << 17,
+  XCS_VALID_NEXT_TIME = 1u << 18,
+  XCS_VALID_TASK_SPEED = 1u << 19,
+  XCS_VALID_CURRENT_THERMAL = 1u << 20,
+  XCS_VALID_LAST_THERMAL = 1u << 21,
 };
 
 /** Bits of xcs_flight_snapshot.flags. */
@@ -158,6 +165,31 @@ typedef struct xcs_flight_snapshot {
   /** UTF-8, zero-terminated, possibly truncated at a character
       boundary (XCS_VALID_NEXT_WAYPOINT). */
   char next_name[64];
+
+  /* appended in API version 1 (struct_size 368); the values and their
+     validity are those of the matching XCSoar InfoBoxes */
+
+  /** Speed to fly, IAS (XCS_VALID_SPEED_TO_FLY; "Speed dolphin"). */
+  double speed_to_fly;
+  /** Current glide ratio over ground (XCS_VALID_LD; "L/D instantaneous"). */
+  double ld;
+  /** Glide ratio needed to the next point; 0 means "+++", no glide
+      needed (XCS_VALID_LD_REQUIRED; "Next L/D"). */
+  double ld_required;
+  /** Time to the next point at the current MacCready, s
+      (XCS_VALID_NEXT_TIME; "Next ETE"). */
+  double next_time_remaining;
+  /** Achieved task speed, m/s (XCS_VALID_TASK_SPEED; "Speed task"). */
+  double task_speed;
+  /** The thermal being climbed: average climb (m/s), height gained (m)
+      and time (s) (XCS_VALID_CURRENT_THERMAL; "Thermal avg/gain"). */
+  double current_thermal_lift;
+  double current_thermal_gain;
+  double current_thermal_duration;
+  /** The last thermal, same fields (XCS_VALID_LAST_THERMAL). */
+  double last_thermal_lift;
+  double last_thermal_gain;
+  double last_thermal_duration;
 } xcs_flight_snapshot;
 
 /*

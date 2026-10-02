@@ -14,7 +14,7 @@ import java.nio.ByteOrder
  */
 object SnapshotDecoder {
     const val API_VERSION = 1
-    const val SIZE = 280
+    const val SIZE = 368
 
     // xcs_flight_snapshot field offsets
     private const val STRUCT_SIZE = 0
@@ -48,6 +48,17 @@ object SnapshotDecoder {
     private const val FINAL_GLIDE_ALTITUDE_DIFFERENCE = 208
     private const val NEXT_NAME = 216
     private const val NEXT_NAME_SIZE = 64
+    private const val SPEED_TO_FLY = 280
+    private const val LD = 288
+    private const val LD_REQUIRED = 296
+    private const val NEXT_TIME_REMAINING = 304
+    private const val TASK_SPEED = 312
+    private const val CURRENT_THERMAL_LIFT = 320
+    private const val CURRENT_THERMAL_GAIN = 328
+    private const val CURRENT_THERMAL_DURATION = 336
+    private const val LAST_THERMAL_LIFT = 344
+    private const val LAST_THERMAL_GAIN = 352
+    private const val LAST_THERMAL_DURATION = 360
 
     // XCS_VALID_* bits
     const val VALID_TIME = 1 shl 0
@@ -65,6 +76,13 @@ object SnapshotDecoder {
     const val VALID_TASK = 1 shl 12
     const val VALID_NEXT_WAYPOINT = 1 shl 13
     const val VALID_FINAL_GLIDE = 1 shl 14
+    const val VALID_SPEED_TO_FLY = 1 shl 15
+    const val VALID_LD = 1 shl 16
+    const val VALID_LD_REQUIRED = 1 shl 17
+    const val VALID_NEXT_TIME = 1 shl 18
+    const val VALID_TASK_SPEED = 1 shl 19
+    const val VALID_CURRENT_THERMAL = 1 shl 20
+    const val VALID_LAST_THERMAL = 1 shl 21
 
     // XCS_FLAG_* bits
     const val FLAG_GPS_REAL = 1 shl 0
@@ -127,6 +145,17 @@ object SnapshotDecoder {
             finalGlide = if (valid and VALID_FINAL_GLIDE != 0)
                 FinalGlide(d(TASK_REMAINING_DISTANCE), d(FINAL_GLIDE_ALTITUDE_DIFFERENCE))
             else null,
+            speedToFly = ifValid(VALID_SPEED_TO_FLY, SPEED_TO_FLY),
+            ld = ifValid(VALID_LD, LD),
+            ldRequired = ifValid(VALID_LD_REQUIRED, LD_REQUIRED),
+            nextTimeRemaining = ifValid(VALID_NEXT_TIME, NEXT_TIME_REMAINING),
+            taskSpeed = ifValid(VALID_TASK_SPEED, TASK_SPEED),
+            currentThermal = if (valid and VALID_CURRENT_THERMAL != 0)
+                Thermal(d(CURRENT_THERMAL_LIFT), d(CURRENT_THERMAL_GAIN),
+                        d(CURRENT_THERMAL_DURATION)) else null,
+            lastThermal = if (valid and VALID_LAST_THERMAL != 0)
+                Thermal(d(LAST_THERMAL_LIFT), d(LAST_THERMAL_GAIN),
+                        d(LAST_THERMAL_DURATION)) else null,
             gpsReal = flags and FLAG_GPS_REAL != 0,
             flying = flags and FLAG_FLYING != 0,
             circling = flags and FLAG_CIRCLING != 0,

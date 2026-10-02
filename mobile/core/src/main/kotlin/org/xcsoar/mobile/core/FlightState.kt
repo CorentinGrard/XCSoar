@@ -53,7 +53,24 @@ data class FlightState(
     /** Above final glide to the task finish. */
     val aboveFinalGlide: Boolean,
     val replay: Boolean,
+
+    /** Speed to fly, IAS m/s. */
+    val speedToFly: Double? = null,
+    /** Current glide ratio over ground. */
+    val ld: Double? = null,
+    /** Glide ratio needed to the next point; 0 = no glide needed ("+++"). */
+    val ldRequired: Double? = null,
+    /** Seconds to the next point at the current MacCready. */
+    val nextTimeRemaining: Double? = null,
+    /** Achieved task speed, m/s. */
+    val taskSpeed: Double? = null,
+    /** The thermal being climbed. */
+    val currentThermal: Thermal? = null,
+    val lastThermal: Thermal? = null,
 )
+
+/** One climb: average lift (m/s), height gained (m), time (s). */
+data class Thermal(val lift: Double, val gain: Double, val duration: Double)
 
 data class GeoPosition(val latitude: Double, val longitude: Double)
 

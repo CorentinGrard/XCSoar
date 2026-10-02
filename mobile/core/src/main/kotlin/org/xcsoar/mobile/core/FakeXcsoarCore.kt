@@ -137,6 +137,13 @@ class FakeXcsoarCore(
                 circling = circling,
                 aboveFinalGlide = false,
                 replay = true,
+                speedToFly = 33.0 + macCready * 2,
+                ld = if (circling) null else 34.0,
+                ldRequired = 27.0,
+                nextTimeRemaining = 660.0,
+                currentThermal = if (circling)
+                    Thermal(2.1, (cycle - 300) * 2.0, (cycle - 300).toDouble()) else null,
+                lastThermal = Thermal(2.1, 420.0, 204.0),
             )
         }
     }

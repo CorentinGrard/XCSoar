@@ -188,6 +188,10 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       buffer position, bad version/size, and the Kotlin constants
       (`XCS_GCE_*`, `XCS_VALID_*`, `XCS_FLAG_*`, API version) parsed from
       `xcsoar_core.h` so the two sides cannot drift
+- [x] Snapshot v2 (struct_size 368): speed to fly, current and required
+      L/D, time to the next point, task speed, current and last thermal,
+      with the conditions of XCSoar's InfoBoxes; the design's cruise and
+      circling boxes, ETE on the next waypoint card, "Set MC from thermal"
 - [ ] Unit formatting (m/ft, km/h/kt, m/s/kt, …) + tests
 - [x] Flight screen v0: status line, 10 InfoBoxes, MC −/+, sunlight and
       night themes; screen kept on

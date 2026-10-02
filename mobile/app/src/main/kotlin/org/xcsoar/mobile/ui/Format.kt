@@ -47,6 +47,25 @@ object Format {
             f("%d:%02d", minutes / 60, minutes % 60)
         } ?: INVALID, "")
 
+    /** Minutes and seconds, "3:24"; for thermals and times to go. */
+    fun minutesSeconds(s: Double?) = Value(
+        s?.takeIf { it >= 0 }?.let {
+            val total = it.toLong()
+            f("%d:%02d", total / 60, total % 60)
+        } ?: INVALID, "")
+
+    /** Glide ratio like XCSoar's FormatGlideRatio(): "27.4", "120". */
+    fun glideRatio(ratio: Double?) = Value(
+        when {
+            ratio == null -> INVALID
+            abs(ratio) < 100 -> f("%.1f", ratio)
+            else -> f("%.0f", ratio)
+        }, "")
+
+    /** Required glide ratio; 0 or less means no glide needed: "+++". */
+    fun requiredGlideRatio(ratio: Double?) =
+        if (ratio != null && ratio <= 0) Value("+++", "") else glideRatio(ratio)
+
     /* "." as decimal separator for now, like XCSoar's Formatter */
     private fun f(format: String, vararg args: Any) = String.format(Locale.ROOT, format, *args)
 

@@ -44,6 +44,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.xcsoar.mobile.core.FinalGlide
@@ -51,6 +53,7 @@ import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.XcsTheme
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Cockpit controls are at least 56 dp and act on release: Compose's
@@ -339,5 +342,24 @@ fun OrientationButton(orientation: MapOrientation, mapAngle: Double?, onClick: (
         }
         Text(label, color = colors.text, style = XcsTheme.numberStyle,
              fontWeight = FontWeight.Bold, fontSize = 14.sp)
+    }
+}
+
+/** In a thermal: set MacCready to its average climb (the design's button). */
+@Composable
+fun SetMacCreadyButton(lift: Double, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = XcsTheme.colors
+    val value = Format.macCready(((lift * 10).roundToInt() / 10.0).coerceIn(0.0, 5.0))
+    Box(
+        modifier
+            .heightIn(min = TOUCH)
+            .background(colors.lift, RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button, onClickLabel = "Set MacCready to ${value.text}",
+                       onClick = onClick)
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("Set MC from thermal (${value.text})", color = colors.onSelected,
+             fontSize = 15.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
     }
 }

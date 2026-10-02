@@ -72,7 +72,12 @@ fun FloatingCard(
  * arrival height above (safe) or below (caution) the glide path.
  */
 @Composable
-fun NextWaypointCard(next: NextWaypoint?, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+fun NextWaypointCard(
+    next: NextWaypoint?,
+    modifier: Modifier = Modifier,
+    timeRemaining: Double? = null,
+    onClick: (() -> Unit)? = null,
+) {
     val colors = XcsTheme.colors
     val distance = Format.distance(next?.distance)
     val bearing = Format.bearing(next?.bearing)
@@ -108,7 +113,8 @@ fun NextWaypointCard(next: NextWaypoint?, modifier: Modifier = Modifier, onClick
                          modifier = Modifier
                              .background(colors.task, RoundedCornerShape(5.dp))
                              .padding(horizontal = 6.dp, vertical = 1.dp))
-                    Text("${bearing.text}${bearing.unit}", color = colors.textSecondary,
+                    val ete = timeRemaining?.let { " · ETE ${Format.duration(it).text}" } ?: ""
+                    Text("${bearing.text}${bearing.unit}$ete", color = colors.textSecondary,
                          fontSize = 13.sp)
                 }
                 Text(name, color = colors.text, fontSize = 22.sp, fontWeight = FontWeight.Bold,

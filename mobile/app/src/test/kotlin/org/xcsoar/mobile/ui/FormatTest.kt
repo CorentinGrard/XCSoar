@@ -16,4 +16,22 @@ class FormatTest {
         assertEquals(Format.INVALID, Format.duration(null).text)
         assertEquals(Format.INVALID, Format.duration(-1.0).text)
     }
+
+    @Test
+    fun minutesSeconds() {
+        assertEquals("3:24", Format.minutesSeconds(204.4).text)
+        assertEquals("0:05", Format.minutesSeconds(5.0).text)
+        assertEquals("61:00", Format.minutesSeconds(3660.0).text)
+        assertEquals(Format.INVALID, Format.minutesSeconds(null).text)
+    }
+
+    @Test
+    fun glideRatio() {
+        assertEquals("27.4", Format.glideRatio(27.43).text)
+        assertEquals("120", Format.glideRatio(120.4).text)
+        assertEquals("0.0", Format.glideRatio(0.0).text)
+        assertEquals(Format.INVALID, Format.glideRatio(null).text)
+        assertEquals("+++", Format.requiredGlideRatio(0.0).text)
+        assertEquals("27.4", Format.requiredGlideRatio(27.43).text)
+    }
 }

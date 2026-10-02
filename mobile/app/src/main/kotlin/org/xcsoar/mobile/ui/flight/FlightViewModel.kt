@@ -301,6 +301,18 @@ class FlightViewModel(
         }
     }
 
+    /** Set MacCready to [value] (e.g. the current thermal's climb), to 0.1 m/s. */
+    fun setMacCready(value: Double) {
+        val mc = ((value * 10).roundToLong() / 10.0).coerceIn(0.0, 5.0)
+        viewModelScope.launch {
+            try {
+                core.setMacCready(mc)
+            } catch (e: Exception) {
+                lastEventFlow.value = "MacCready not set: ${e.message}"
+            }
+        }
+    }
+
     /** MacCready ± 0.1 m/s, clamped to 0..5 like XCSoar. */
     fun changeMacCready(delta: Double) {
         val current = flightState.value?.macCready ?: return

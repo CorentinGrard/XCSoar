@@ -13,6 +13,9 @@
  */
 
 #include "xcsoar_core.h"
+#include "Engine/Task/Stats/TaskStats.hpp"
+#include "Engine/Util/Gradient.hpp"
+#include "Computer/STF.hpp"
 #include "Engine/Route/ReachResult.hpp"
 #include "Computer/GlideComputer.hpp"
 #include "Computer/WaypointReach.hpp"
@@ -98,7 +101,9 @@
 static_assert(offsetof(xcs_flight_snapshot, sequence) == 8);
 static_assert(offsetof(xcs_flight_snapshot, time_utc) == 24);
 static_assert(offsetof(xcs_flight_snapshot, next_name) == 216);
-static_assert(sizeof(xcs_flight_snapshot) == 280);
+static_assert(offsetof(xcs_flight_snapshot, speed_to_fly) == 280);
+static_assert(offsetof(xcs_flight_snapshot, last_thermal_duration) == 360);
+static_assert(sizeof(xcs_flight_snapshot) == 368);
 
 #ifdef ANDROID
 /* xcs_map_orientation is XCSoar's MapOrientation */
@@ -299,11 +304,54 @@ FillSnapshot(xcs_flight_snapshot &s) noexcept
 
   s.mac_cready = settings.polar.glide_polar_task.GetMC();
 
+  /* the conditions of the matching InfoBoxes (src/InfoBoxes/Content) */
+  if (const auto stf = GetSTFSpeed(basic, calculated)) {
+    valid |= XCS_VALID_SPEED_TO_FLY;
+    s.speed_to_fly = *stf;
+  }
+
+  if (GradientValid(calculated.gr)) {
+    valid |= XCS_VALID_LD;
+    s.ld = calculated.gr;
+  }
+
+  if (calculated.current_thermal.IsDefined()) {
+    valid |= XCS_VALID_CURRENT_THERMAL;
+    s.current_thermal_lift = calculated.current_thermal.lift_rate;
+    s.current_thermal_gain = calculated.current_thermal.gain;
+    s.current_thermal_duration = calculated.current_thermal.duration.count();
+  }
+
+  if (calculated.last_thermal.IsDefined()) {
+    valid |= XCS_VALID_LAST_THERMAL;
+    s.last_thermal_lift = calculated.last_thermal.lift_rate;
+    s.last_thermal_gain = calculated.last_thermal.gain;
+    s.last_thermal_duration = calculated.last_thermal.duration.count();
+  }
+
   const auto &task_stats = calculated.task_stats;
   if (task_stats.task_valid) {
     valid |= XCS_VALID_TASK;
 
     const auto &leg = task_stats.current_leg;
+
+    if (leg.gradient <= 0) {
+      valid |= XCS_VALID_LD_REQUIRED;
+      s.ld_required = 0;
+    } else if (GradientValid(leg.gradient)) {
+      valid |= XCS_VALID_LD_REQUIRED;
+      s.ld_required = leg.gradient;
+    }
+
+    if (leg.IsAchievable()) {
+      valid |= XCS_VALID_NEXT_TIME;
+      s.next_time_remaining = leg.time_remaining_now.count();
+    }
+
+    if (task_stats.total.travelled.IsDefined()) {
+      valid |= XCS_VALID_TASK_SPEED;
+      s.task_speed = task_stats.total.travelled.GetSpeed();
+    }
     if (leg.vector_remaining.IsValid() && leg.solution_remaining.IsOk()) {
       valid |= XCS_VALID_NEXT_WAYPOINT;
       s.next_distance = leg.vector_remaining.distance;

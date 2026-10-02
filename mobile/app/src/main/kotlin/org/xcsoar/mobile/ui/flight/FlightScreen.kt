@@ -74,6 +74,7 @@ fun FlightScreen(
         lastEvent = lastEvent,
         circling = circling,
         onMacCreadyChange = viewModel::changeMacCready,
+        onSetMacCready = viewModel::setMacCready,
         onSelectMode = viewModel::selectFlightMode,
         warnings = warnings,
         onAcknowledge = viewModel::acknowledgeAirspace,
@@ -149,6 +150,7 @@ fun FlightContent(
     lastEvent: String?,
     circling: Boolean,
     onMacCreadyChange: (Double) -> Unit,
+    onSetMacCready: (Double) -> Unit = {},
     onSelectMode: (circling: Boolean) -> Unit = {},
     menu: List<MenuAction> = emptyList(),
     map: MapSlot? = null,
@@ -159,7 +161,7 @@ fun FlightContent(
     val colors = XcsTheme.colors
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
         val instruments = @Composable {
-            Instruments(state, circling, onMacCreadyChange, onSelectMode, menu)
+            Instruments(state, circling, onMacCreadyChange, onSetMacCready, onSelectMode, menu)
         }
 
         if (maxWidth > maxHeight && maxWidth >= 600.dp) {
@@ -277,7 +279,8 @@ private fun MapArea(
                 AirspaceWarningBanner(top, warnings.size - 1, { day -> onAcknowledge(top, day) },
                                       Modifier.fillMaxWidth())
             }
-            NextWaypointCard(state?.next, Modifier.fillMaxWidth(), onClick = onNextWaypoint)
+            NextWaypointCard(state?.next, Modifier.fillMaxWidth(), state?.nextTimeRemaining,
+                             onClick = onNextWaypoint)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
@@ -337,6 +340,7 @@ private fun Instruments(
     state: FlightState?,
     circling: Boolean,
     onMacCreadyChange: (Double) -> Unit,
+    onSetMacCready: (Double) -> Unit,
     onSelectMode: (circling: Boolean) -> Unit,
     menu: List<MenuAction>,
 ) {
@@ -355,7 +359,12 @@ private fun Instruments(
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         MacCreadyControl(state?.macCready, onMacCreadyChange,
                          Modifier.weight(1f).fillMaxHeight())
-        FinalGlideTile(state?.finalGlide, Modifier.weight(1f).fillMaxHeight())
+        val thermal = state?.currentThermal
+        if (circling && thermal != null && thermal.lift > 0)
+            SetMacCreadyButton(thermal.lift, { onSetMacCready(thermal.lift) },
+                               Modifier.weight(1f).fillMaxHeight())
+        else
+            FinalGlideTile(state?.finalGlide, Modifier.weight(1f).fillMaxHeight())
     }
 
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -372,33 +381,41 @@ private class InfoBoxValue(val title: String, val value: Format.Value,
 @Composable
 private fun infoBoxes(s: FlightState?, circling: Boolean): List<InfoBoxValue> {
     val colors = XcsTheme.colors
+    fun climbColor(v: Double?) = when {
+        v == null -> null
+        v >= 0.05 -> colors.lift
+        v <= -0.05 -> colors.sink
+        else -> null
+    }
     val altitude = InfoBoxValue("Altitude", Format.altitude(s?.navAltitude))
     val agl = InfoBoxValue("AGL", Format.altitude(s?.altitudeAgl))
-    val flightTime = InfoBoxValue("Flight time",
-                          Format.duration(s?.flightTime?.takeIf { s.flying }))
+    // the design's boxes; their values and validity are XCSoar's InfoBoxes
     return if (circling) {
-        val average = s?.averageVario
+        val thermal = s?.currentThermal
+        val wind = s?.wind
         listOf(
-            InfoBoxValue("Avg 30 s", Format.vario(average), when {
-                average == null -> null
-                average >= 0.05 -> colors.lift
-                average <= -0.05 -> colors.sink
-                else -> null
-            }),
+            InfoBoxValue("Thermal avg", Format.vario(thermal?.lift), climbColor(thermal?.lift)),
+            InfoBoxValue("Gained", Format.altitudeDifference(thermal?.gain)),
+            InfoBoxValue("In thermal", Format.minutesSeconds(thermal?.duration)),
             altitude,
             agl,
-            InfoBoxValue("Airspeed", Format.speed(s?.indicatedAirspeed)),
-            InfoBoxValue("Wind", Format.speed(s?.wind?.speed)),
-            flightTime,
+            InfoBoxValue("Wind", wind?.let {
+                Format.Value(Format.bearing(it.bearing).text + "°",
+                             Format.speed(it.speed).let { v -> "${v.text} ${v.unit}" })
+            } ?: Format.Value(Format.INVALID, "")),
         )
     } else {
+        val last = s?.lastThermal
         listOf(
             altitude,
             agl,
+            InfoBoxValue("Speed to fly", Format.speed(s?.speedToFly)),
+            InfoBoxValue("L/D req", Format.requiredGlideRatio(s?.ldRequired).let {
+                // the current L/D as the unit, like the design's "27 now 34"
+                it.copy(unit = s?.ld?.let { ld -> "now ${Format.glideRatio(ld).text}" } ?: "")
+            }),
             InfoBoxValue("Ground speed", Format.speed(s?.groundSpeed)),
-            InfoBoxValue("Airspeed", Format.speed(s?.indicatedAirspeed)),
-            InfoBoxValue("Track", Format.bearing(s?.track)),
-            flightTime,
+            InfoBoxValue("Last thermal", Format.vario(last?.lift), climbColor(last?.lift)),
         )
     }
 }
