@@ -109,6 +109,15 @@ public:
   Path GetPath(unsigned index) const;
 
   /**
+   * The position of the task in its file (files like SeeYou .cup may
+   * contain several), for TaskFile::GetTask()
+   */
+  [[gnu::pure]]
+  unsigned GetTaskIndex(unsigned index) const {
+    return store[index].task_index;
+  }
+
+  /**
    * Return the task defined by the given index
    * @param index TaskStore index of the desired Task
    * @return The task defined by the given index

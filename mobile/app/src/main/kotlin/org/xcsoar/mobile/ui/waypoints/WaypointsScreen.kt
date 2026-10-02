@@ -49,8 +49,17 @@ import org.xcsoar.mobile.core.WaypointInfo
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
+/**
+ * @param onPick instead of "Go to", hand the tapped waypoint over (e.g.
+ * to add it to the task); the screen then closes
+ */
 @Composable
-fun WaypointsScreen(viewModel: WaypointsViewModel, onDone: () -> Unit) {
+fun WaypointsScreen(
+    viewModel: WaypointsViewModel,
+    onDone: () -> Unit,
+    title: String = "Go to",
+    onPick: ((WaypointInfo) -> Unit)? = null,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     DisposableEffect(Unit) {
         viewModel.open()
@@ -58,10 +67,12 @@ fun WaypointsScreen(viewModel: WaypointsViewModel, onDone: () -> Unit) {
     }
     LaunchedEffect(state.done) { if (state.done) onDone() }
     BackHandler(onBack = onDone)
-    WaypointsContent(state, viewModel::search, viewModel::filter, viewModel::goto, onDone)
+    val onTap: (WaypointInfo) -> Unit =
+        if (onPick != null) { waypoint -> onPick(waypoint); onDone() } else viewModel::goto
+    WaypointsContent(state, viewModel::search, viewModel::filter, onTap, onDone, title)
 }
 
-/** Nearest first; a tap flies there (XCSoar's "Go to"). */
+/** Nearest first; a tap flies there (XCSoar's "Go to") or picks it. */
 @Composable
 fun WaypointsContent(
     state: WaypointsState,
@@ -69,6 +80,7 @@ fun WaypointsContent(
     onFilter: (WaypointFilter) -> Unit,
     onGoto: (WaypointInfo) -> Unit,
     onBack: () -> Unit,
+    title: String = "Go to",
 ) {
     val colors = XcsTheme.colors
     Column(
@@ -91,7 +103,7 @@ fun WaypointsContent(
                 Text("Back", color = colors.text, fontSize = 16.sp,
                      fontWeight = FontWeight.SemiBold)
             }
-            Text("Go to", color = colors.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text(title, color = colors.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         }
 
         Row(Modifier

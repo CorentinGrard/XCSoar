@@ -67,6 +67,12 @@ internal object NativeCore {
     @JvmStatic external fun nativeMapSetOption(core: Long, option: Int, value: Int): Int
     /** @return the value, or Int.MIN_VALUE on error */
     @JvmStatic external fun nativeMapGetOption(core: Long, option: Int): Int
+    /** @param which 0 active, 1 edited; @return JSON or null */
+    @JvmStatic external fun nativeTaskGet(core: Long, which: Int): String?
+    @JvmStatic external fun nativeTaskEdit(core: Long, op: Int, index: Int, value: Double): Int
+    @JvmStatic external fun nativeTaskListFiles(core: Long): String?
+    @JvmStatic external fun nativeTaskLoad(core: Long, path: String, index: Int): Int
+    @JvmStatic external fun nativeTaskSave(core: Long, name: String): Int
     @JvmStatic external fun nativeSoundSetOption(core: Long, option: Int, value: Int): Int
     /** @return the value, or Int.MIN_VALUE on error */
     @JvmStatic external fun nativeSoundGetOption(core: Long, option: Int): Int

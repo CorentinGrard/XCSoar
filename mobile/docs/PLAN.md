@@ -17,13 +17,13 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M1 | Headless core behind the C API, replay tests on the host | ☑ done |
 | M2 | Android skeleton: replay an IGC, see live InfoBoxes | ◐ demo works on the emulator |
 | M3 | Moving map in the new app | ◐ map, gestures, hold card on the phone |
-| M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ background service, Go To, MC/ballast/bugs, airspace warnings, vario sound |
+| M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ all features in; field test and L5 left |
 | M5 | External devices: Bluetooth / BLE / USB, drivers, declaration | ☐ |
 | M6 | Settings, profiles, data management | ☐ |
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** M4 (check IGC logging on a takeoff, task)
+**Current focus:** M4 field test (IGC logging on a takeoff), then M5 devices
 
 ---
 
@@ -282,7 +282,16 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       airports / all, name search, distance, bearing and arrival height
       (`xcs_waypoints_search`: XCSoar's WaypointFilter, WaypointListBuilder
       and CalculateWaypointReach; `xcs_goto_waypoint`)
-- [ ] Task: view, edit (points, sectors, AAT), load/save `.tsk`/`.cup`, advance/restart
+- [x] Task (Menu → Task), like XCSoar's task manager: the pilot edits a
+      copy that replaces the active task on "Done" (validated; saved as
+      Default.tsk).  Points from the waypoint list, order, remove; zone
+      type and size per point; task type (racing, AAT, MAT, FAI…) and AAT
+      minimum time; load from XCSoarData (.tsk, SeeYou .cup tasks) and
+      save as .tsk; Next / Previous / Restart on the active task.  C API
+      `xcs_task_get` / `xcs_task_edit` / `xcs_task_list_files` /
+      `xcs_task_load` / `xcs_task_save` (`core/host/CoreTask.cpp`).
+      Checked on a Pixel 7.  Later: the task on the map's own overlays,
+      sector angles, start open/close times, optional starts, AAT targets
 - [~] Airspace warnings: banner above the cards (red inside, orange
       ahead or crossing the task, time and distance to it), "Ack" until it
       changes and "Day" (`xcs_get_airspace_warnings`,
@@ -352,6 +361,10 @@ Newest first. One line per session: what was done and what's next.
   Vario sound on/off (upstream's OpenSL player, D18). IGC logger starts
   on takeoff and stops on landing; flight list with Share. Next: see the
   logger start on a real takeoff, then the task.
+- 2026-10-02 — Task: view, edit, zones, types, load/save, advance/restart
+  (C API + task screens), checked on a Pixel 7. TestCoreApi extended
+  (not runnable on this Fedora host: thirdparty.py has no native Linux
+  target; needs the -devel packages). Next: field test, then M5.
 
 - 2026-10-02 — Data files screen (map/airspace/waypoints via the system
   picker) and XCSoar's moving map in the app, both working on a Pixel 7

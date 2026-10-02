@@ -64,6 +64,7 @@
 #include "Storage/StorageManager.hpp"
 #include "Simulator.hpp"
 #include "Input/InputQueue.hpp"
+#include "CoreTask.hpp"
 #include "Audio/VarioGlue.hpp"
 #include "system/FileUtil.hpp"
 
@@ -451,6 +452,8 @@ CoreShutdown() noexcept
   }
 
   CoreDeinitNotify();
+
+  CoreTask::Deinitialise();
 
   AudioVarioGlue::Deinitialise();
 

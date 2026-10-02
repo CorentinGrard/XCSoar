@@ -93,6 +93,30 @@ interface XcsoarCore {
 
     suspend fun setMapOrientation(orientation: MapOrientation) {}
 
+    /**
+     * The active task, or with [edited] the copy being edited (null if
+     * none).
+     */
+    suspend fun task(edited: Boolean): TaskInfo? = null
+
+    /**
+     * Change the task (`xcs_task_edit`); most operations need
+     * [TaskOp.BEGIN] first.
+     *
+     * @throws IllegalStateException if not allowed, e.g. a commit of
+     * an invalid task
+     */
+    suspend fun editTask(op: TaskOp, index: Int = 0, value: Double = 0.0) {}
+
+    /** The task files XCSoar finds. */
+    suspend fun taskFiles(): List<TaskFileInfo> = emptyList()
+
+    /** Load a task file into the editor (editing starts). */
+    suspend fun loadTask(file: TaskFileInfo) {}
+
+    /** Save the edited task as XCSoarData/tasks/<name>.tsk. */
+    suspend fun saveTask(name: String) {}
+
     /** A sound option (saved in the profile); null without audio output. */
     suspend fun soundOption(option: SoundOption): Int? = null
 

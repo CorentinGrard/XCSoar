@@ -447,6 +447,105 @@ typedef enum xcs_data_file {
 XCS_EXPORT xcs_status
 xcs_set_data_file(xcs_core *core, uint32_t kind, const char *path);
 
+/*
+ * The task, like XCSoar's task manager: the pilot edits a copy of the
+ * active task, which replaces it on XCS_TASK_COMMIT, so a half-built
+ * task never guides the glider.
+ */
+
+enum {
+  XCS_TASK_ACTIVE = 0,
+  XCS_TASK_EDITED = 1,
+};
+
+/**
+ * The active or the edited task as JSON (UTF-8, null-terminated):
+ *
+ *   {"type": 4, "type_name": "Racing", "name": "", "editing": false,
+ *    "valid": true, "errors": "", "distance": 123400.0, "active": 1,
+ *    "types": [{"type": 0, "name": "FAI badges/records"}, ...],
+ *    "points": [{"waypoint_id": 42, "name": "Anduze", "kind": "start",
+ *                "type": 1, "type_name": "Start line", "radius": 1000.0,
+ *                "leg": 0.0,
+ *                "types": [{"type": 1, "name": "Start line"}, ...]}, ...]}
+ *
+ * The task "type" is XCSoar's TaskFactoryType, a point's "type" its
+ * TaskPointFactoryType; "types" lists the ones allowed, with XCSoar's
+ * names.  "radius" (half the length for lines) only for zones that have
+ * one; "distance_min",
+ * "distance_max" and "aat_min_time" (s) only for area tasks; "active"
+ * (the index of the point flown to) only for the active task.  "errors"
+ * is XCSoar's validation message for an invalid task.
+ *
+ * @param which XCS_TASK_ACTIVE or XCS_TASK_EDITED (XCS_ERROR_FAILED if
+ * no edit is in progress)
+ * @param length_r as for xcs_get_data_status()
+ */
+XCS_EXPORT xcs_status
+xcs_task_get(xcs_core *core, uint32_t which, char *buffer, size_t size,
+             size_t *length_r);
+
+/** Operations of xcs_task_edit(). */
+typedef enum xcs_task_op {
+  /** Start editing a copy of the active task (again, if already). */
+  XCS_TASK_BEGIN = 1,
+  XCS_TASK_CANCEL = 2,
+  /** Make the edited task active and save it as the default task;
+      XCS_ERROR_FAILED if it is not valid (editing goes on).  An empty
+      task means no task. */
+  XCS_TASK_COMMIT = 3,
+  /** Append waypoint `value` (an id from xcs_waypoints_search()). */
+  XCS_TASK_APPEND = 4,
+  XCS_TASK_REMOVE = 5,
+  /** Swap the points `index` and `index` + 1. */
+  XCS_TASK_SWAP = 6,
+  XCS_TASK_CLEAR = 7,
+  /** Task type `value` (TaskFactoryType); the points follow. */
+  XCS_TASK_SET_TYPE = 8,
+  /** Type `value` (TaskPointFactoryType) of point `index`. */
+  XCS_TASK_SET_POINT_TYPE = 9,
+  /** Radius `value` (m; lines: half their length) of point `index`. */
+  XCS_TASK_SET_RADIUS = 10,
+  /** Minimum time `value` (s) of an area task. */
+  XCS_TASK_SET_AAT_MIN_TIME = 11,
+  /** Active task: fly to the next (`value` 1) or previous (-1) point. */
+  XCS_TASK_ADVANCE = 12,
+  /** Active task: start again, as if not flown yet. */
+  XCS_TASK_RESTART = 13,
+} xcs_task_op;
+
+/**
+ * Change the task.  Operations other than XCS_TASK_BEGIN, ADVANCE and
+ * RESTART need an edit in progress.  XCS_ERROR_INVALID_ARGUMENT for an
+ * unknown operation, a bad index or value, or a change the task type
+ * does not allow.
+ */
+XCS_EXPORT xcs_status
+xcs_task_edit(xcs_core *core, uint32_t op, uint32_t index, double value);
+
+/**
+ * The task files XCSoar finds (.tsk files in XCSoarData/tasks and the
+ * tasks in other files it reads, e.g. SeeYou .cup), as JSON:
+ *
+ *   [{"name": "Grenoble 300.tsk", "path": "/…/Grenoble 300.tsk",
+ *     "index": 0}, ...]
+ *
+ * @param length_r as for xcs_get_data_status()
+ */
+XCS_EXPORT xcs_status
+xcs_task_list_files(xcs_core *core, char *buffer, size_t size,
+                    size_t *length_r);
+
+/** Load task `index` of a file into the editor (editing starts).
+    XCS_ERROR_FAILED if it cannot be read. */
+XCS_EXPORT xcs_status
+xcs_task_load(xcs_core *core, const char *path, uint32_t index);
+
+/** Save the edited task as XCSoarData/tasks/<name>.tsk (name: UTF-8,
+    no folder, no extension).  XCS_ERROR_FAILED on I/O errors. */
+XCS_EXPORT xcs_status
+xcs_task_save(xcs_core *core, const char *name);
+
 /**
  * Describe the configured data files and what was loaded from them, as
  * a JSON object (UTF-8, null-terminated):

@@ -28,8 +28,11 @@ data class WaypointsState(
 )
 
 /** XCSoar's waypoint list: nearest first, by name and type. */
-class WaypointsViewModel(private val core: XcsoarCore) : ViewModel() {
-    private val stateFlow = MutableStateFlow(WaypointsState())
+class WaypointsViewModel(
+    private val core: XcsoarCore,
+    filter: WaypointFilter = WaypointFilter.LANDABLE,
+) : ViewModel() {
+    private val stateFlow = MutableStateFlow(WaypointsState(filter = filter))
     val state: StateFlow<WaypointsState> = stateFlow.asStateFlow()
 
     private var job: Job? = null

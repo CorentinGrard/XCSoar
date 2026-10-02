@@ -38,12 +38,17 @@ import org.xcsoar.mobile.ui.flights.FlightLog
 import org.xcsoar.mobile.ui.flights.FlightsScreen
 import org.xcsoar.mobile.ui.flights.FlightsViewModel
 import org.xcsoar.mobile.ui.setup.FlightSetupScreen
+import org.xcsoar.mobile.ui.task.TaskFilesScreen
+import org.xcsoar.mobile.ui.task.TaskScreen
+import org.xcsoar.mobile.ui.task.TaskViewModel
+import org.xcsoar.mobile.core.WaypointFilter
 import org.xcsoar.mobile.ui.setup.FlightSetupViewModel
 import org.xcsoar.mobile.ui.flight.FlightViewModel
 import org.xcsoar.mobile.ui.theme.XcsTheme
 import java.io.File
 
-private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS }
+private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS,
+                            TASK, TASK_FILES, TASK_ADD_POINT }
 
 class MainActivity : ComponentActivity() {
     private val app get() = application as XcsoarApp
@@ -132,6 +137,15 @@ class MainActivity : ComponentActivity() {
                     initializer { FlightsViewModel(app::flightLogs) }
                 })
 
+                val taskViewModel: TaskViewModel = viewModel(factory = viewModelFactory {
+                    initializer { TaskViewModel(app.anyCore) }
+                })
+                // a second waypoint list, to pick task points from all waypoints
+                val pickViewModel: WaypointsViewModel = viewModel(
+                    key = "pick", factory = viewModelFactory {
+                        initializer { WaypointsViewModel(app.anyCore, WaypointFilter.ALL) }
+                    })
+
                 LaunchedEffect(flightViewModel) {
                     flightViewModel.alerts.collect { alerts.play(it) }
                 }
@@ -145,6 +159,7 @@ class MainActivity : ComponentActivity() {
                         onOpenWaypoints = { screen = Screen.WAYPOINTS },
                         onOpenFlightSetup = { screen = Screen.FLIGHT_SETUP },
                         onOpenFlights = { screen = Screen.FLIGHTS },
+                        onOpenTask = { screen = Screen.TASK },
                     )
                     Screen.DATA_FILES -> DataFilesScreen(
                         dataViewModel,
@@ -167,6 +182,16 @@ class MainActivity : ComponentActivity() {
                         mapViewModel, onBack = { screen = Screen.FLIGHT })
                     Screen.FLIGHT_SETUP -> FlightSetupScreen(
                         setupViewModel, onBack = { screen = Screen.FLIGHT })
+                    Screen.TASK -> TaskScreen(
+                        taskViewModel,
+                        onAddPoint = { screen = Screen.TASK_ADD_POINT },
+                        onOpenFiles = { screen = Screen.TASK_FILES },
+                        onBack = { screen = Screen.FLIGHT })
+                    Screen.TASK_FILES -> TaskFilesScreen(
+                        taskViewModel, onBack = { screen = Screen.TASK })
+                    Screen.TASK_ADD_POINT -> WaypointsScreen(
+                        pickViewModel, onDone = { screen = Screen.TASK },
+                        title = "Add point", onPick = taskViewModel::add)
                     Screen.FLIGHTS -> FlightsScreen(
                         flightsViewModel, onShare = ::share, onBack = { screen = Screen.FLIGHT })
                 }

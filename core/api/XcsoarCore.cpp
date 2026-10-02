@@ -40,6 +40,7 @@
 
 #ifdef ANDROID
 #include "CoreMap.hpp"
+#include "CoreTask.hpp"
 #include "MapSettings.hpp"
 #endif
 #include "Interface.hpp"
@@ -842,6 +843,145 @@ xcs_get_data_status(xcs_core *core, char *buffer, size_t size,
 
     std::memcpy(buffer, json.c_str(), json.size() + 1);
     return XCS_OK;
+  });
+}
+
+/**
+ * Copy JSON into the caller's buffer (the rules of
+ * xcs_get_data_status()).
+ */
+static xcs_status
+CopyJson(const std::string &json, char *buffer, size_t size,
+         size_t *length_r) noexcept
+{
+  *length_r = json.size();
+  if (json.size() >= size)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  std::memcpy(buffer, json.c_str(), json.size() + 1);
+  return XCS_OK;
+}
+
+xcs_status
+xcs_task_get(xcs_core *core, uint32_t which, char *buffer, size_t size,
+             size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr ||
+      (which != XCS_TASK_ACTIVE && which != XCS_TASK_EDITED))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [which, buffer, size, length_r]{
+    const auto json = CoreTask::Describe(which == XCS_TASK_EDITED);
+    if (json.empty())
+      return XCS_ERROR_FAILED;
+    return CopyJson(json, buffer, size, length_r);
+  });
+}
+
+xcs_status
+xcs_task_edit(xcs_core *core, uint32_t op, uint32_t index, double value)
+{
+  if (core == nullptr || std::isnan(value))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [op, index, value]{
+    /* integer values: non-negative and exact */
+    const bool integer = value >= 0 && value <= UINT32_MAX &&
+      value == unsigned(value);
+    bool ok;
+    switch (op) {
+    case XCS_TASK_BEGIN:
+      CoreTask::BeginEdit();
+      return XCS_OK;
+
+    case XCS_TASK_CANCEL:
+      CoreTask::CancelEdit();
+      return XCS_OK;
+
+    case XCS_TASK_COMMIT:
+      return CoreTask::Commit() ? XCS_OK : XCS_ERROR_FAILED;
+
+    case XCS_TASK_APPEND:
+      ok = integer && CoreTask::Append(unsigned(value));
+      break;
+
+    case XCS_TASK_REMOVE:
+      ok = CoreTask::Remove(index);
+      break;
+
+    case XCS_TASK_SWAP:
+      ok = CoreTask::Swap(index);
+      break;
+
+    case XCS_TASK_CLEAR:
+      ok = CoreTask::Clear();
+      break;
+
+    case XCS_TASK_SET_TYPE:
+      ok = integer && CoreTask::SetType(unsigned(value));
+      break;
+
+    case XCS_TASK_SET_POINT_TYPE:
+      ok = integer && CoreTask::SetPointType(index, unsigned(value));
+      break;
+
+    case XCS_TASK_SET_RADIUS:
+      ok = CoreTask::SetRadius(index, value);
+      break;
+
+    case XCS_TASK_SET_AAT_MIN_TIME:
+      ok = CoreTask::SetAATMinTime(value);
+      break;
+
+    case XCS_TASK_ADVANCE:
+      ok = (value == 1 || value == -1) && CoreTask::Advance(int(value));
+      break;
+
+    case XCS_TASK_RESTART:
+      CoreTask::Restart();
+      return XCS_OK;
+
+    default:
+      ok = false;
+    }
+
+    return ok ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_task_list_files(xcs_core *core, char *buffer, size_t size,
+                    size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [buffer, size, length_r]{
+    return CopyJson(CoreTask::ListFiles(), buffer, size, length_r);
+  });
+}
+
+xcs_status
+xcs_task_load(xcs_core *core, const char *path, uint32_t index)
+{
+  if (core == nullptr || path == nullptr || *path == '\0' ||
+      !ValidateUTF8(path))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [path, index]{
+    return CoreTask::Load(path, index) ? XCS_OK : XCS_ERROR_FAILED;
+  });
+}
+
+xcs_status
+xcs_task_save(xcs_core *core, const char *name)
+{
+  if (core == nullptr || name == nullptr || *name == '\0' ||
+      !ValidateUTF8(name) || std::strpbrk(name, "/\\") != nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [name]{
+    return CoreTask::Save(name) ? XCS_OK : XCS_ERROR_FAILED;
   });
 }
 

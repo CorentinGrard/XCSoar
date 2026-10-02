@@ -125,6 +125,7 @@ TestNotStarted(xcs_core *core)
   ok1(xcs_set_mac_cready(core, 1) == XCS_ERROR_STATE);
   ok1(xcs_set_ballast(core, 0) == XCS_ERROR_STATE);
   ok1(xcs_set_bugs(core, 1) == XCS_ERROR_STATE);
+  ok1(xcs_task_edit(core, XCS_TASK_BEGIN, 0, 0) == XCS_ERROR_STATE);
   ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO, 1) == XCS_ERROR_STATE);
   ok1(xcs_get_snapshot(core, &s) == XCS_ERROR_STATE);
   ok1(xcs_replay_run(core, FLIGHT, 60, nullptr) == XCS_ERROR_STATE);
@@ -193,6 +194,124 @@ TestDataFiles(xcs_core *core)
   status = DataStatus(core);
   ok1(status.find("\"terrain\":false") != std::string::npos);
   ok1(DataCount(status, "airspace") == 0);
+}
+
+static std::string
+TaskJson(xcs_core *core, uint32_t which)
+{
+  static char buffer[16384];
+  size_t length = 0;
+  if (xcs_task_get(core, which, buffer, sizeof(buffer), &length) != XCS_OK)
+    return {};
+  return buffer;
+}
+
+/** How often @p needle occurs in @p haystack. */
+static unsigned
+Count(const std::string &haystack, const char *needle)
+{
+  unsigned n = 0;
+  for (auto i = haystack.find(needle); i != std::string::npos;
+       i = haystack.find(needle, i + 1))
+    ++n;
+  return n;
+}
+
+/** The first @p n waypoint ids of xcs_waypoints_search(). */
+static std::vector<unsigned>
+WaypointIds(xcs_core *core, unsigned n)
+{
+  char buffer[16384];
+  size_t length = 0;
+  std::vector<unsigned> ids;
+  if (xcs_waypoints_search(core, nullptr, XCS_WAYPOINTS_ALL, n,
+                           buffer, sizeof(buffer), &length) != XCS_OK)
+    return ids;
+
+  const std::string json{buffer};
+  for (auto i = json.find("\"id\":"); i != std::string::npos;
+       i = json.find("\"id\":", i + 1))
+    ids.push_back(std::strtoul(json.c_str() + i + 5, nullptr, 10));
+  return ids;
+}
+
+static void
+TestTask(xcs_core *core)
+{
+  const auto map = std::filesystem::absolute(MAP).string();
+  ok1(xcs_set_data_file(core, XCS_DATA_MAP, map.c_str()) == XCS_OK);
+  const auto ids = WaypointIds(core, 3);
+  ok1(ids.size() == 3);
+  if (ids.size() != 3) {
+    skip(33, 0, "no waypoints");
+    return;
+  }
+
+  /* editing needs XCS_TASK_BEGIN */
+  ok1(TaskJson(core, XCS_TASK_EDITED).empty());
+  ok1(xcs_task_edit(core, XCS_TASK_APPEND, 0, ids[0]) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_task_edit(core, 99, 0, 0) == XCS_ERROR_INVALID_ARGUMENT);
+
+  ok1(xcs_task_edit(core, XCS_TASK_BEGIN, 0, 0) == XCS_OK);
+  ok1(xcs_task_edit(core, XCS_TASK_CLEAR, 0, 0) == XCS_OK);
+  for (const unsigned id : ids)
+    xcs_task_edit(core, XCS_TASK_APPEND, 0, id);
+  ok1(xcs_task_edit(core, XCS_TASK_APPEND, 0, 1e9) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_task_edit(core, XCS_TASK_APPEND, 0, 0.5) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_task_edit(core, XCS_TASK_SWAP, 2, 0) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_task_edit(core, XCS_TASK_SWAP, 0, 0) == XCS_OK);
+
+  auto edited = TaskJson(core, XCS_TASK_EDITED);
+  ok1(Count(edited, "\"waypoint_id\"") == 3);
+  ok1(edited.find("\"editing\":true") != std::string::npos);
+
+  /* the active task is untouched until the commit, which adds the
+     finish */
+  ok1(Count(TaskJson(core, XCS_TASK_ACTIVE), "\"waypoint_id\"") == 0);
+  ok1(xcs_task_edit(core, XCS_TASK_COMMIT, 0, 0) == XCS_OK);
+  auto active = TaskJson(core, XCS_TASK_ACTIVE);
+  ok1(Count(active, "\"waypoint_id\"") == 3);
+  ok1(active.find("\"kind\":\"finish\"") != std::string::npos);
+  ok1(active.find("\"active\":0") != std::string::npos);
+  ok1(TaskJson(core, XCS_TASK_EDITED).empty());
+
+  /* zones and task type */
+  ok1(xcs_task_edit(core, XCS_TASK_BEGIN, 0, 0) == XCS_OK);
+  ok1(xcs_task_edit(core, XCS_TASK_SET_RADIUS, 1, 2345) == XCS_OK);
+  ok1(xcs_task_edit(core, XCS_TASK_SET_RADIUS, 1, -1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_task_edit(core, XCS_TASK_SET_TYPE, 0, 5 /* AAT */) == XCS_OK);
+  edited = TaskJson(core, XCS_TASK_EDITED);
+  ok1(edited.rfind("{\"type\":5,", 0) == 0);
+  ok1(edited.find("\"aat_min_time\"") != std::string::npos);
+
+  /* save, find and load it again */
+  ok1(xcs_task_save(core, "../escape") == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_task_save(core, "core-api-test") == XCS_OK);
+  char buffer[16384];
+  size_t length = 0;
+  ok1(xcs_task_list_files(core, buffer, sizeof(buffer), &length) == XCS_OK &&
+      std::strstr(buffer, "core-api-test.tsk") != nullptr);
+  const auto saved = std::filesystem::absolute(
+    std::filesystem::path{DATA_PATH} / "tasks" / "core-api-test.tsk").string();
+  ok1(xcs_task_edit(core, XCS_TASK_CANCEL, 0, 0) == XCS_OK);
+  ok1(xcs_task_load(core, saved.c_str(), 0) == XCS_OK &&
+      TaskJson(core, XCS_TASK_EDITED).rfind("{\"type\":5,", 0) == 0);
+  ok1(xcs_task_edit(core, XCS_TASK_CANCEL, 0, 0) == XCS_OK);
+  std::filesystem::remove(saved);
+
+  /* fly it */
+  ok1(xcs_task_edit(core, XCS_TASK_ADVANCE, 0, 2) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_task_edit(core, XCS_TASK_ADVANCE, 0, 1) == XCS_OK &&
+      TaskJson(core, XCS_TASK_ACTIVE).find("\"active\":1") != std::string::npos);
+  ok1(xcs_task_edit(core, XCS_TASK_RESTART, 0, 0) == XCS_OK);
+
+  /* an empty task is no task */
+  xcs_task_edit(core, XCS_TASK_BEGIN, 0, 0);
+  xcs_task_edit(core, XCS_TASK_CLEAR, 0, 0);
+  ok1(xcs_task_edit(core, XCS_TASK_COMMIT, 0, 0) == XCS_OK &&
+      Count(TaskJson(core, XCS_TASK_ACTIVE), "\"waypoint_id\"") == 0);
+
+  xcs_set_data_file(core, XCS_DATA_MAP, nullptr);
 }
 
 static void
@@ -339,7 +458,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 11 + 6 + 43 + 15 + 7);
+  plan_tests(9 + 12 + 6 + 43 + 15 + 35 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -357,6 +476,7 @@ main()
   ok1(xcs_start(core) == XCS_OK);
   TestStarted(core, recorder);
   TestDataFiles(core);
+  TestTask(core);
   ok1(xcs_stop(core) == XCS_OK);
 
   /* the same core can be started again */

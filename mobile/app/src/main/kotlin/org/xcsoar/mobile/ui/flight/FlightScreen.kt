@@ -62,6 +62,7 @@ fun FlightScreen(
     onOpenWaypoints: () -> Unit = {},
     onOpenFlightSetup: () -> Unit = {},
     onOpenFlights: () -> Unit = {},
+    onOpenTask: () -> Unit = {},
 ) {
     val state by viewModel.flightState.collectAsStateWithLifecycle()
     val lastEvent by viewModel.lastEvent.collectAsStateWithLifecycle()
@@ -86,6 +87,7 @@ fun FlightScreen(
         onVarioSound = viewModel::setVarioSound,
         menu = listOf(
             MenuAction("Go to waypoint", enabled = true, onClick = onOpenWaypoints),
+            MenuAction("Task", enabled = true, onClick = onOpenTask),
             MenuAction("Flight setup", enabled = true, onClick = onOpenFlightSetup),
             MenuAction("Flights", enabled = true, onClick = onOpenFlights),
             MenuAction("Data files", enabled = true, onClick = onOpenDataFiles),

@@ -111,6 +111,27 @@ ToCore(jlong handle) noexcept
 
 } // namespace
 
+/**
+ * Call an xcs_* function that writes JSON into a buffer, with a larger
+ * buffer if needed.
+ *
+ * @return the JSON, or null on error
+ */
+template<typename F>
+static jstring
+GetJson(JNIEnv *env, F &&get) noexcept
+{
+  std::string buffer(8192, '\0');
+  size_t length;
+  xcs_status status = get(buffer.data(), buffer.size(), &length);
+  if (status == XCS_ERROR_INVALID_ARGUMENT && length >= buffer.size()) {
+    buffer.resize(length + 1);
+    status = get(buffer.data(), buffer.size(), &length);
+  }
+
+  return status == XCS_OK ? env->NewStringUTF(buffer.c_str()) : nullptr;
+}
+
 extern "C" {
 
 JNIEXPORT jint JNICALL
@@ -463,6 +484,50 @@ Java_org_xcsoar_mobile_NativeCore_nativeWaypointsSearch(JNIEnv *env, jclass,
   }
 
   return status == XCS_OK ? env->NewStringUTF(buffer.c_str()) : nullptr;
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTaskGet(JNIEnv *env, jclass,
+                                                jlong core, jint which)
+{
+  return GetJson(env, [core, which](char *buffer, size_t size,
+                                    size_t *length){
+    return xcs_task_get(ToCore(core), which, buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTaskEdit(JNIEnv *, jclass,
+                                                 jlong core, jint op,
+                                                 jint index, jdouble value)
+{
+  return xcs_task_edit(ToCore(core), op, index, value);
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTaskListFiles(JNIEnv *env, jclass,
+                                                      jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_task_list_files(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTaskLoad(JNIEnv *env, jclass,
+                                                 jlong core, jstring path,
+                                                 jint index)
+{
+  const auto p = Java::String::GetUTFChars(env, path);
+  return xcs_task_load(ToCore(core), p.c_str(), index);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTaskSave(JNIEnv *env, jclass,
+                                                 jlong core, jstring name)
+{
+  const auto n = Java::String::GetUTFChars(env, name);
+  return xcs_task_save(ToCore(core), n.c_str());
 }
 
 } // extern "C"

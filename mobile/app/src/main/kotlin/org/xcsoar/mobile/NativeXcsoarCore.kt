@@ -28,6 +28,9 @@ import org.xcsoar.mobile.core.WaypointInfo
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SnapshotDecoder
 import org.xcsoar.mobile.core.SoundOption
+import org.xcsoar.mobile.core.TaskFileInfo
+import org.xcsoar.mobile.core.TaskInfo
+import org.xcsoar.mobile.core.TaskOp
 import org.xcsoar.mobile.core.XcsoarCore
 import java.nio.ByteBuffer
 
@@ -166,6 +169,27 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun setMapOption(option: MapOption, value: Int) =
         command { NativeCore.nativeMapSetOption(it, option.code, value) }
+
+    override suspend fun task(edited: Boolean): TaskInfo? = lock.withLock {
+        if (handle == 0L) return@withLock null
+        withContext(Dispatchers.IO) { NativeCore.nativeTaskGet(handle, if (edited) 1 else 0) }
+            ?.let(TaskInfo::parse)
+    }
+
+    override suspend fun editTask(op: TaskOp, index: Int, value: Double) =
+        command { NativeCore.nativeTaskEdit(it, op.code, index, value) }
+
+    override suspend fun taskFiles(): List<TaskFileInfo> = lock.withLock {
+        check(handle != 0L) { "core not started" }
+        val json = withContext(Dispatchers.IO) { NativeCore.nativeTaskListFiles(handle) }
+        TaskFileInfo.parseList(checkNotNull(json) { "xcs_task_list_files failed" })
+    }
+
+    override suspend fun loadTask(file: TaskFileInfo) =
+        command { NativeCore.nativeTaskLoad(it, file.path, file.index) }
+
+    override suspend fun saveTask(name: String) =
+        command { NativeCore.nativeTaskSave(it, name) }
 
     override suspend fun soundOption(option: SoundOption): Int? = lock.withLock {
         if (handle == 0L) return@withLock null

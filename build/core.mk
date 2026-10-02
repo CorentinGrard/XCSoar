@@ -120,6 +120,7 @@ endif
 
 CORE_HOST_SOURCES = \
 	$(CORE_SRC_DIR)/host/CoreStartup.cpp \
+	$(CORE_SRC_DIR)/host/CoreTask.cpp \
 	$(CORE_SRC_DIR)/host/Protection.cpp \
 	$(CORE_SRC_DIR)/host/Seams.cpp \
 	$(CORE_SRC_DIR)/host/CoreReceive.cpp \
