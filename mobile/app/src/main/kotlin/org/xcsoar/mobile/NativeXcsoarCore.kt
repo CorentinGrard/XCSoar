@@ -102,6 +102,15 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
     override suspend fun zoomMap(steps: Int) =
         command { NativeCore.nativeMapZoom(it, steps) }
 
+    override suspend fun panMap(dx: Float, dy: Float) =
+        command { NativeCore.nativeMapPan(it, dx, dy) }
+
+    override suspend fun scaleMap(factor: Float) =
+        command { NativeCore.nativeMapScale(it, factor) }
+
+    override suspend fun followMap() =
+        command { NativeCore.nativeMapFollow(it) }
+
     private suspend fun command(block: (Long) -> Int) = lock.withLock {
         check(handle != 0L) { "core not started" }
         val status = withContext(Dispatchers.IO) { block(handle) }

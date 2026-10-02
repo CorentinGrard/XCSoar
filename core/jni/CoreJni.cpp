@@ -284,4 +284,24 @@ Java_org_xcsoar_mobile_NativeCore_nativeMapZoom(JNIEnv *, jclass, jlong core,
   return xcs_map_zoom(ToCore(core), steps);
 }
 
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMapPan(JNIEnv *, jclass, jlong core,
+                                               jfloat dx, jfloat dy)
+{
+  return xcs_map_pan(ToCore(core), dx, dy);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMapScale(JNIEnv *, jclass, jlong core,
+                                                 jfloat factor)
+{
+  return xcs_map_scale(ToCore(core), factor);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMapFollow(JNIEnv *, jclass, jlong core)
+{
+  return xcs_map_follow(ToCore(core));
+}
+
 } // extern "C"

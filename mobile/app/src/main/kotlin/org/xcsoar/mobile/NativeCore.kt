@@ -47,6 +47,9 @@ internal object NativeCore {
     @JvmStatic external fun nativeMapDetach(core: Long): Int
     @JvmStatic external fun nativeMapSetAircraftPosition(core: Long, x: Int, y: Int): Int
     @JvmStatic external fun nativeMapZoom(core: Long, steps: Int): Int
+    @JvmStatic external fun nativeMapPan(core: Long, dx: Float, dy: Float): Int
+    @JvmStatic external fun nativeMapScale(core: Long, factor: Float): Int
+    @JvmStatic external fun nativeMapFollow(core: Long): Int
 
     /* called from native code */
 

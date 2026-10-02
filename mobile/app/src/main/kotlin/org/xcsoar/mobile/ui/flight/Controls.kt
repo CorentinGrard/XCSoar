@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -35,6 +36,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -262,5 +264,32 @@ fun ZoomButtons(onZoom: (steps: Int) -> Unit, modifier: Modifier = Modifier) {
                                  StrokeCap.Round)
                 }
             }
+    }
+}
+
+/** Shown after the pilot panned the map: back to following the aircraft. */
+@Composable
+fun CentreButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = XcsTheme.colors
+    Box(
+        modifier
+            .size(TOUCH)
+            .background(colors.selected, CircleShape)
+            .clickable(role = Role.Button, onClickLabel = "Centre on aircraft", onClick = onClick)
+            .semantics { contentDescription = "Centre on aircraft" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(24.dp)) {
+            val stroke = 2.5.dp.toPx()
+            val c = center
+            drawCircle(colors.onSelected, size.width * 0.3f, c,
+                       style = Stroke(stroke))
+            drawCircle(colors.onSelected, size.width * 0.1f, c)
+            for ((a, b) in listOf(Offset(c.x, 0f) to Offset(c.x, size.height * 0.2f),
+                                  Offset(c.x, size.height * 0.8f) to Offset(c.x, size.height),
+                                  Offset(0f, c.y) to Offset(size.width * 0.2f, c.y),
+                                  Offset(size.width * 0.8f, c.y) to Offset(size.width, c.y)))
+                drawLine(colors.onSelected, a, b, stroke, StrokeCap.Round)
+        }
     }
 }

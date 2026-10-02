@@ -54,6 +54,15 @@ interface XcsoarCore {
     /** Zoom in (negative) or out (positive) along XCSoar's scale list. */
     suspend fun zoomMap(steps: Int) {}
 
+    /** Move the map with the finger (pixels); it stops following the aircraft. */
+    suspend fun panMap(dx: Float, dy: Float) {}
+
+    /** Zoom continuously; [factor] > 1 zooms in. */
+    suspend fun scaleMap(factor: Float) {}
+
+    /** Centre on the aircraft again and follow it. */
+    suspend fun followMap() {}
+
     /** Replay an IGC or NMEA file; [timeScale] 1 = real time. */
     suspend fun startReplay(path: String, timeScale: Double = 1.0)
     suspend fun stopReplay()

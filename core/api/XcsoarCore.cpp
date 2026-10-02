@@ -65,6 +65,7 @@
 #include <boost/json.hpp>
 
 #include <atomic>
+#include <cmath>
 #include <chrono>
 #include <cstring>
 #include <future>
@@ -338,7 +339,7 @@ xcs_core::PublishSnapshot() noexcept
     on_snapshot(callback_ctx, &s);
 
 #ifdef ANDROID
-  CoreMap::Render();
+  CoreMap::Invalidate();
 #endif
 }
 
@@ -723,6 +724,54 @@ xcs_map_zoom(xcs_core *core, int32_t steps)
 #ifdef ANDROID
   return RunOnMain(*core, [steps]{
     CoreMap::Zoom(steps);
+    return XCS_OK;
+  });
+#else
+  return XCS_ERROR_FAILED;
+#endif
+}
+
+xcs_status
+xcs_map_pan(xcs_core *core, float dx, float dy)
+{
+  if (core == nullptr || !std::isfinite(dx) || !std::isfinite(dy))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+#ifdef ANDROID
+  return RunOnMain(*core, [dx, dy]{
+    CoreMap::Pan(dx, dy);
+    return XCS_OK;
+  });
+#else
+  return XCS_ERROR_FAILED;
+#endif
+}
+
+xcs_status
+xcs_map_scale(xcs_core *core, float factor)
+{
+  if (core == nullptr || !(factor > 0.1f && factor < 10.f))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+#ifdef ANDROID
+  return RunOnMain(*core, [factor]{
+    CoreMap::Scale(factor);
+    return XCS_OK;
+  });
+#else
+  return XCS_ERROR_FAILED;
+#endif
+}
+
+xcs_status
+xcs_map_follow(xcs_core *core)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+#ifdef ANDROID
+  return RunOnMain(*core, []{
+    CoreMap::Follow();
     return XCS_OK;
   });
 #else

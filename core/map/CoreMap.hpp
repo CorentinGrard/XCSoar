@@ -39,6 +39,25 @@ SetAircraftPosition(int x, int y) noexcept;
 void
 Zoom(int steps) noexcept;
 
+/**
+ * Move the map with the finger by (dx, dy) pixels and stop following
+ * the aircraft.
+ */
+void
+Pan(double dx, double dy) noexcept;
+
+/** Zoom continuously: factor > 1 zooms in (pinch). */
+void
+Scale(double factor) noexcept;
+
+/** Follow the aircraft again after Pan(). */
+void
+Follow() noexcept;
+
+/** Redraw soon (at most a few times per second); for new data. */
+void
+Invalidate() noexcept;
+
 /** The data files were loaded again: drop caches, reload topography. */
 void
 OnDataChanged() noexcept;

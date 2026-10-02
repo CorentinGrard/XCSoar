@@ -4,6 +4,7 @@
 package org.xcsoar.mobile.ui.flight
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -32,11 +33,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.tooling.preview.Preview
@@ -52,6 +55,7 @@ fun FlightScreen(viewModel: FlightViewModel, onOpenDataFiles: () -> Unit = {}) {
     val state by viewModel.flightState.collectAsStateWithLifecycle()
     val lastEvent by viewModel.lastEvent.collectAsStateWithLifecycle()
     val circling by viewModel.showCircling.collectAsStateWithLifecycle()
+    val mapFollows by viewModel.mapFollows.collectAsStateWithLifecycle()
 
     FlightContent(
         state = state,
@@ -74,6 +78,9 @@ fun FlightScreen(viewModel: FlightViewModel, onOpenDataFiles: () -> Unit = {}) {
             },
             onAircraftPosition = viewModel::setMapAircraftPosition,
             onZoom = viewModel::zoomMap,
+            onGesture = viewModel::mapGesture,
+            follows = mapFollows,
+            onFollow = viewModel::followMap,
         ) else null,
     )
 }
@@ -84,11 +91,17 @@ fun FlightScreen(viewModel: FlightViewModel, onOpenDataFiles: () -> Unit = {}) {
  * @param onAircraftPosition where to draw the aircraft, in pixels: the
  * middle of the part of the map the cards leave free
  * @param onZoom steps of XCSoar's scale list (negative = in)
+ * @param onGesture finger pan in pixels and pinch factor (> 1 = in)
+ * @param follows whether the map follows the aircraft
+ * @param onFollow centre on the aircraft again
  */
 class MapSlot(
     val content: @Composable (Modifier) -> Unit,
     val onAircraftPosition: (x: Int, y: Int) -> Unit,
     val onZoom: (steps: Int) -> Unit,
+    val onGesture: (dx: Float, dy: Float, zoom: Float) -> Unit = { _, _, _ -> },
+    val follows: Boolean = true,
+    val onFollow: () -> Unit = {},
 )
 
 /**
@@ -183,9 +196,19 @@ private fun MapArea(
         }
 
     Box(modifier.onSizeChanged { mapSize = it }) {
-        if (map != null)
+        if (map != null) {
             map.content(Modifier.fillMaxSize())
-        else
+            // pan and pinch; Compose waits for the touch slop, so a tap
+            // is never a drag (doc/architecture.rst, "Touch interaction")
+            // a recomposition (e.g. "follows" turning false) must not
+            // restart the gesture under the finger
+            val onGesture by rememberUpdatedState(map.onGesture)
+            Box(Modifier.fillMaxSize().pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    onGesture(pan.x, pan.y, zoom)
+                }
+            })
+        } else
             MapPlaceholder(state?.track, cardsBottom, Modifier.fillMaxSize())
 
         Column(
@@ -212,10 +235,18 @@ private fun MapArea(
         }
 
         if (map != null)
-            ZoomButtons(map.onZoom, Modifier
-                .align(Alignment.BottomEnd)
-                .windowInsetsPadding(insets)
-                .padding(12.dp))
+            Column(
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .windowInsetsPadding(insets)
+                    .padding(12.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (!map.follows)
+                    CentreButton(map.onFollow)
+                ZoomButtons(map.onZoom)
+            }
     }
 }
 

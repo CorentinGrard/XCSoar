@@ -330,8 +330,8 @@ xcs_get_data_status(xcs_core *core, char *buffer, size_t size,
 /*
  * Moving map: XCSoar's map drawn by the core with OpenGL ES into a
  * surface of the app.  Android only for now; elsewhere these return
- * XCS_ERROR_FAILED.  The map is north up; it is redrawn after every
- * snapshot and after each of these calls.
+ * XCS_ERROR_FAILED.  The map is north up; new data is drawn at most
+ * four times per second, and each of these calls redraws at once.
  */
 
 /**
@@ -358,6 +358,19 @@ xcs_map_set_aircraft_position(xcs_core *core, int32_t x, int32_t y);
 /** Zoom in (steps < 0) or out (steps > 0) along XCSoar's scale list. */
 XCS_EXPORT xcs_status
 xcs_map_zoom(xcs_core *core, int32_t steps);
+
+/** Move the map with the finger by (dx, dy) pixels; the map stops
+    following the aircraft until xcs_map_follow(). */
+XCS_EXPORT xcs_status
+xcs_map_pan(xcs_core *core, float dx, float dy);
+
+/** Zoom continuously (pinch): factor > 1 zooms in. */
+XCS_EXPORT xcs_status
+xcs_map_scale(xcs_core *core, float factor);
+
+/** Centre on the aircraft again and follow it. */
+XCS_EXPORT xcs_status
+xcs_map_follow(xcs_core *core);
 
 /*
  * Replay of IGC or NMEA files.

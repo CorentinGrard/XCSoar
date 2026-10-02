@@ -136,6 +136,54 @@ class FlightViewModel(
         }
     }
 
+    private val mapFollowsFlow = MutableStateFlow(true)
+    /** Whether the map follows the aircraft (false after the pilot panned it). */
+    val mapFollows: StateFlow<Boolean> = mapFollowsFlow.asStateFlow()
+
+    /* finger movement not yet sent to the core: events arrive faster
+       than the core draws, so they are added up and sent in one go */
+    private var pendingDx = 0f
+    private var pendingDy = 0f
+    private var pendingScale = 1f
+    private var gestureJob: Job? = null
+
+    /** A pan ([dx], [dy] pixels) and pinch ([zoom] > 1 = in) on the map. */
+    fun mapGesture(dx: Float, dy: Float, zoom: Float) {
+        pendingDx += dx
+        pendingDy += dy
+        pendingScale *= zoom
+        if (dx != 0f || dy != 0f)
+            mapFollowsFlow.value = false
+        if (gestureJob?.isActive == true)
+            return
+        gestureJob = viewModelScope.launch {
+            while (pendingDx != 0f || pendingDy != 0f || pendingScale != 1f) {
+                val x = pendingDx
+                val y = pendingDy
+                val z = pendingScale
+                pendingDx = 0f
+                pendingDy = 0f
+                pendingScale = 1f
+                try {
+                    if (z != 1f) core.scaleMap(z)
+                    if (x != 0f || y != 0f) core.panMap(x, y)
+                } catch (_: Exception) {
+                    // not attached (yet): nothing to move
+                }
+            }
+        }
+    }
+
+    fun followMap() {
+        mapFollowsFlow.value = true
+        viewModelScope.launch {
+            try {
+                core.followMap()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     /** MacCready ± 0.1 m/s, clamped to 0..5 like XCSoar. */
     fun changeMacCready(delta: Double) {
         val current = flightState.value?.macCready ?: return

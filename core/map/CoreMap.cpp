@@ -34,9 +34,11 @@
 #include "UISettings.hpp"
 #include "LogFile.hpp"
 #include "thread/Debug.hpp"
+#include "ui/event/Timer.hpp"
 
 #include <android/native_window.h>
 
+#include <chrono>
 #include <memory>
 
 namespace {
@@ -74,6 +76,11 @@ private:
 /** Created on the first Attach(), kept until the process exits. */
 struct Graphics {
   UI::Display display{EGL_DEFAULT_DISPLAY};
+
+  /* new data is drawn at most this often */
+  static constexpr auto REDRAW_INTERVAL = std::chrono::milliseconds{250};
+  UI::Timer redraw_timer{[]{ CoreMap::Render(); }};
+
   MapLook map_look;
   TrafficLook traffic_look;
   std::unique_ptr<CoreMapWindow> map;
@@ -139,6 +146,9 @@ EGLSurface surface = EGL_NO_SURFACE;
 PixelSize size;
 PixelPoint aircraft_position;
 
+/* the map follows the aircraft until the pilot pans it */
+bool follow = true;
+
 void
 ReleaseSurface() noexcept
 {
@@ -201,6 +211,7 @@ CoreMap::Deinitialise() noexcept
   delete graphics;
   graphics = nullptr;
   aircraft_position = {};
+  follow = true;
 }
 
 bool
@@ -229,6 +240,49 @@ CoreMap::Zoom(int steps) noexcept
 }
 
 void
+CoreMap::Pan(double dx, double dy) noexcept
+{
+  if (graphics == nullptr)
+    return;
+
+  auto &projection = graphics->map->Projection();
+  if (!projection.IsValid())
+    return;
+
+  /* the point that was under the screen origin moves with the finger */
+  const PixelPoint origin = projection.GetScreenOrigin();
+  projection.SetGeoLocation(
+    projection.ScreenToGeo({origin.x - int(dx), origin.y - int(dy)}));
+  follow = false;
+  Render();
+}
+
+void
+CoreMap::Scale(double factor) noexcept
+{
+  if (graphics == nullptr || !(factor > 0))
+    return;
+
+  auto &projection = graphics->map->Projection();
+  projection.SetFreeMapScale(projection.GetMapScale() / factor);
+  Render();
+}
+
+void
+CoreMap::Follow() noexcept
+{
+  follow = true;
+  Render();
+}
+
+void
+CoreMap::Invalidate() noexcept
+{
+  if (IsAttached())
+    graphics->redraw_timer.SchedulePreserve(Graphics::REDRAW_INTERVAL);
+}
+
+void
 CoreMap::OnDataChanged() noexcept
 {
   if (graphics == nullptr)
@@ -251,6 +305,8 @@ CoreMap::Render() noexcept
   if (!IsAttached())
     return;
 
+  graphics->redraw_timer.Cancel();
+
   auto &map = *graphics->map;
   const auto &basic = CommonInterface::Basic();
 
@@ -264,7 +320,7 @@ CoreMap::Render() noexcept
   auto &projection = map.Projection();
   projection.SetScreenAngle(Angle::Zero());
   projection.SetScreenOrigin(aircraft_position);
-  if (basic.location_available)
+  if (follow && basic.location_available)
     projection.SetGeoLocation(basic.location);
   map.UpdateScreenBounds();
 

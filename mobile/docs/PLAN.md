@@ -225,8 +225,14 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       detach before the surface goes away; redrawn after every snapshot
 - [x] Zoom buttons (XCSoar's scale list); north up; aircraft in the middle
       of the area the cards leave free
-- [ ] Gestures: pan, pinch-zoom; track-up / circling zoom like GlueMapWindow
-- [ ] Draw only when something changed (now ~10 frames/s, one per snapshot)
+- [x] Gestures: pan and pinch-zoom (`xcs_map_pan`, `xcs_map_scale`), merged
+      in the view model while the core draws; panning stops following the
+      aircraft, a centre button (`xcs_map_follow`) brings it back
+- [ ] Track-up / circling zoom like GlueMapWindow
+- [x] New data drawn at most 4 times per second (was one frame per snapshot,
+      ~10/s); interactions draw at once
+- [x] Fix: start without GPS fix and home waypoint crashed (no position);
+      the map now starts on home, else on the middle of the map file
 - [ ] Daylight map look matching the design (terrain ramp, airspace style)
 - [ ] Map settings: orientation, zoom, trail, terrain/topography toggles
 - [ ] Long-press → `xcs_map_items_at` → bottom sheet (waypoint, airspace, traffic)
