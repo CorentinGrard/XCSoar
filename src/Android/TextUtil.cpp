@@ -3,6 +3,7 @@
 
 #include "TextUtil.hpp"
 #include "java/Class.hxx"
+#include "java/Global.hxx"
 #include "java/String.hxx"
 #include "java/Exception.hxx"
 #include "ui/dim/Size.hpp"
@@ -11,7 +12,6 @@
 
 #include <array>
 
-JNIEnv *TextUtil::env;
 static Java::TrivialClass cls;
 jmethodID TextUtil::midTextUtil;
 jmethodID TextUtil::midGetFontMetrics;
@@ -21,8 +21,6 @@ jmethodID TextUtil::midGetTextTextureGL;
 void
 TextUtil::Initialise(JNIEnv *_env) noexcept
 {
-  env = _env;
-
   cls.Find(_env, "org/xcsoar/TextUtil");
 
   midTextUtil = _env->GetMethodID(cls, "<init>", "(IIIZ)V");
@@ -75,7 +73,7 @@ TextUtil::create(const FontDescription &d)
     paint_flags |= 1;
 
   // construct org.xcsoar.TextUtil object
-  auto &e = *env;
+  auto &e = *Java::GetEnv();
   Java::LocalObject localObject{&e,
     e.NewObject(cls, midTextUtil,
                 paramStyle, paramTextSize,
@@ -92,9 +90,9 @@ TextUtil::getTextBounds(std::string_view text) const noexcept
 {
   jint extent[2];
 
-  auto &e = *env;
+  auto &e = *Java::GetEnv();
   Java::String text2(&e, text);
-  Java::LocalRef<jintArray> paramExtent{env,
+  Java::LocalRef<jintArray> paramExtent{&e,
     (jintArray)e.CallObjectMethod(Get(), midGetTextBounds, text2.Get())};
   if (!Java::DiscardException(&e)) {
     e.GetIntArrayRegion(paramExtent, 0, 2, extent);
@@ -110,9 +108,9 @@ TextUtil::getTextBounds(std::string_view text) const noexcept
 TextUtil::Texture
 TextUtil::getTextTextureGL(std::string_view text) const noexcept
 {
-  auto &e = *env;
+  auto &e = *Java::GetEnv();
   Java::String text2(&e, text);
-  Java::LocalRef<jintArray> jresult{env,
+  Java::LocalRef<jintArray> jresult{&e,
     (jintArray)e.CallObjectMethod(Get(), midGetTextTextureGL,
                                   text2.Get())};
   jint result[5];
