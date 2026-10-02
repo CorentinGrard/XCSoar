@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import org.xcsoar.mobile.core.CoreEvent
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.GlideComputerEvent
+import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.XcsoarCore
 import kotlin.math.roundToLong
 
@@ -104,6 +105,7 @@ class FlightViewModel(
         mapAttach = viewModelScope.launch {
             try {
                 core.attachMap(surface, width, height, dpi)
+                mapOrientationFlow.value = core.mapOrientation()
             } catch (e: Exception) {
                 lastEventFlow.value = "Map failed: ${e.message}"
             }
@@ -170,6 +172,26 @@ class FlightViewModel(
                 } catch (_: Exception) {
                     // not attached (yet): nothing to move
                 }
+            }
+        }
+    }
+
+    private val mapOrientationFlow = MutableStateFlow<MapOrientation?>(null)
+    /** The map orientation; null until the core answered. */
+    val mapOrientation: StateFlow<MapOrientation?> = mapOrientationFlow.asStateFlow()
+
+    /** North up → track up → target up → north up. */
+    fun cycleMapOrientation() {
+        val next = when (mapOrientationFlow.value) {
+            MapOrientation.NORTH_UP -> MapOrientation.TRACK_UP
+            MapOrientation.TRACK_UP -> MapOrientation.TARGET_UP
+            else -> MapOrientation.NORTH_UP
+        }
+        mapOrientationFlow.value = next
+        viewModelScope.launch {
+            try {
+                core.setMapOrientation(next)
+            } catch (_: Exception) {
             }
         }
     }

@@ -26,4 +26,10 @@ class DataStatusTest {
         val c = CoreHeader.constants("XCS_DATA_")
         assertEquals(c, DataFile.entries.associate { "XCS_DATA_${it.name}" to it.code })
     }
+
+    @Test
+    fun mapOrientationsMatchHeader() {
+        val c = CoreHeader.constants("XCS_MAP_")
+        assertEquals(c, MapOrientation.entries.associate { "XCS_MAP_${it.name}" to it.code })
+    }
 }

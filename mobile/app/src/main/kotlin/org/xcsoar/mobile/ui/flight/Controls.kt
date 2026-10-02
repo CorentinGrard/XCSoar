@@ -35,6 +35,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
@@ -45,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.xcsoar.mobile.core.FinalGlide
+import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.XcsTheme
 import kotlin.math.abs
@@ -291,5 +293,45 @@ fun CentreButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
                                   Offset(size.width * 0.8f, c.y) to Offset(size.width, c.y)))
                 drawLine(colors.onSelected, a, b, stroke, StrokeCap.Round)
         }
+    }
+}
+
+/**
+ * Map orientation: "N" with the north mark when north up, else the
+ * reference the map turns with (track, target...).
+ */
+@Composable
+fun OrientationButton(orientation: MapOrientation, onClick: () -> Unit,
+                      modifier: Modifier = Modifier) {
+    val colors = XcsTheme.colors
+    val (label, description) = when (orientation) {
+        MapOrientation.NORTH_UP -> "N" to "north up"
+        MapOrientation.TRACK_UP -> "TRK" to "track up"
+        MapOrientation.TARGET_UP -> "TGT" to "target up"
+        MapOrientation.HEADING_UP -> "HDG" to "heading up"
+        MapOrientation.WIND_UP -> "WIND" to "wind up"
+    }
+    Column(
+        modifier
+            .size(TOUCH)
+            .background(colors.card, CircleShape)
+            .border(1.dp, colors.panelBorder, CircleShape)
+            .clickable(role = Role.Button, onClickLabel = "Change map orientation",
+                       onClick = onClick)
+            .semantics { contentDescription = "Map orientation: $description" },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        if (orientation == MapOrientation.NORTH_UP)
+            Canvas(Modifier.size(width = 14.dp, height = 10.dp)) {
+                drawPath(Path().apply {
+                    moveTo(size.width / 2, 0f)
+                    lineTo(size.width, size.height)
+                    lineTo(0f, size.height)
+                    close()
+                }, colors.warning)
+            }
+        Text(label, color = colors.text, style = XcsTheme.numberStyle,
+             fontWeight = FontWeight.Bold, fontSize = 14.sp)
     }
 }

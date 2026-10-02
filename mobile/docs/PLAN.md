@@ -228,7 +228,10 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 - [x] Gestures: pan and pinch-zoom (`xcs_map_pan`, `xcs_map_scale`), merged
       in the view model while the core draws; panning stops following the
       aircraft, a centre button (`xcs_map_follow`) brings it back
-- [ ] Track-up / circling zoom like GlueMapWindow
+- [x] Orientation from the profile like GlueMapWindow (track, north,
+      target, heading, wind up), button cycling north/track/target up
+      (`xcs_map_set_orientation`, saved in the profile); look-ahead glider
+      position in cruise; separate circling zoom when the profile has it
 - [x] New data drawn at most 4 times per second (was one frame per snapshot,
       ~10/s); interactions draw at once
 - [x] Fix: start without GPS fix and home waypoint crashed (no position);

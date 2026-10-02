@@ -330,7 +330,7 @@ xcs_get_data_status(xcs_core *core, char *buffer, size_t size,
 /*
  * Moving map: XCSoar's map drawn by the core with OpenGL ES into a
  * surface of the app.  Android only for now; elsewhere these return
- * XCS_ERROR_FAILED.  The map is north up; new data is drawn at most
+ * XCS_ERROR_FAILED.  New data is drawn at most
  * four times per second, and each of these calls redraws at once.
  */
 
@@ -371,6 +371,27 @@ xcs_map_scale(xcs_core *core, float factor);
 /** Centre on the aircraft again and follow it. */
 XCS_EXPORT xcs_status
 xcs_map_follow(xcs_core *core);
+
+/** Which way is up on the map (XCSoar's map orientation setting). */
+typedef enum xcs_map_orientation {
+  XCS_MAP_TRACK_UP = 0,
+  XCS_MAP_NORTH_UP = 1,
+  /** Towards the next waypoint. */
+  XCS_MAP_TARGET_UP = 2,
+  XCS_MAP_HEADING_UP = 3,
+  /** The wind comes from the top. */
+  XCS_MAP_WIND_UP = 4,
+} xcs_map_orientation;
+
+/** Set the orientation for cruise and circling; saved in the profile.
+    In track and target up, the aircraft is drawn lower in cruise (the
+    profile's glider position) to show more ahead. */
+XCS_EXPORT xcs_status
+xcs_map_set_orientation(xcs_core *core, uint32_t orientation);
+
+/** The orientation in cruise (an xcs_map_orientation). */
+XCS_EXPORT xcs_status
+xcs_map_get_orientation(xcs_core *core, uint32_t *orientation_r);
 
 /*
  * Replay of IGC or NMEA files.

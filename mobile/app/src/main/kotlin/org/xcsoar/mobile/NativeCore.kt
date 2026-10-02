@@ -50,6 +50,9 @@ internal object NativeCore {
     @JvmStatic external fun nativeMapPan(core: Long, dx: Float, dy: Float): Int
     @JvmStatic external fun nativeMapScale(core: Long, factor: Float): Int
     @JvmStatic external fun nativeMapFollow(core: Long): Int
+    @JvmStatic external fun nativeMapSetOrientation(core: Long, orientation: Int): Int
+    /** @return an xcs_map_orientation, or -1 on error */
+    @JvmStatic external fun nativeMapGetOrientation(core: Long): Int
 
     /* called from native code */
 

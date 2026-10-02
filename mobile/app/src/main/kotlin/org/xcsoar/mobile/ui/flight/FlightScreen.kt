@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.FlightState
+import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
@@ -56,6 +57,7 @@ fun FlightScreen(viewModel: FlightViewModel, onOpenDataFiles: () -> Unit = {}) {
     val lastEvent by viewModel.lastEvent.collectAsStateWithLifecycle()
     val circling by viewModel.showCircling.collectAsStateWithLifecycle()
     val mapFollows by viewModel.mapFollows.collectAsStateWithLifecycle()
+    val mapOrientation by viewModel.mapOrientation.collectAsStateWithLifecycle()
 
     FlightContent(
         state = state,
@@ -81,6 +83,8 @@ fun FlightScreen(viewModel: FlightViewModel, onOpenDataFiles: () -> Unit = {}) {
             onGesture = viewModel::mapGesture,
             follows = mapFollows,
             onFollow = viewModel::followMap,
+            orientation = mapOrientation,
+            onOrientation = viewModel::cycleMapOrientation,
         ) else null,
     )
 }
@@ -94,6 +98,8 @@ fun FlightScreen(viewModel: FlightViewModel, onOpenDataFiles: () -> Unit = {}) {
  * @param onGesture finger pan in pixels and pinch factor (> 1 = in)
  * @param follows whether the map follows the aircraft
  * @param onFollow centre on the aircraft again
+ * @param orientation which way is up; null hides the button
+ * @param onOrientation switch to the next orientation
  */
 class MapSlot(
     val content: @Composable (Modifier) -> Unit,
@@ -102,6 +108,8 @@ class MapSlot(
     val onGesture: (dx: Float, dy: Float, zoom: Float) -> Unit = { _, _, _ -> },
     val follows: Boolean = true,
     val onFollow: () -> Unit = {},
+    val orientation: MapOrientation? = null,
+    val onOrientation: () -> Unit = {},
 )
 
 /**
@@ -243,6 +251,7 @@ private fun MapArea(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                map.orientation?.let { OrientationButton(it, map.onOrientation) }
                 if (!map.follows)
                     CentreButton(map.onFollow)
                 ZoomButtons(map.onZoom)

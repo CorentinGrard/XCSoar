@@ -54,6 +54,17 @@ Scale(double factor) noexcept;
 void
 Follow() noexcept;
 
+/**
+ * Orientation of the map in cruise and circling, as XCSoar's
+ * MapOrientation (stored in the profile like XCSoar does).
+ */
+void
+SetOrientation(unsigned orientation) noexcept;
+
+[[gnu::pure]]
+unsigned
+GetOrientation() noexcept;
+
 /** Redraw soon (at most a few times per second); for new data. */
 void
 Invalidate() noexcept;

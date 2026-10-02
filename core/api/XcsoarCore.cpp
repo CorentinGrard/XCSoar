@@ -20,6 +20,7 @@
 
 #ifdef ANDROID
 #include "CoreMap.hpp"
+#include "MapSettings.hpp"
 #endif
 #include "Interface.hpp"
 #include "ActionInterface.hpp"
@@ -80,6 +81,15 @@ static_assert(offsetof(xcs_flight_snapshot, sequence) == 8);
 static_assert(offsetof(xcs_flight_snapshot, time_utc) == 24);
 static_assert(offsetof(xcs_flight_snapshot, next_name) == 216);
 static_assert(sizeof(xcs_flight_snapshot) == 280);
+
+#ifdef ANDROID
+/* xcs_map_orientation is XCSoar's MapOrientation */
+static_assert(XCS_MAP_TRACK_UP == unsigned(MapOrientation::TRACK_UP));
+static_assert(XCS_MAP_NORTH_UP == unsigned(MapOrientation::NORTH_UP));
+static_assert(XCS_MAP_TARGET_UP == unsigned(MapOrientation::TARGET_UP));
+static_assert(XCS_MAP_HEADING_UP == unsigned(MapOrientation::HEADING_UP));
+static_assert(XCS_MAP_WIND_UP == unsigned(MapOrientation::WIND_UP));
+#endif
 
 /* stable public codes for the internal GCE_* values */
 static constexpr xcs_gce gce_map[] = {
@@ -772,6 +782,38 @@ xcs_map_follow(xcs_core *core)
 #ifdef ANDROID
   return RunOnMain(*core, []{
     CoreMap::Follow();
+    return XCS_OK;
+  });
+#else
+  return XCS_ERROR_FAILED;
+#endif
+}
+
+xcs_status
+xcs_map_set_orientation(xcs_core *core, uint32_t orientation)
+{
+  if (core == nullptr || orientation > XCS_MAP_WIND_UP)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+#ifdef ANDROID
+  return RunOnMain(*core, [orientation]{
+    CoreMap::SetOrientation(orientation);
+    return XCS_OK;
+  });
+#else
+  return XCS_ERROR_FAILED;
+#endif
+}
+
+xcs_status
+xcs_map_get_orientation(xcs_core *core, uint32_t *orientation_r)
+{
+  if (core == nullptr || orientation_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+#ifdef ANDROID
+  return RunOnMain(*core, [orientation_r]{
+    *orientation_r = CoreMap::GetOrientation();
     return XCS_OK;
   });
 #else

@@ -63,6 +63,11 @@ interface XcsoarCore {
     /** Centre on the aircraft again and follow it. */
     suspend fun followMap() {}
 
+    /** The map orientation (saved in the profile); null without a map. */
+    suspend fun mapOrientation(): MapOrientation? = null
+
+    suspend fun setMapOrientation(orientation: MapOrientation) {}
+
     /** Replay an IGC or NMEA file; [timeScale] 1 = real time. */
     suspend fun startReplay(path: String, timeScale: Double = 1.0)
     suspend fun stopReplay()
@@ -116,5 +121,20 @@ enum class GlideComputerEvent(val code: Int) {
 
         /** Unknown codes (from a newer core) map to [OTHER]. */
         fun fromCode(code: Int): GlideComputerEvent = byCode[code] ?: OTHER
+    }
+}
+
+/** Values of `xcs_map_orientation` (core/api/xcsoar_core.h). */
+enum class MapOrientation(val code: Int) {
+    TRACK_UP(0),
+    NORTH_UP(1),
+    /** Towards the next waypoint. */
+    TARGET_UP(2),
+    HEADING_UP(3),
+    /** The wind comes from the top. */
+    WIND_UP(4);
+
+    companion object {
+        fun fromCode(code: Int) = entries.firstOrNull { it.code == code }
     }
 }

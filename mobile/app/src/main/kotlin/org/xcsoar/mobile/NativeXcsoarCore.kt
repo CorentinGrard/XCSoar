@@ -19,6 +19,7 @@ import org.xcsoar.mobile.core.DataFile
 import org.xcsoar.mobile.core.DataStatus
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.GlideComputerEvent
+import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SnapshotDecoder
 import org.xcsoar.mobile.core.XcsoarCore
 import java.nio.ByteBuffer
@@ -110,6 +111,16 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun followMap() =
         command { NativeCore.nativeMapFollow(it) }
+
+    override suspend fun mapOrientation(): MapOrientation? = lock.withLock {
+        if (handle == 0L) return@withLock null
+        MapOrientation.fromCode(withContext(Dispatchers.IO) {
+            NativeCore.nativeMapGetOrientation(handle)
+        })
+    }
+
+    override suspend fun setMapOrientation(orientation: MapOrientation) =
+        command { NativeCore.nativeMapSetOrientation(it, orientation.code) }
 
     private suspend fun command(block: (Long) -> Int) = lock.withLock {
         check(handle != 0L) { "core not started" }

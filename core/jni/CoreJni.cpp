@@ -304,4 +304,23 @@ Java_org_xcsoar_mobile_NativeCore_nativeMapFollow(JNIEnv *, jclass, jlong core)
   return xcs_map_follow(ToCore(core));
 }
 
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMapSetOrientation(JNIEnv *, jclass,
+                                                          jlong core,
+                                                          jint orientation)
+{
+  return xcs_map_set_orientation(ToCore(core), orientation);
+}
+
+/** @return the orientation, or -1 on error */
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMapGetOrientation(JNIEnv *, jclass,
+                                                          jlong core)
+{
+  uint32_t orientation;
+  return xcs_map_get_orientation(ToCore(core), &orientation) == XCS_OK
+    ? jint(orientation)
+    : -1;
+}
+
 } // extern "C"

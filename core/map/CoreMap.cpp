@@ -32,6 +32,12 @@
 #include "Task/ProtectedTaskManager.hpp"
 #include "Terrain/RasterTerrain.hpp"
 #include "UISettings.hpp"
+#include "MapSettings.hpp"
+#include "Profile/Profile.hpp"
+#include "Profile/Current.hpp"
+#include "Profile/Map.hpp"
+#include "Profile/Keys.hpp"
+#include "NMEA/Derived.hpp"
 #include "LogFile.hpp"
 #include "thread/Debug.hpp"
 #include "ui/event/Timer.hpp"
@@ -149,6 +155,63 @@ PixelPoint aircraft_position;
 /* the map follows the aircraft until the pilot pans it */
 bool follow = true;
 
+/* for the circling zoom: the flight mode of the last frame */
+bool was_circling = false;
+
+/**
+ * The screen angle, like GlueMapWindow::UpdateScreenAngle() without
+ * its pages and two-finger twist.
+ */
+Angle
+ScreenAngle(MapOrientation orientation, const NMEAInfo &basic,
+            const DerivedInfo &calculated) noexcept
+{
+  switch (orientation) {
+  case MapOrientation::NORTH_UP:
+    return Angle::Zero();
+
+  case MapOrientation::TARGET_UP:
+    if (calculated.task_stats.current_leg.vector_remaining.IsValid())
+      return calculated.task_stats.current_leg.vector_remaining.bearing;
+    break;
+
+  case MapOrientation::HEADING_UP:
+    return basic.attitude.heading_available
+      ? basic.attitude.heading
+      : Angle::Zero();
+
+  case MapOrientation::WIND_UP:
+    if (calculated.wind_available && calculated.wind.norm >= 0.5)
+      return calculated.wind.bearing;
+    break;
+
+  case MapOrientation::TRACK_UP:
+    break;
+  }
+
+  return basic.track_available ? basic.track : Angle::Zero();
+}
+
+/**
+ * Keep separate scales for cruise and circling when the profile asks
+ * for it (GlueMapWindow::SwitchZoomClimb()).
+ */
+void
+SwitchZoomClimb(MapWindowProjection &projection, bool circling) noexcept
+{
+  auto &settings = CommonInterface::SetMapSettings();
+  if (!settings.circle_zoom_enabled)
+    return;
+
+  if (circling) {
+    settings.cruise_scale = projection.GetScale();
+    projection.SetScale(settings.circling_scale);
+  } else {
+    settings.circling_scale = projection.GetScale();
+    projection.SetScale(settings.cruise_scale);
+  }
+}
+
 void
 ReleaseSurface() noexcept
 {
@@ -212,6 +275,7 @@ CoreMap::Deinitialise() noexcept
   graphics = nullptr;
   aircraft_position = {};
   follow = true;
+  was_circling = false;
 }
 
 bool
@@ -276,6 +340,27 @@ CoreMap::Follow() noexcept
 }
 
 void
+CoreMap::SetOrientation(unsigned orientation) noexcept
+{
+  if (orientation > unsigned(MapOrientation::WIND_UP))
+    return;
+
+  auto &settings = CommonInterface::SetMapSettings();
+  settings.cruise_orientation = settings.circling_orientation =
+    MapOrientation(orientation);
+  Profile::map.Set(ProfileKeys::OrientationCruise, orientation);
+  Profile::map.Set(ProfileKeys::OrientationCircling, orientation);
+  Profile::Save();
+  Render();
+}
+
+unsigned
+CoreMap::GetOrientation() noexcept
+{
+  return unsigned(CommonInterface::GetMapSettings().cruise_orientation);
+}
+
+void
 CoreMap::Invalidate() noexcept
 {
   if (IsAttached())
@@ -315,11 +400,33 @@ CoreMap::Render() noexcept
                      CommonInterface::GetMapSettings());
   map.ReadUIState(CommonInterface::GetUIState());
 
-  /* north up, the aircraft where the app wants it (GlueMapWindow
-     does this with its display modes; the app shows its own cards) */
+  /* what GlueMapWindow's display modes do, minus its overlays: the
+     app shows its own cards */
+  const auto &calculated = CommonInterface::Calculated();
+  const auto &settings = CommonInterface::GetMapSettings();
   auto &projection = map.Projection();
-  projection.SetScreenAngle(Angle::Zero());
-  projection.SetScreenOrigin(aircraft_position);
+
+  if (calculated.circling != was_circling) {
+    was_circling = calculated.circling;
+    if (follow)
+      SwitchZoomClimb(projection, was_circling);
+  }
+
+  const auto orientation = was_circling
+    ? settings.circling_orientation
+    : settings.cruise_orientation;
+  projection.SetScreenAngle(ScreenAngle(orientation, basic, calculated));
+
+  /* looking ahead in cruise when the map turns with the glider: the
+     aircraft sits glider_screen_position percent above the bottom of
+     the free area (whose middle is aircraft_position) */
+  PixelPoint origin = aircraft_position;
+  if (follow && !was_circling && orientation != MapOrientation::NORTH_UP) {
+    const int free_height = 2 * (int(size.height) - aircraft_position.y);
+    origin.y = int(size.height) -
+      free_height * settings.glider_screen_position / 100;
+  }
+  projection.SetScreenOrigin(origin);
   if (follow && basic.location_available)
     projection.SetGeoLocation(basic.location);
   map.UpdateScreenBounds();
