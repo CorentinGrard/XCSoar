@@ -28,6 +28,8 @@ import org.xcsoar.mobile.core.WaypointInfo
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SnapshotDecoder
 import org.xcsoar.mobile.core.SoundOption
+import org.xcsoar.mobile.core.UnitGroup
+import org.xcsoar.mobile.core.UnitSettings
 import org.xcsoar.mobile.core.TaskFileInfo
 import org.xcsoar.mobile.core.TaskInfo
 import org.xcsoar.mobile.core.TaskOp
@@ -190,6 +192,18 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun saveTask(name: String) =
         command { NativeCore.nativeTaskSave(it, name) }
+
+    override suspend fun units(): UnitSettings? = lock.withLock {
+        if (handle == 0L) return@withLock null
+        withContext(Dispatchers.IO) { NativeCore.nativeUnitsGet(handle) }
+            ?.let(UnitSettings::parse)
+    }
+
+    override suspend fun setUnit(group: UnitGroup, unit: Int) =
+        command { NativeCore.nativeUnitsSet(it, group.code, unit) }
+
+    override suspend fun applyUnitPreset(index: Int) =
+        command { NativeCore.nativeUnitsPreset(it, index) }
 
     override suspend fun soundOption(option: SoundOption): Int? = lock.withLock {
         if (handle == 0L) return@withLock null

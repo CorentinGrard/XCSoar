@@ -41,6 +41,8 @@ import org.xcsoar.mobile.ui.setup.FlightSetupScreen
 import org.xcsoar.mobile.ui.task.TaskFilesScreen
 import org.xcsoar.mobile.ui.task.TaskScreen
 import org.xcsoar.mobile.ui.task.TaskViewModel
+import org.xcsoar.mobile.ui.units.UnitsScreen
+import org.xcsoar.mobile.ui.units.UnitsViewModel
 import org.xcsoar.mobile.core.WaypointFilter
 import org.xcsoar.mobile.ui.setup.FlightSetupViewModel
 import org.xcsoar.mobile.ui.flight.FlightViewModel
@@ -48,7 +50,7 @@ import org.xcsoar.mobile.ui.theme.XcsTheme
 import java.io.File
 
 private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS,
-                            TASK, TASK_FILES, TASK_ADD_POINT }
+                            TASK, TASK_FILES, TASK_ADD_POINT, UNITS }
 
 class MainActivity : ComponentActivity() {
     private val app get() = application as XcsoarApp
@@ -146,6 +148,10 @@ class MainActivity : ComponentActivity() {
                         initializer { WaypointsViewModel(app.anyCore, WaypointFilter.ALL) }
                     })
 
+                val unitsViewModel: UnitsViewModel = viewModel(factory = viewModelFactory {
+                    initializer { UnitsViewModel(app.anyCore) }
+                })
+
                 LaunchedEffect(flightViewModel) {
                     flightViewModel.alerts.collect { alerts.play(it) }
                 }
@@ -160,6 +166,7 @@ class MainActivity : ComponentActivity() {
                         onOpenFlightSetup = { screen = Screen.FLIGHT_SETUP },
                         onOpenFlights = { screen = Screen.FLIGHTS },
                         onOpenTask = { screen = Screen.TASK },
+                        onOpenUnits = { screen = Screen.UNITS },
                     )
                     Screen.DATA_FILES -> DataFilesScreen(
                         dataViewModel,
@@ -182,6 +189,8 @@ class MainActivity : ComponentActivity() {
                         mapViewModel, onBack = { screen = Screen.FLIGHT })
                     Screen.FLIGHT_SETUP -> FlightSetupScreen(
                         setupViewModel, onBack = { screen = Screen.FLIGHT })
+                    Screen.UNITS -> UnitsScreen(
+                        unitsViewModel, onBack = { screen = Screen.FLIGHT })
                     Screen.TASK -> TaskScreen(
                         taskViewModel,
                         onAddPoint = { screen = Screen.TASK_ADD_POINT },

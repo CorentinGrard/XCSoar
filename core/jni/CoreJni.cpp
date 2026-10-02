@@ -530,4 +530,28 @@ Java_org_xcsoar_mobile_NativeCore_nativeTaskSave(JNIEnv *env, jclass,
   return xcs_task_save(ToCore(core), n.c_str());
 }
 
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeUnitsGet(JNIEnv *env, jclass,
+                                                 jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_units_get(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeUnitsSet(JNIEnv *, jclass,
+                                                 jlong core, jint group,
+                                                 jint unit)
+{
+  return xcs_units_set(ToCore(core), group, unit);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeUnitsPreset(JNIEnv *, jclass,
+                                                    jlong core, jint index)
+{
+  return xcs_units_preset(ToCore(core), index);
+}
+
 } // extern "C"

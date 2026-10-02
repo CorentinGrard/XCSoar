@@ -25,8 +25,8 @@ import org.xcsoar.mobile.core.GlideComputerEvent
 import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SoundOption
+import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.core.XcsoarCore
-import kotlin.math.roundToLong
 
 /**
  * State and actions of the flight screen; knows only [XcsoarCore].
@@ -132,6 +132,7 @@ class FlightViewModel(
             try {
                 core.start()
                 varioSoundFlow.value = readVarioSound()
+                core.units()?.let { Format.units = it }
             } catch (e: Exception) {
                 // never crash the app: show why and keep the UI usable
                 lastEventFlow.value = "Core failed to start: ${e.message}"
@@ -324,25 +325,12 @@ class FlightViewModel(
         }
     }
 
-    /** Set MacCready to [value] (e.g. the current thermal's climb), to 0.1 m/s. */
+    /** Set MacCready to [value] (m/s, already on the user unit's grid). */
     fun setMacCready(value: Double) {
-        val mc = ((value * 10).roundToLong() / 10.0).coerceIn(0.0, 5.0)
+        val mc = value.coerceIn(0.0, 5.0)
         viewModelScope.launch {
             try {
                 core.setMacCready(mc)
-            } catch (e: Exception) {
-                lastEventFlow.value = "MacCready not set: ${e.message}"
-            }
-        }
-    }
-
-    /** MacCready ± 0.1 m/s, clamped to 0..5 like XCSoar. */
-    fun changeMacCready(delta: Double) {
-        val current = flightState.value?.macCready ?: return
-        val mc = ((current + delta) * 10).roundToLong() / 10.0
-        viewModelScope.launch {
-            try {
-                core.setMacCready(mc.coerceIn(0.0, 5.0))
             } catch (e: Exception) {
                 lastEventFlow.value = "MacCready not set: ${e.message}"
             }

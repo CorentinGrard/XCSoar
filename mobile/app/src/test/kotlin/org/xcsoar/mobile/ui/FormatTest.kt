@@ -41,7 +41,42 @@ class FormatTest {
         assertEquals("0", Format.bugs(1.0).text)
         assertEquals("15", Format.bugs(0.85).text)
         assertEquals("50", Format.bugs(0.5).text)
-        assertEquals("32.5", Format.wingLoading(32.46).text)
+        // like XCSoar: decimals only up to 20
+        assertEquals("32", Format.wingLoading(32.46).text)
+        assertEquals("18.3", Format.wingLoading(18.26).text)
         assertEquals(Format.INVALID, Format.wingLoading(null).text)
+    }
+
+    @Test
+    fun followsUnits() {
+        val metric = Format.units
+        try {
+            Format.units = metric.copy(
+                units = metric.units + listOf(
+                    org.xcsoar.mobile.core.UnitInfo(10, "ft", 3.2808399),
+                    org.xcsoar.mobile.core.UnitInfo(5, "kt", 1.94384449)),
+                groups = metric.groups.map {
+                    when (it.group) {
+                        org.xcsoar.mobile.core.UnitGroup.ALTITUDE.code -> it.copy(unit = 10)
+                        org.xcsoar.mobile.core.UnitGroup.VERTICAL_SPEED.code -> it.copy(unit = 5)
+                        else -> it
+                    }
+                })
+            assertEquals(Format.Value("3281", "ft"), Format.altitude(1000.0))
+            assertEquals(Format.Value("+3.9", "kt"), Format.vario(2.0))
+            assertEquals(Format.Value("0.0", "kt"), Format.vario(-0.01))
+            // MacCready steps of 0.2 kt, on that grid
+            assertEquals(1.2, org.xcsoar.mobile.core.UnitInfo(5, "kt", 1.94384449)
+                .toUser(Format.stepVerticalSpeed(1.0 / 1.94384449, +1)), 1e-9)
+        } finally {
+            Format.units = metric
+        }
+    }
+
+    @Test
+    fun distanceLikeXcsoar() {
+        assertEquals(Format.Value("7.30", "km"), Format.distance(7300.0))
+        assertEquals(Format.Value("23.4", "km"), Format.distance(23_400.0))
+        assertEquals(Format.Value("123", "km"), Format.distance(123_400.0))
     }
 }

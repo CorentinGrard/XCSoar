@@ -63,6 +63,7 @@ fun FlightScreen(
     onOpenFlightSetup: () -> Unit = {},
     onOpenFlights: () -> Unit = {},
     onOpenTask: () -> Unit = {},
+    onOpenUnits: () -> Unit = {},
 ) {
     val state by viewModel.flightState.collectAsStateWithLifecycle()
     val lastEvent by viewModel.lastEvent.collectAsStateWithLifecycle()
@@ -77,7 +78,7 @@ fun FlightScreen(
         state = state,
         lastEvent = lastEvent,
         circling = circling,
-        onMacCreadyChange = viewModel::changeMacCready,
+        onMacCreadyChange = viewModel::setMacCready,
         onSetMacCready = viewModel::setMacCready,
         onSelectMode = viewModel::selectFlightMode,
         warnings = warnings,
@@ -90,6 +91,7 @@ fun FlightScreen(
             MenuAction("Task", enabled = true, onClick = onOpenTask),
             MenuAction("Flight setup", enabled = true, onClick = onOpenFlightSetup),
             MenuAction("Flights", enabled = true, onClick = onOpenFlights),
+            MenuAction("Units", enabled = true, onClick = onOpenUnits),
             MenuAction("Data files", enabled = true, onClick = onOpenDataFiles),
             MenuAction("Map", enabled = viewModel.hasMap, onClick = onOpenMapSettings),
             // on the ground only: a demo, not something to press in flight
@@ -379,7 +381,8 @@ private fun Instruments(
                          Modifier.weight(1f).fillMaxHeight())
         val thermal = state?.currentThermal
         if (circling && thermal != null && thermal.lift > 0)
-            SetMacCreadyButton(thermal.lift, { onSetMacCready(thermal.lift) },
+            SetMacCreadyButton(thermal.lift,
+                               { onSetMacCready(Format.stepVerticalSpeed(thermal.lift, 0)) },
                                Modifier.weight(1f).fillMaxHeight())
         else
             FinalGlideTile(state?.finalGlide, Modifier.weight(1f).fillMaxHeight())
@@ -419,7 +422,7 @@ private fun infoBoxes(s: FlightState?, circling: Boolean): List<InfoBoxValue> {
             agl,
             InfoBoxValue("Wind", wind?.let {
                 Format.Value(Format.bearing(it.bearing).text + "°",
-                             Format.speed(it.speed).let { v -> "${v.text} ${v.unit}" })
+                             Format.windSpeed(it.speed).let { v -> "${v.text} ${v.unit}" })
             } ?: Format.Value(Format.INVALID, "")),
         )
     } else {

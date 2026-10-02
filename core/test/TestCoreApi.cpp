@@ -126,6 +126,7 @@ TestNotStarted(xcs_core *core)
   ok1(xcs_set_ballast(core, 0) == XCS_ERROR_STATE);
   ok1(xcs_set_bugs(core, 1) == XCS_ERROR_STATE);
   ok1(xcs_task_edit(core, XCS_TASK_BEGIN, 0, 0) == XCS_ERROR_STATE);
+  ok1(xcs_units_set(core, 2, 10) == XCS_ERROR_STATE);
   ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO, 1) == XCS_ERROR_STATE);
   ok1(xcs_get_snapshot(core, &s) == XCS_ERROR_STATE);
   ok1(xcs_replay_run(core, FLIGHT, 60, nullptr) == XCS_ERROR_STATE);
@@ -314,6 +315,40 @@ TestTask(xcs_core *core)
   xcs_set_data_file(core, XCS_DATA_MAP, nullptr);
 }
 
+static std::string
+UnitsJson(xcs_core *core)
+{
+  char buffer[8192];
+  size_t length = 0;
+  if (xcs_units_get(core, buffer, sizeof(buffer), &length) != XCS_OK)
+    return {};
+  return buffer;
+}
+
+static void
+TestUnits(xcs_core *core)
+{
+  auto json = UnitsJson(core);
+  ok1(json.find("{\"unit\":10,\"name\":\"ft\"") != std::string::npos);
+  ok1(json.find("\"presets\":[{\"name\":") != std::string::npos);
+
+  /* altitude (2) in feet (10), not in km (1) */
+  ok1(xcs_units_set(core, 2, 10) == XCS_OK);
+  ok1(UnitsJson(core).find("{\"group\":2,\"unit\":10,") != std::string::npos);
+  ok1(xcs_units_set(core, 2, 1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_units_set(core, 99, 1) == XCS_ERROR_INVALID_ARGUMENT);
+
+  /* aircraft speed (4) in knots (5): wind speed (6) follows */
+  ok1(xcs_units_set(core, 4, 5) == XCS_OK);
+  ok1(UnitsJson(core).find("{\"group\":6,\"unit\":5}") != std::string::npos);
+
+  ok1(xcs_units_preset(core, 99) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_units_preset(core, 0) == XCS_OK);
+  json = UnitsJson(core);
+  ok1(json.find("\"preset\":0") != std::string::npos &&
+      json.find("{\"group\":2,\"unit\":9,") != std::string::npos);
+}
+
 static void
 TestStarted(xcs_core *core, Recorder &recorder)
 {
@@ -458,7 +493,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 12 + 6 + 43 + 15 + 35 + 7);
+  plan_tests(9 + 13 + 6 + 43 + 15 + 35 + 11 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -477,6 +512,7 @@ main()
   TestStarted(core, recorder);
   TestDataFiles(core);
   TestTask(core);
+  TestUnits(core);
   ok1(xcs_stop(core) == XCS_OK);
 
   /* the same core can be started again */

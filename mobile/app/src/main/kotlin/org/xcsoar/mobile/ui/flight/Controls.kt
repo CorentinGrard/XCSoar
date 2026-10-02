@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.xcsoar.mobile.core.FinalGlide
 import org.xcsoar.mobile.core.MapOrientation
+import org.xcsoar.mobile.core.UnitGroup
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.XcsTheme
 import kotlin.math.abs
@@ -66,17 +67,24 @@ private val TOUCH = 56.dp
 /** Altitude difference that fills the final glide bar, m. */
 private const val FINAL_GLIDE_RANGE = 500.0
 
-/** MacCready − value + stepper. */
+/**
+ * MacCready − value + stepper, in the pilot's vertical speed unit.
+ *
+ * @param onChange receives the new value, m/s
+ */
 @Composable
 fun MacCreadyControl(
     macCready: Double?,
     onChange: (Double) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val unit = Format.unit(UnitGroup.VERTICAL_SPEED).name
     val text = macCready?.let { Format.macCready(it).text } ?: Format.INVALID
-    Stepper("MacCready", "MC · m/s", text, "$text m/s",
-            canDecrease = macCready != null, canIncrease = macCready != null,
-            onDecrease = { onChange(-0.1) }, onIncrease = { onChange(+0.1) },
+    Stepper("MacCready", "MC · $unit", text, "$text $unit",
+            canDecrease = macCready != null && macCready > 0,
+            canIncrease = macCready != null && macCready < 5,
+            onDecrease = { macCready?.let { onChange(Format.stepVerticalSpeed(it, -1)) } },
+            onIncrease = { macCready?.let { onChange(Format.stepVerticalSpeed(it, +1)) } },
             modifier = modifier)
 }
 
@@ -417,7 +425,7 @@ fun VarioSoundButton(enabled: Boolean, onToggle: (Boolean) -> Unit,
 @Composable
 fun SetMacCreadyButton(lift: Double, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = XcsTheme.colors
-    val value = Format.macCready(((lift * 10).roundToInt() / 10.0).coerceIn(0.0, 5.0))
+    val value = Format.macCready(Format.stepVerticalSpeed(lift, 0).coerceIn(0.0, 5.0))
     Box(
         modifier
             .heightIn(min = TOUCH)

@@ -297,7 +297,9 @@ private fun PointRow(index: Int, point: TaskPointInfo, task: TaskInfo, editing: 
                 Text(point.name, color = colors.text, fontSize = 18.sp,
                      fontWeight = FontWeight.SemiBold, maxLines = 1,
                      overflow = TextOverflow.Ellipsis)
-                val size = point.radius?.let { " · ${Format.distance(it).text} km" }.orEmpty()
+                val size = point.radius?.let { r ->
+                    Format.distance(r).let { " · ${it.text} ${it.unit}" }
+                }.orEmpty()
                 Text("${pointLabel(index, point)} · ${point.typeName}$size",
                      color = colors.textSecondary, fontSize = 14.sp, maxLines = 1,
                      overflow = TextOverflow.Ellipsis)
@@ -328,10 +330,11 @@ private fun PointEditor(index: Int, point: TaskPointInfo, count: Int, actions: T
                     }
             }
         point.radius?.let { radius ->
-            val value = Format.distance(radius).text
+            val size = Format.distance(radius)
+            val value = size.text
             Stepper("zone size", if (point.typeName.contains("line", ignoreCase = true))
-                        "Half width · km" else "Radius · km",
-                    value, "$value kilometres",
+                        "Half width · ${size.unit}" else "Radius · ${size.unit}",
+                    value, "$value ${size.unit}",
                     canDecrease = radius > 100, canIncrease = true,
                     onDecrease = { actions.changeRadius(index, -1) },
                     onIncrease = { actions.changeRadius(index, +1) },

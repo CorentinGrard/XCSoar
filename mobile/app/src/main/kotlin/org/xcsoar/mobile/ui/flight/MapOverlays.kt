@@ -139,7 +139,7 @@ fun NextWaypointCard(
 fun WindChip(wind: Wind?, modifier: Modifier = Modifier) {
     val colors = XcsTheme.colors
     val from = Format.bearing(wind?.bearing)
-    val speed = Format.speed(wind?.speed)
+    val speed = Format.windSpeed(wind?.speed)
     val text = "${from.text}${from.unit} · ${speed.text} ${speed.unit}"
     FloatingCard(modifier.clearAndSetSemantics { contentDescription = "Wind from $text" },
                  RoundedCornerShape(12.dp)) {

@@ -117,6 +117,15 @@ interface XcsoarCore {
     /** Save the edited task as XCSoarData/tasks/<name>.tsk. */
     suspend fun saveTask(name: String) {}
 
+    /** XCSoar's units and the pilot's choice; null until started. */
+    suspend fun units(): UnitSettings? = null
+
+    /** Unit of a group, one of its choices (saved in the profile). */
+    suspend fun setUnit(group: UnitGroup, unit: Int) {}
+
+    /** Load XCSoar's unit preset [index] (see [UnitSettings.presets]). */
+    suspend fun applyUnitPreset(index: Int) {}
+
     /** A sound option (saved in the profile); null without audio output. */
     suspend fun soundOption(option: SoundOption): Int? = null
 

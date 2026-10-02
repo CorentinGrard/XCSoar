@@ -192,7 +192,14 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       L/D, time to the next point, task speed, current and last thermal,
       with the conditions of XCSoar's InfoBoxes; the design's cruise and
       circling boxes, ETE on the next waypoint card, "Set MC from thermal"
-- [ ] Unit formatting (m/ft, km/h/kt, m/s/kt, …) + tests
+- [x] Units (Menu → Units): XCSoar's presets and a unit per group,
+      saved in the profile and used by the map too (`xcs_units_get` /
+      `_set` / `_preset`, `core/host/CoreUnits.cpp`).  The app formats
+      with XCSoar's rules in Kotlin (`UnitFormatter`, D9), checked against
+      799 outputs of the C++ Formatter (`core/test/FormatGolden.cpp` →
+      `format-golden.txt`, compared by `make core-check`).  MacCready
+      steps in the lift unit (0.1 m/s, 0.2 kt, 10 fpm).  Checked on a
+      Pixel 7 (British preset, MC in knots, kept after a restart)
 - [x] Flight screen v0: status line, 10 InfoBoxes, MC −/+, sunlight and
       night themes; screen kept on
 - [~] Flight screen v1 after the design canvas "XCSoar — modern cockpit"
@@ -365,6 +372,9 @@ Newest first. One line per session: what was done and what's next.
   (C API + task screens), checked on a Pixel 7. TestCoreApi extended
   (not runnable on this Fedora host: thirdparty.py has no native Linux
   target; needs the -devel packages). Next: field test, then M5.
+- 2026-10-02 — Units: settings screen, XCSoar's formatting rules in
+  Kotlin with a golden test against the C++ Formatter (D9 done). Next:
+  field test, then M5.
 
 - 2026-10-02 — Data files screen (map/airspace/waypoints via the system
   picker) and XCSoar's moving map in the app, both working on a Pixel 7

@@ -88,6 +88,15 @@ conversion tables and per-unit format rules once (JSON), and Kotlin applies
 them. A golden test compares Kotlin output with the C++ `Formatter` for the
 same values, so the two can't drift apart.
 
+Done 2026-10-02: `xcs_units_get` exports the unit table and the pilot's
+choice; `UnitFormatter` (Kotlin) mirrors `Formatter/Units.cpp`, including
+printf's rounding of the exact binary value and "-0.0".
+`core/test/FormatGolden.cpp` (built from six sources, no libraries) writes
+`mobile/core/src/test/resources/format-golden.txt`; the Kotlin test
+replays it, and `make core-check` fails when the C++ output changes.
+The app keeps two presentation choices of its own: vario values carry a
+sign except at zero, and speeds have no decimals.
+
 ## D10 — Upstream rules apply to the new code
 **Status:** Accepted (2026-09-28)
 

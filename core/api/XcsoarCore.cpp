@@ -41,6 +41,7 @@
 #ifdef ANDROID
 #include "CoreMap.hpp"
 #include "CoreTask.hpp"
+#include "CoreUnits.hpp"
 #include "MapSettings.hpp"
 #endif
 #include "Interface.hpp"
@@ -685,6 +686,55 @@ xcs_set_bugs(xcs_core *core, double bugs)
   });
 }
 
+/**
+ * Copy JSON into the caller's buffer (the rules of
+ * xcs_get_data_status()).
+ */
+static xcs_status
+CopyJson(const std::string &json, char *buffer, size_t size,
+         size_t *length_r) noexcept
+{
+  *length_r = json.size();
+  if (json.size() >= size)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  std::memcpy(buffer, json.c_str(), json.size() + 1);
+  return XCS_OK;
+}
+
+xcs_status
+xcs_units_get(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [buffer, size, length_r]{
+    return CopyJson(CoreUnits::Describe(), buffer, size, length_r);
+  });
+}
+
+xcs_status
+xcs_units_set(xcs_core *core, uint32_t group, uint32_t unit)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [group, unit]{
+    return CoreUnits::Set(group, unit) ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_units_preset(xcs_core *core, uint32_t index)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [index]{
+    return CoreUnits::ApplyPreset(index) ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
 xcs_status
 xcs_sound_set_option(xcs_core *core, uint32_t option, int32_t value)
 {
@@ -844,22 +894,6 @@ xcs_get_data_status(xcs_core *core, char *buffer, size_t size,
     std::memcpy(buffer, json.c_str(), json.size() + 1);
     return XCS_OK;
   });
-}
-
-/**
- * Copy JSON into the caller's buffer (the rules of
- * xcs_get_data_status()).
- */
-static xcs_status
-CopyJson(const std::string &json, char *buffer, size_t size,
-         size_t *length_r) noexcept
-{
-  *length_r = json.size();
-  if (json.size() >= size)
-    return XCS_ERROR_INVALID_ARGUMENT;
-
-  std::memcpy(buffer, json.c_str(), json.size() + 1);
-  return XCS_OK;
 }
 
 xcs_status

@@ -121,6 +121,7 @@ endif
 CORE_HOST_SOURCES = \
 	$(CORE_SRC_DIR)/host/CoreStartup.cpp \
 	$(CORE_SRC_DIR)/host/CoreTask.cpp \
+	$(CORE_SRC_DIR)/host/CoreUnits.cpp \
 	$(CORE_SRC_DIR)/host/Protection.cpp \
 	$(CORE_SRC_DIR)/host/Seams.cpp \
 	$(CORE_SRC_DIR)/host/CoreReceive.cpp \
@@ -201,15 +202,29 @@ XCS_REPLAY_LDLIBS = $(CORE_LDLIBS)
 $(eval $(call link-program,xcs-replay,XCS_REPLAY))
 $(eval $(call core-link-group,XCS_REPLAY))
 
+# D9: what XCSoar's Formatter prints, for the app's own formatting
+# (compared with mobile/core/src/test/resources/format-golden.txt)
+FORMAT_GOLDEN_SOURCES = \
+	$(CORE_SRC_DIR)/test/FormatGolden.cpp \
+	$(SRC)/Formatter/Units.cpp \
+	$(SRC)/Units/Descriptor.cpp \
+	$(SRC)/Units/Units.cpp \
+	$(SRC)/Units/System.cpp \
+	$(SRC)/Units/Settings.cpp \
+	$(SRC)/Atmosphere/Pressure.cpp
+$(eval $(call link-program,FormatGolden,FORMAT_GOLDEN))
+
 CORE_TESTS = $(TEST_CORE_API_BIN)
 
-core: $(CORE_SMOKE_BIN) $(CORE_TESTS) $(XCS_REPLAY_BIN)
+core: $(CORE_SMOKE_BIN) $(CORE_TESTS) $(XCS_REPLAY_BIN) $(FORMAT_GOLDEN_BIN)
 
-# L1 (TAP contract tests) and L2 (golden replay, core/test/golden)
-core-check: $(CORE_TESTS) $(XCS_REPLAY_BIN) | $(OUT)/test/dirstamp
+# L1 (TAP contract tests), L2 (golden replay, core/test/golden) and the
+# Formatter golden file of the app (D9)
+core-check: $(CORE_TESTS) $(XCS_REPLAY_BIN) $(FORMAT_GOLDEN_BIN) | $(OUT)/test/dirstamp
 	@$(NQ)echo "  CHECK   core"
 	$(Q)$(PERL) $(TEST_SRC_DIR)/testall.pl $(CORE_TESTS)
 	$(Q)python3 $(CORE_SRC_DIR)/test/check_golden.py --replay $(XCS_REPLAY_BIN)
+	$(Q)$(FORMAT_GOLDEN_BIN) | diff -u mobile/core/src/test/resources/format-golden.txt -
 
 endif
 

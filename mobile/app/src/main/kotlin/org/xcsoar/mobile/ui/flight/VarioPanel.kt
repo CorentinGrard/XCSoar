@@ -54,14 +54,14 @@ fun VarioPanel(
             .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 12.dp)
             .clearAndSetSemantics {
                 contentDescription = "Vario ${varioText.text}, average ${averageText.text}, " +
-                    "netto ${nettoText.text} m/s"
+                    "netto ${nettoText.text} ${varioText.unit}"
             },
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.SpaceBetween) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Caption("Vario · m/s", color = colors.instrumentTextSecondary)
+                Caption("Vario · ${varioText.unit}", color = colors.instrumentTextSecondary)
                 Text(varioText.text, color = climbColor(vario) ?: colors.instrumentText,
                      style = XcsTheme.numberStyle, fontWeight = FontWeight.Bold,
                      fontSize = 52.sp, lineHeight = 48.sp, maxLines = 1)

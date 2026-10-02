@@ -333,6 +333,36 @@ xcs_set_ballast(xcs_core *core, double litres);
 XCS_EXPORT xcs_status
 xcs_set_bugs(xcs_core *core, double bugs);
 
+/**
+ * XCSoar's units and the pilot's choice, for the app to format values
+ * like XCSoar's Formatter (JSON, UTF-8, null-terminated):
+ *
+ *   {"units": [{"unit": 1, "name": "km", "factor": 0.001,
+ *               "offset": 0.0}, ...],
+ *    "groups": [{"group": 1, "unit": 1, "choices": [3, 2, 1]}, ...],
+ *    "presets": [{"name": "European"}, ...], "preset": 0}
+ *
+ * A unit's value is SI × factor + offset.  "unit" is XCSoar's Unit
+ * enum, "group" its UnitGroup (1 distance, 2 altitude, 3 temperature,
+ * 4 aircraft speed, 5 vertical speed, 6 wind speed, 7 task speed,
+ * 8 pressure, 9 wing loading, 10 mass); "choices" are the units the
+ * pilot may set (wind speed follows aircraft speed).  "preset": the
+ * preset the settings equal, -1 for none.
+ *
+ * @param length_r as for xcs_get_data_status()
+ */
+XCS_EXPORT xcs_status
+xcs_units_get(xcs_core *core, char *buffer, size_t size, size_t *length_r);
+
+/** Set the unit of a group (one of its "choices"); applied at once
+    (the map too) and saved in the profile. */
+XCS_EXPORT xcs_status
+xcs_units_set(xcs_core *core, uint32_t group, uint32_t unit);
+
+/** Load XCSoar's unit preset `index` (see "presets"); saved. */
+XCS_EXPORT xcs_status
+xcs_units_preset(xcs_core *core, uint32_t index);
+
 /** Sound options (XCSoar's profile keys in brackets). */
 typedef enum xcs_sound_option {
   /** 0/1: the vario sound, XCSoar's synthesiser [AudioVario2] */
