@@ -33,6 +33,18 @@ CoreReloadDataFiles(bool map, bool waypoints, bool airspace,
                     OperationEnvironment &operation) noexcept;
 
 /**
+ * What XCSoar's default input events (Data/Input/default.xci) do on a
+ * glide computer event, without the UI: the IGC logger starts on
+ * takeoff and stops on landing, as the profile's auto logger setting
+ * allows (InputEvents::eventAutoLogger()).  Runs on the core main
+ * thread.
+ *
+ * @param gce a GCE_* value (src/Input/InputQueue.hpp)
+ */
+void
+CoreProcessGlideComputerEvent(unsigned gce) noexcept;
+
+/**
  * Stop everything CoreStartup() started, in the order documented in
  * doc/architecture.rst (network, threads, storage, components).
  */

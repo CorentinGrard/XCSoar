@@ -17,6 +17,7 @@ import org.xcsoar.mobile.core.DataFile
 import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.XcsoarCore
+import org.xcsoar.mobile.ui.flights.FlightLog
 import java.io.File
 
 /**
@@ -97,9 +98,16 @@ class XcsoarApp : Application() {
         return if (base.isBlank() || base == "." || base == "..") "imported" else base
     }
 
+    /** The IGC files XCSoar's logger wrote (not the demo flight). */
+    suspend fun flightLogs(): List<FlightLog> = withContext(Dispatchers.IO) {
+        File(xcsoarDataDir, "logs").listFiles { f ->
+            f.isFile && f.name.endsWith(".igc", ignoreCase = true) && f.name != DEMO_FLIGHT
+        }.orEmpty().map { FlightLog(it.path, it.name, it.lastModified(), it.length()) }
+    }
+
     /** The bundled demo flight, copied to the data directory. */
     fun demoFlight(): File {
-        val file = File(xcsoarDataDir, "logs/demo.igc")
+        val file = File(xcsoarDataDir, "logs/$DEMO_FLIGHT")
         if (!file.exists()) {
             file.parentFile?.mkdirs()
             assets.open("01lz1hq1.igc").use { input ->
@@ -111,5 +119,6 @@ class XcsoarApp : Application() {
 
     private companion object {
         const val TAG = "XcsoarApp"
+        const val DEMO_FLIGHT = "demo.igc"
     }
 }

@@ -61,6 +61,7 @@ fun FlightScreen(
     onOpenMapSettings: () -> Unit = {},
     onOpenWaypoints: () -> Unit = {},
     onOpenFlightSetup: () -> Unit = {},
+    onOpenFlights: () -> Unit = {},
 ) {
     val state by viewModel.flightState.collectAsStateWithLifecycle()
     val lastEvent by viewModel.lastEvent.collectAsStateWithLifecycle()
@@ -86,6 +87,7 @@ fun FlightScreen(
         menu = listOf(
             MenuAction("Go to waypoint", enabled = true, onClick = onOpenWaypoints),
             MenuAction("Flight setup", enabled = true, onClick = onOpenFlightSetup),
+            MenuAction("Flights", enabled = true, onClick = onOpenFlights),
             MenuAction("Data files", enabled = true, onClick = onOpenDataFiles),
             MenuAction("Map", enabled = viewModel.hasMap, onClick = onOpenMapSettings),
             // on the ground only: a demo, not something to press in flight

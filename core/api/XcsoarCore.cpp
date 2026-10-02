@@ -154,6 +154,8 @@ struct PendingEvent {
   xcs_event_type type;
   uint32_t code;
   std::string text, detail;
+  /** The GCE_* value of a glide computer event, else GCE_COUNT. */
+  unsigned gce = GCE_COUNT;
 };
 
 struct xcs_core final : CoreListener {
@@ -215,7 +217,7 @@ struct xcs_core final : CoreListener {
   void OnGlideComputerEvent(unsigned gce) noexcept override {
     QueueEvent({XCS_EVENT_GLIDE_COMPUTER,
                 gce < GCE_COUNT ? uint32_t(gce_map[gce]) : uint32_t(XCS_GCE_OTHER),
-                {}, {}});
+                {}, {}, gce});
   }
 
   void OnMessage(const char *text, const char *data) noexcept override {
@@ -448,6 +450,12 @@ xcs_core::DeliverEvents() noexcept
     const std::lock_guard lock{event_mutex};
     events.swap(pending_events);
   }
+
+  /* XCSoar's own reactions first (the auto logger), like its input
+     events, on this thread as there */
+  for (const auto &e : events)
+    if (e.gce < GCE_COUNT)
+      CoreProcessGlideComputerEvent(e.gce);
 
   if (on_event == nullptr)
     return;

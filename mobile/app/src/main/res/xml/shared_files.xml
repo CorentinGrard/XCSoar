@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- files other apps may receive (FlightsScreen: share an IGC file) -->
+<paths>
+    <external-files-path name="logs" path="XCSoarData/logs/" />
+</paths>

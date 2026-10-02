@@ -63,6 +63,7 @@
 #include "NMEA/Aircraft.hpp"
 #include "Storage/StorageManager.hpp"
 #include "Simulator.hpp"
+#include "Input/InputQueue.hpp"
 #include "Audio/VarioGlue.hpp"
 #include "system/FileUtil.hpp"
 
@@ -355,6 +356,37 @@ CoreReloadDataFiles(bool map, bool waypoints, bool airspace,
 
     if (data_components->terrain)
       SetAirspaceGroundLevels(airspaces, *data_components->terrain);
+  }
+}
+
+void
+CoreProcessGlideComputerEvent(unsigned gce) noexcept
+{
+  if (gce != GCE_TAKEOFF && gce != GCE_LANDING)
+    return;
+
+  if (is_simulator() || backend_components == nullptr ||
+      backend_components->igc_logger == nullptr)
+    return;
+
+  using AutoLogger = LoggerSettings::AutoLogger;
+  const ComputerSettings &settings = CommonInterface::GetComputerSettings();
+  const auto auto_logger = settings.logger.auto_logger;
+  if (auto_logger == AutoLogger::OFF ||
+      (auto_logger == AutoLogger::START_ONLY && gce != GCE_TAKEOFF))
+    return;
+
+  /* "AutoLogger start" / "AutoLogger stop", without asking */
+  try {
+    auto &logger = *backend_components->igc_logger;
+    if (gce == GCE_TAKEOFF)
+      logger.GUIStartLogger(CommonInterface::Basic(), settings,
+                            backend_components->protected_task_manager.get(),
+                            true);
+    else
+      logger.GUIStopLogger(CommonInterface::Basic(), true);
+  } catch (...) {
+    LogError(std::current_exception(), "Logger I/O error");
   }
 }
 

@@ -23,7 +23,7 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** M4 (IGC logging, task)
+**Current focus:** M4 (check IGC logging on a takeoff, task)
 
 ---
 
@@ -296,7 +296,14 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       profile, off by default like XCSoar); the volume keys set the media
       volume.  Checked on a Pixel 7 during a replay.  Volume, mode
       (auto / vario / STF) and dead band settings: later (M6)
-- [ ] IGC logging on by default; flight list with share/export
+- [~] IGC logging on by default; flight list with share/export.  The
+      core starts XCSoar's IGC logger on takeoff and stops it on landing
+      like default.xci's "AutoLogger" events (profile setting, on by
+      default; never for replays): `CoreProcessGlideComputerEvent()`.
+      Menu → Flights lists `XCSoarData/logs/*.igc`, newest first, and
+      shares one through a FileProvider.  List and share checked on a
+      Pixel 7; **auto start/stop not yet seen on a real takeoff** (needs
+      a car/walk test or test GPS fixes)
 - [ ] Analysis pages: barograph, climb history, task speed, contest (charts drawn
       in Compose from JSON data)
 - [ ] **L5** instrumented replay test on an emulator in CI (nightly)
@@ -342,7 +349,9 @@ Newest first. One line per session: what was done and what's next.
   lock, notification). Checked on a Pixel 7. Flight setup screen: water
   ballast and bugs through the C API (TestCoreApi extended; not run
   locally, the Fedora host lacks fmt-devel and friends: CI runs it).
-  Vario sound on/off (upstream's OpenSL player, D18). Next: IGC logging.
+  Vario sound on/off (upstream's OpenSL player, D18). IGC logger starts
+  on takeoff and stops on landing; flight list with Share. Next: see the
+  logger start on a real takeoff, then the task.
 
 - 2026-10-02 — Data files screen (map/airspace/waypoints via the system
   picker) and XCSoar's moving map in the app, both working on a Pixel 7

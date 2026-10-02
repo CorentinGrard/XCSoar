@@ -3,6 +3,8 @@
 
 package org.xcsoar.mobile
 
+import android.content.ClipData
+import android.content.Intent
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
@@ -16,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -31,12 +34,16 @@ import org.xcsoar.mobile.ui.map.MapSettingsScreen
 import org.xcsoar.mobile.ui.waypoints.WaypointsScreen
 import org.xcsoar.mobile.ui.waypoints.WaypointsViewModel
 import org.xcsoar.mobile.ui.map.MapSettingsViewModel
+import org.xcsoar.mobile.ui.flights.FlightLog
+import org.xcsoar.mobile.ui.flights.FlightsScreen
+import org.xcsoar.mobile.ui.flights.FlightsViewModel
 import org.xcsoar.mobile.ui.setup.FlightSetupScreen
 import org.xcsoar.mobile.ui.setup.FlightSetupViewModel
 import org.xcsoar.mobile.ui.flight.FlightViewModel
 import org.xcsoar.mobile.ui.theme.XcsTheme
+import java.io.File
 
-private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP }
+private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS }
 
 class MainActivity : ComponentActivity() {
     private val app get() = application as XcsoarApp
@@ -121,6 +128,10 @@ class MainActivity : ComponentActivity() {
                     initializer { FlightSetupViewModel(app.anyCore) }
                 })
 
+                val flightsViewModel: FlightsViewModel = viewModel(factory = viewModelFactory {
+                    initializer { FlightsViewModel(app::flightLogs) }
+                })
+
                 LaunchedEffect(flightViewModel) {
                     flightViewModel.alerts.collect { alerts.play(it) }
                 }
@@ -133,6 +144,7 @@ class MainActivity : ComponentActivity() {
                         onOpenMapSettings = { screen = Screen.MAP_SETTINGS },
                         onOpenWaypoints = { screen = Screen.WAYPOINTS },
                         onOpenFlightSetup = { screen = Screen.FLIGHT_SETUP },
+                        onOpenFlights = { screen = Screen.FLIGHTS },
                     )
                     Screen.DATA_FILES -> DataFilesScreen(
                         dataViewModel,
@@ -155,9 +167,24 @@ class MainActivity : ComponentActivity() {
                         mapViewModel, onBack = { screen = Screen.FLIGHT })
                     Screen.FLIGHT_SETUP -> FlightSetupScreen(
                         setupViewModel, onBack = { screen = Screen.FLIGHT })
+                    Screen.FLIGHTS -> FlightsScreen(
+                        flightsViewModel, onShare = ::share, onBack = { screen = Screen.FLIGHT })
                 }
             }
         }
+    }
+
+    /** Hand an IGC file to another app (mail, WeGlide, XContest…). */
+    private fun share(flight: FlightLog) {
+        val uri = FileProvider.getUriForFile(this, "$packageName.files", File(flight.path))
+        val send = Intent(Intent.ACTION_SEND)
+            .setType("application/octet-stream")
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .putExtra(Intent.EXTRA_SUBJECT, flight.name)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        // the chooser takes the grant from the clip data (for its preview)
+        send.clipData = ClipData.newRawUri(flight.name, uri)
+        startActivity(Intent.createChooser(send, flight.name))
     }
 
     override fun onStart() {
