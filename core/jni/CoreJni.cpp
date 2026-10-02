@@ -340,4 +340,23 @@ Java_org_xcsoar_mobile_NativeCore_nativeMapItemsAt(JNIEnv *env, jclass,
   return status == XCS_OK ? env->NewStringUTF(buffer.c_str()) : nullptr;
 }
 
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMapSetOption(JNIEnv *, jclass,
+                                                     jlong core, jint option,
+                                                     jint value)
+{
+  return xcs_map_set_option(ToCore(core), option, value);
+}
+
+/** @return the value, or Integer.MIN_VALUE on error */
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMapGetOption(JNIEnv *, jclass,
+                                                     jlong core, jint option)
+{
+  int32_t value;
+  return xcs_map_get_option(ToCore(core), option, &value) == XCS_OK
+    ? value
+    : INT32_MIN;
+}
+
 } // extern "C"

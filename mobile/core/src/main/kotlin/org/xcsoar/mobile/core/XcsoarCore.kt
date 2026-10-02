@@ -68,6 +68,12 @@ interface XcsoarCore {
 
     suspend fun setMapOrientation(orientation: MapOrientation) {}
 
+    /** A display option of the map; null without a map. */
+    suspend fun mapOption(option: MapOption): Int? = null
+
+    /** Set a display option (saved in the profile). */
+    suspend fun setMapOption(option: MapOption, value: Int) {}
+
     /** What is on the map around pixel ([x], [y]), nearest first. */
     suspend fun mapItemsAt(x: Int, y: Int): List<MapItemInfo> = emptyList()
 
@@ -140,4 +146,30 @@ enum class MapOrientation(val code: Int) {
     companion object {
         fun fromCode(code: Int) = entries.firstOrNull { it.code == code }
     }
+}
+
+/** Values of `xcs_map_option` (core/api/xcsoar_core.h). */
+enum class MapOption(val code: Int) {
+    /** 0/1 */
+    TERRAIN(1),
+    /** XCSoar's ramp number, see [TerrainRamp]. */
+    TERRAIN_RAMP(2),
+    /** 0/1: roads, rivers, towns */
+    TOPOGRAPHY(3),
+    /** 0 off, 1 long, 2 short, 3 full */
+    TRAIL(4),
+}
+
+/** XCSoar's terrain colour ramps (TerrainRenderer.cpp), the ones offered. */
+enum class TerrainRamp(val code: Int, val label: String) {
+    PASTEL(11, "Pastel"),
+    LOW_LANDS(0, "Low lands"),
+    MOUNTAINOUS(1, "Mountainous"),
+    IMHOF_ATLAS(5, "Imhof Atlas"),
+    ICAO(6, "ICAO"),
+    FRENCH_SIA(14, "French SIA VFR chart"),
+    GERMAN_DFS(13, "German DFS VFR chart"),
+    SANDSTONE(10, "Sandstone"),
+    GREY(7, "Grey"),
+    HIGH_CONTRAST(15, "High contrast"),
 }

@@ -28,8 +28,16 @@ class DataStatusTest {
     }
 
     @Test
+    fun mapOptionsMatchHeader() {
+        val c = CoreHeader.constants("XCS_MAP_")
+            .filterKeys { MapOrientation.entries.none { o -> it == "XCS_MAP_${o.name}" } }
+        assertEquals(c, MapOption.entries.associate { "XCS_MAP_${it.name}" to it.code })
+    }
+
+    @Test
     fun mapOrientationsMatchHeader() {
         val c = CoreHeader.constants("XCS_MAP_")
+            .filterKeys { MapOption.entries.none { o -> it == "XCS_MAP_${o.name}" } }
         assertEquals(c, MapOrientation.entries.associate { "XCS_MAP_${it.name}" to it.code })
     }
 }

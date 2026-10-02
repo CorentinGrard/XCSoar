@@ -9,6 +9,7 @@
  */
 
 #include "CoreMap.hpp"
+#include "xcsoar_core.h"
 #include "AndroidGraphics.hpp"
 #include "Interface.hpp"
 #include "Components.hpp"
@@ -33,6 +34,7 @@
 #include "Terrain/RasterTerrain.hpp"
 #include "UISettings.hpp"
 #include "MapSettings.hpp"
+#include "Terrain/TerrainSettings.hpp"
 #include "Profile/Profile.hpp"
 #include "Profile/Current.hpp"
 #include "Profile/Map.hpp"
@@ -490,6 +492,74 @@ CoreMap::ItemsAt(int x, int y) noexcept
   StringOutputStream os;
   Json::Serialize(os, items);
   return std::move(os).GetValue();
+}
+
+bool
+CoreMap::SetOption(unsigned option, int value) noexcept
+{
+  auto &settings = CommonInterface::SetMapSettings();
+  auto &profile = Profile::map;
+
+  switch (option) {
+  case XCS_MAP_TERRAIN:
+    settings.terrain.enable = value != 0;
+    profile.Set(ProfileKeys::DrawTerrain, settings.terrain.enable);
+    break;
+
+  case XCS_MAP_TERRAIN_RAMP:
+    if (value < 0 || unsigned(value) >= TerrainRendererSettings::NUM_RAMPS)
+      return false;
+    settings.terrain.ramp = value;
+    profile.Set(ProfileKeys::TerrainRamp, unsigned(value));
+    break;
+
+  case XCS_MAP_TOPOGRAPHY:
+    settings.topography_enabled = value != 0;
+    profile.Set(ProfileKeys::DrawTopography, settings.topography_enabled);
+    break;
+
+  case XCS_MAP_TRAIL:
+    if (value < 0 || value > int(TrailSettings::Length::FULL))
+      return false;
+    settings.trail.length = TrailSettings::Length(value);
+    profile.Set(ProfileKeys::SnailTrail, unsigned(value));
+    break;
+
+  default:
+    return false;
+  }
+
+  Profile::Save();
+  if (graphics != nullptr)
+    graphics->map->FlushCaches();
+  Render();
+  return true;
+}
+
+bool
+CoreMap::GetOption(unsigned option, int &value) noexcept
+{
+  const auto &settings = CommonInterface::GetMapSettings();
+
+  switch (option) {
+  case XCS_MAP_TERRAIN:
+    value = settings.terrain.enable;
+    return true;
+
+  case XCS_MAP_TERRAIN_RAMP:
+    value = settings.terrain.ramp;
+    return true;
+
+  case XCS_MAP_TOPOGRAPHY:
+    value = settings.topography_enabled;
+    return true;
+
+  case XCS_MAP_TRAIL:
+    value = int(settings.trail.length);
+    return true;
+  }
+
+  return false;
 }
 
 void

@@ -66,6 +66,16 @@ class FakeXcsoarCore(
         state.value = state.value?.copy(macCready = macCready)
     }
 
+    private val mapOptions = mutableMapOf(
+        MapOption.TERRAIN to 1, MapOption.TERRAIN_RAMP to TerrainRamp.PASTEL.code,
+        MapOption.TOPOGRAPHY to 1, MapOption.TRAIL to 2)
+
+    override suspend fun mapOption(option: MapOption): Int? = mapOptions[option]
+
+    override suspend fun setMapOption(option: MapOption, value: Int) {
+        mapOptions[option] = value
+    }
+
     private var files = mapOf<DataFile, String>()
 
     /* remembers the files; there is nothing to load */

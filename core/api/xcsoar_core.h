@@ -393,6 +393,28 @@ xcs_map_set_orientation(xcs_core *core, uint32_t orientation);
 XCS_EXPORT xcs_status
 xcs_map_get_orientation(xcs_core *core, uint32_t *orientation_r);
 
+/** Display options of the map (XCSoar's profile keys in brackets). */
+typedef enum xcs_map_option {
+  /** 0/1: draw the terrain [DrawTerrain] */
+  XCS_MAP_TERRAIN = 1,
+  /** Colour ramp of the terrain, XCSoar's numbering, e.g. 0 "Low
+      lands", 1 "Mountainous", 5 "Imhof Atlas", 6 "ICAO", 11 "Pastel",
+      14 "French SIA VFR Chart" [TerrainRamp] */
+  XCS_MAP_TERRAIN_RAMP = 2,
+  /** 0/1: roads, rivers, towns [DrawTopology] */
+  XCS_MAP_TOPOGRAPHY = 3,
+  /** Snail trail: 0 off, 1 long, 2 short, 3 full [SnailTrail] */
+  XCS_MAP_TRAIL = 4,
+} xcs_map_option;
+
+/** Set a display option; saved in the profile.  XCS_ERROR_INVALID_ARGUMENT
+    for an unknown option or value. */
+XCS_EXPORT xcs_status
+xcs_map_set_option(xcs_core *core, uint32_t option, int32_t value);
+
+XCS_EXPORT xcs_status
+xcs_map_get_option(xcs_core *core, uint32_t option, int32_t *value_r);
+
 /**
  * What is on the map around pixel (x, y) (XCSoar's map item list), as a
  * JSON array, nearest first (UTF-8, null-terminated):

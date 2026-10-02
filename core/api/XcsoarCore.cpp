@@ -846,6 +846,45 @@ xcs_map_items_at(xcs_core *core, int32_t x, int32_t y, char *buffer,
 #endif
 }
 
+xcs_status
+xcs_map_set_option(xcs_core *core, uint32_t option, int32_t value)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+#ifdef ANDROID
+  return RunOnMain(*core, [option, value]{
+    return CoreMap::SetOption(option, value)
+      ? XCS_OK
+      : XCS_ERROR_INVALID_ARGUMENT;
+  });
+#else
+  (void)option;
+  (void)value;
+  return XCS_ERROR_FAILED;
+#endif
+}
+
+xcs_status
+xcs_map_get_option(xcs_core *core, uint32_t option, int32_t *value_r)
+{
+  if (core == nullptr || value_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+#ifdef ANDROID
+  return RunOnMain(*core, [option, value_r]{
+    int value;
+    if (!CoreMap::GetOption(option, value))
+      return XCS_ERROR_INVALID_ARGUMENT;
+    *value_r = value;
+    return XCS_OK;
+  });
+#else
+  (void)option;
+  return XCS_ERROR_FAILED;
+#endif
+}
+
 static xcs_status
 StartReplay(const char *path) noexcept
 try {

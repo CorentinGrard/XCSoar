@@ -236,8 +236,11 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       ~10/s); interactions draw at once
 - [x] Fix: start without GPS fix and home waypoint crashed (no position);
       the map now starts on home, else on the middle of the map file
-- [ ] Daylight map look matching the design (terrain ramp, airspace style)
-- [ ] Map settings: orientation, zoom, trail, terrain/topography toggles
+- [~] Daylight map look matching the design: Pastel terrain offered;
+      airspace and waypoint styles still XCSoar's
+- [x] Map settings screen (Menu → Map): terrain on/off and colours
+      (XCSoar's ramps; Pastel is closest to the design), topography,
+      trail length (`xcs_map_set_option`, XCSoar's profile keys)
 - [x] Hold the map (arms after 500 ms, commits on lift-off) →
       `xcs_map_items_at` (XCSoar's map item builder, JSON) → floating card,
       not modal: terrain, airspace with class and limits, waypoints with

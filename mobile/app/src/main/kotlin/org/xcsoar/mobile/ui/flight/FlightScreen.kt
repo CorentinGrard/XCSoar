@@ -54,7 +54,11 @@ import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 @Composable
-fun FlightScreen(viewModel: FlightViewModel, onOpenDataFiles: () -> Unit = {}) {
+fun FlightScreen(
+    viewModel: FlightViewModel,
+    onOpenDataFiles: () -> Unit = {},
+    onOpenMapSettings: () -> Unit = {},
+) {
     val state by viewModel.flightState.collectAsStateWithLifecycle()
     val lastEvent by viewModel.lastEvent.collectAsStateWithLifecycle()
     val circling by viewModel.showCircling.collectAsStateWithLifecycle()
@@ -70,6 +74,7 @@ fun FlightScreen(viewModel: FlightViewModel, onOpenDataFiles: () -> Unit = {}) {
         onSelectMode = viewModel::selectFlightMode,
         menu = listOf(
             MenuAction("Data files", enabled = true, onClick = onOpenDataFiles),
+            MenuAction("Map", enabled = viewModel.hasMap, onClick = onOpenMapSettings),
             // on the ground only: a demo, not something to press in flight
             MenuAction("Replay demo",
                        enabled = state?.let { !it.flying && !it.replay } == true,

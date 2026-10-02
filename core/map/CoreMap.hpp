@@ -77,6 +77,16 @@ GetOrientation() noexcept;
 std::string
 ItemsAt(int x, int y) noexcept;
 
+/**
+ * Display options of the map, as xcs_map_option (stored in the profile
+ * under XCSoar's keys).  Returns false for an unknown option or value.
+ */
+bool
+SetOption(unsigned option, int value) noexcept;
+
+bool
+GetOption(unsigned option, int &value) noexcept;
+
 /** Redraw soon (at most a few times per second); for new data. */
 void
 Invalidate() noexcept;

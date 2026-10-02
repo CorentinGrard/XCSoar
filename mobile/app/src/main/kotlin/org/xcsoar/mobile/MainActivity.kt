@@ -22,8 +22,12 @@ import org.xcsoar.mobile.core.DataFile
 import org.xcsoar.mobile.ui.data.DataFilesScreen
 import org.xcsoar.mobile.ui.data.DataFilesViewModel
 import org.xcsoar.mobile.ui.flight.FlightScreen
+import org.xcsoar.mobile.ui.map.MapSettingsScreen
+import org.xcsoar.mobile.ui.map.MapSettingsViewModel
 import org.xcsoar.mobile.ui.flight.FlightViewModel
 import org.xcsoar.mobile.ui.theme.XcsTheme
+
+private enum class Screen { FLIGHT, DATA_FILES, MAP_SETTINGS }
 
 class MainActivity : ComponentActivity() {
     private val app get() = application as XcsoarApp
@@ -73,19 +77,29 @@ class MainActivity : ComponentActivity() {
                 })
                 onPicked = dataViewModel::choose
 
-                var showDataFiles by rememberSaveable { mutableStateOf(false) }
-                if (showDataFiles)
-                    DataFilesScreen(
+                val mapViewModel: MapSettingsViewModel = viewModel(factory = viewModelFactory {
+                    initializer { MapSettingsViewModel(app.anyCore) }
+                })
+
+                var screen by rememberSaveable { mutableStateOf(Screen.FLIGHT) }
+                when (screen) {
+                    Screen.FLIGHT -> FlightScreen(
+                        flightViewModel,
+                        onOpenDataFiles = { screen = Screen.DATA_FILES },
+                        onOpenMapSettings = { screen = Screen.MAP_SETTINGS },
+                    )
+                    Screen.DATA_FILES -> DataFilesScreen(
                         dataViewModel,
                         onChoose = { kind ->
                             pickingKind = kind
                             // file types are not reliable for .xcm/.txt: offer every file
                             filePicker.launch(arrayOf("*/*"))
                         },
-                        onBack = { showDataFiles = false },
+                        onBack = { screen = Screen.FLIGHT },
                     )
-                else
-                    FlightScreen(flightViewModel, onOpenDataFiles = { showDataFiles = true })
+                    Screen.MAP_SETTINGS -> MapSettingsScreen(
+                        mapViewModel, onBack = { screen = Screen.FLIGHT })
+                }
             }
         }
     }
