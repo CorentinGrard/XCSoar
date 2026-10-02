@@ -39,6 +39,10 @@ interface XcsoarCore {
     /** Parse a downloaded repository index ([REPOSITORY_URI]); null if unsupported. */
     suspend fun repositoryFiles(indexPath: String): List<RepositoryFile>? = null
 
+    /** Waypoints whose name contains [name], nearest first. */
+    suspend fun searchWaypoints(name: String, filter: WaypointFilter, max: Int): List<WaypointInfo> =
+        emptyList()
+
     /**
      * Fly directly to this waypoint (XCSoar's "Go to"); it becomes the
      * next point.  Fails if the profile only allows landable targets.

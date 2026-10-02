@@ -411,4 +411,25 @@ Java_org_xcsoar_mobile_NativeCore_nativeAirspaceAcknowledge(JNIEnv *env, jclass,
   return xcs_airspace_acknowledge(ToCore(core), i.c_str(), mode);
 }
 
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWaypointsSearch(JNIEnv *env, jclass,
+                                                        jlong core,
+                                                        jstring name,
+                                                        jint filter, jint max)
+{
+  const auto n = Java::String::GetUTFChars(env, name);
+  std::string buffer(32768, '\0');
+  size_t length;
+  xcs_status status = xcs_waypoints_search(ToCore(core), n.c_str(), filter,
+                                           max, buffer.data(), buffer.size(),
+                                           &length);
+  if (status == XCS_ERROR_INVALID_ARGUMENT && length >= buffer.size()) {
+    buffer.resize(length + 1);
+    status = xcs_waypoints_search(ToCore(core), n.c_str(), filter, max,
+                                  buffer.data(), buffer.size(), &length);
+  }
+
+  return status == XCS_OK ? env->NewStringUTF(buffer.c_str()) : nullptr;
+}
+
 } // extern "C"

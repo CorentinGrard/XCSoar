@@ -27,11 +27,13 @@ import org.xcsoar.mobile.ui.data.DownloadViewModel
 import org.xcsoar.mobile.ui.data.DataFilesViewModel
 import org.xcsoar.mobile.ui.flight.FlightScreen
 import org.xcsoar.mobile.ui.map.MapSettingsScreen
+import org.xcsoar.mobile.ui.waypoints.WaypointsScreen
+import org.xcsoar.mobile.ui.waypoints.WaypointsViewModel
 import org.xcsoar.mobile.ui.map.MapSettingsViewModel
 import org.xcsoar.mobile.ui.flight.FlightViewModel
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
-private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS }
+private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS }
 
 class MainActivity : ComponentActivity() {
     private val app get() = application as XcsoarApp
@@ -97,6 +99,10 @@ class MainActivity : ComponentActivity() {
                     }
                 })
 
+                val waypointsViewModel: WaypointsViewModel = viewModel(factory = viewModelFactory {
+                    initializer { WaypointsViewModel(app.anyCore) }
+                })
+
                 LaunchedEffect(flightViewModel) {
                     flightViewModel.alerts.collect { alerts.play(it) }
                 }
@@ -107,6 +113,7 @@ class MainActivity : ComponentActivity() {
                         flightViewModel,
                         onOpenDataFiles = { screen = Screen.DATA_FILES },
                         onOpenMapSettings = { screen = Screen.MAP_SETTINGS },
+                        onOpenWaypoints = { screen = Screen.WAYPOINTS },
                     )
                     Screen.DATA_FILES -> DataFilesScreen(
                         dataViewModel,
@@ -123,6 +130,8 @@ class MainActivity : ComponentActivity() {
                     )
                     Screen.DOWNLOAD -> DownloadScreen(
                         downloadViewModel, onDone = { screen = Screen.DATA_FILES })
+                    Screen.WAYPOINTS -> WaypointsScreen(
+                        waypointsViewModel, onDone = { screen = Screen.FLIGHT })
                     Screen.MAP_SETTINGS -> MapSettingsScreen(
                         mapViewModel, onBack = { screen = Screen.FLIGHT })
                 }

@@ -13,6 +13,12 @@
  */
 
 #include "xcsoar_core.h"
+#include "Engine/Route/ReachResult.hpp"
+#include "Computer/GlideComputer.hpp"
+#include "Computer/WaypointReach.hpp"
+#include "Waypoint/WaypointListBuilder.hpp"
+#include "Waypoint/WaypointList.hpp"
+#include "Waypoint/WaypointFilter.hpp"
 #include "Formatter/AirspaceFormatter.hpp"
 #include "Engine/Airspace/AbstractAirspace.hpp"
 #include "Engine/Airspace/AirspaceWarning.hpp"
@@ -1108,6 +1114,103 @@ xcs_airspace_acknowledge(xcs_core *core, const char *id, uint32_t mode)
       manager->AcknowledgeDay(std::move(airspace));
     else
       manager->Acknowledge(std::move(airspace));
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_waypoints_search(xcs_core *core, const char *name, uint32_t filter,
+                     uint32_t max, char *buffer, size_t size,
+                     size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr ||
+      filter > XCS_WAYPOINTS_AIRPORT ||
+      (name != nullptr && !ValidateUTF8(name)))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  const std::string wanted = name != nullptr ? name : "";
+  return RunOnMain(*core, [=]{
+    const auto &basic = CommonInterface::Basic();
+    const auto &calculated = CommonInterface::Calculated();
+    const auto &settings = CommonInterface::GetComputerSettings();
+    const auto &waypoints = *data_components->waypoints;
+
+    /* distances from the aircraft, else from home */
+    GeoPoint location = GeoPoint::Invalid();
+    if (basic.location_available)
+      location = basic.location;
+    else if (settings.poi.home_location_available)
+      location = settings.poi.home_location;
+
+    /* XCSoar's waypoint list, like the waypoint list dialog */
+    WaypointFilter waypoint_filter;
+    waypoint_filter.Clear();
+    waypoint_filter.name = wanted.c_str();
+    waypoint_filter.type_index = filter == XCS_WAYPOINTS_AIRPORT
+      ? TypeFilter::AIRPORT
+      : filter == XCS_WAYPOINTS_LANDABLE
+      ? TypeFilter::LANDABLE
+      : TypeFilter::ALL;
+
+    WaypointList list;
+    WaypointListBuilder builder(waypoint_filter,
+                                location.IsValid() ? location
+                                : GeoPoint::Zero(),
+                                list, nullptr, 0);
+    builder.Visit(waypoints);
+    if (location.IsValid())
+      list.SortByDistance(location);
+    else
+      list.SortByName();
+
+    const auto *route_planner =
+      &backend_components->glide_computer->GetProtectedRoutePlanner();
+
+    boost::json::array result;
+    for (const auto &item : list) {
+      if (result.size() >= max)
+        break;
+
+      const auto &waypoint = *item.waypoint;
+      boost::json::object o{
+        {"id", waypoint.id},
+        {"name", waypoint.name.c_str()},
+        {"landable", waypoint.IsLandable()},
+        {"airport", waypoint.IsAirport()},
+      };
+      if (waypoint.has_elevation)
+        o["elevation"] = waypoint.elevation;
+
+      if (location.IsValid()) {
+        const auto &vector = item.GetVector(location);
+        o["distance"] = vector.distance;
+        o["bearing"] = vector.bearing.Degrees();
+      }
+
+      if (waypoint.IsLandable() && basic.location_available) {
+        const auto reach =
+          CalculateWaypointReach(waypoint, route_planner, basic, calculated,
+                                 settings.polar, settings.task);
+        if (reach.reachability != WaypointReachability::INVALID) {
+          o["reachable"] = reach.IsReachable();
+          o["arrival"] = reach.result.terrain_valid ==
+            ReachResult::Validity::VALID
+            ? reach.result.terrain
+            : reach.result.direct;
+        }
+      }
+
+      result.emplace_back(std::move(o));
+    }
+
+    StringOutputStream os;
+    Json::Serialize(os, result);
+    const auto &json = os.GetValue();
+    *length_r = json.size();
+    if (json.size() >= size)
+      return XCS_ERROR_INVALID_ARGUMENT;
+
+    std::memcpy(buffer, json.c_str(), json.size() + 1);
     return XCS_OK;
   });
 }

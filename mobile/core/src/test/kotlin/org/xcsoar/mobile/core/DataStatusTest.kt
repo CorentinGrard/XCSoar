@@ -94,3 +94,24 @@ class AirspaceWarningInfoTest {
         assertEquals(85.0, w[1].time!!, 0.0)
     }
 }
+
+class WaypointInfoTest {
+    @Test
+    fun parsesCoreJson() {
+        val w = WaypointInfo.parseList(
+            """[{"id":42,"name":"Anduze","landable":true,"airport":false,"elevation":136.0,""" +
+                """"distance":23400.0,"bearing":41.0,"reachable":true,"arrival":340},""" +
+                """{"id":7,"name":"Pic"}]""")
+
+        assertEquals(42, w[0].id)
+        assertEquals(340, w[0].arrival)
+        assertEquals(true, w[0].reachable)
+        assertEquals(null, w[1].distance)
+    }
+
+    @Test
+    fun filtersMatchHeader() {
+        val c = CoreHeader.constants("XCS_WAYPOINTS_")
+        assertEquals(c, WaypointFilter.entries.associate { "XCS_WAYPOINTS_${it.name}" to it.code })
+    }
+}

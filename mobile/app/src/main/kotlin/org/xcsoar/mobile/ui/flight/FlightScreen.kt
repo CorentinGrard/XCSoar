@@ -59,6 +59,7 @@ fun FlightScreen(
     viewModel: FlightViewModel,
     onOpenDataFiles: () -> Unit = {},
     onOpenMapSettings: () -> Unit = {},
+    onOpenWaypoints: () -> Unit = {},
 ) {
     val state by viewModel.flightState.collectAsStateWithLifecycle()
     val lastEvent by viewModel.lastEvent.collectAsStateWithLifecycle()
@@ -76,7 +77,9 @@ fun FlightScreen(
         onSelectMode = viewModel::selectFlightMode,
         warnings = warnings,
         onAcknowledge = viewModel::acknowledgeAirspace,
+        onNextWaypoint = onOpenWaypoints,
         menu = listOf(
+            MenuAction("Go to waypoint", enabled = true, onClick = onOpenWaypoints),
             MenuAction("Data files", enabled = true, onClick = onOpenDataFiles),
             MenuAction("Map", enabled = viewModel.hasMap, onClick = onOpenMapSettings),
             // on the ground only: a demo, not something to press in flight
@@ -151,6 +154,7 @@ fun FlightContent(
     map: MapSlot? = null,
     warnings: List<AirspaceWarningInfo> = emptyList(),
     onAcknowledge: (AirspaceWarningInfo, day: Boolean) -> Unit = { _, _ -> },
+    onNextWaypoint: () -> Unit = {},
 ) {
     val colors = XcsTheme.colors
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
@@ -160,7 +164,8 @@ fun FlightContent(
 
         if (maxWidth > maxHeight && maxWidth >= 600.dp) {
             Row(Modifier.fillMaxSize()) {
-                MapArea(state, lastEvent, map, warnings, onAcknowledge, Modifier.weight(1f).fillMaxHeight(),
+                MapArea(state, lastEvent, map, warnings, onAcknowledge, onNextWaypoint,
+                        Modifier.weight(1f).fillMaxHeight(),
                         WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical +
                                                       WindowInsetsSides.Start))
                 Column(
@@ -180,7 +185,8 @@ fun FlightContent(
             // card above it always stays visible
             val sheetMax = maxHeight - 160.dp
             Column(Modifier.fillMaxSize()) {
-                MapArea(state, lastEvent, map, warnings, onAcknowledge, Modifier.weight(1f).fillMaxWidth(),
+                MapArea(state, lastEvent, map, warnings, onAcknowledge, onNextWaypoint,
+                        Modifier.weight(1f).fillMaxWidth(),
                         WindowInsets.safeDrawing.only(WindowInsetsSides.Top +
                                                       WindowInsetsSides.Horizontal))
                 val sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
@@ -215,6 +221,7 @@ private fun MapArea(
     map: MapSlot?,
     warnings: List<AirspaceWarningInfo>,
     onAcknowledge: (AirspaceWarningInfo, day: Boolean) -> Unit,
+    onNextWaypoint: () -> Unit,
     modifier: Modifier,
     insets: WindowInsets,
 ) {
@@ -270,7 +277,7 @@ private fun MapArea(
                 AirspaceWarningBanner(top, warnings.size - 1, { day -> onAcknowledge(top, day) },
                                       Modifier.fillMaxWidth())
             }
-            NextWaypointCard(state?.next, Modifier.fillMaxWidth())
+            NextWaypointCard(state?.next, Modifier.fillMaxWidth(), onClick = onNextWaypoint)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {

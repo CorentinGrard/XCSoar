@@ -59,6 +59,8 @@ internal object NativeCore {
     @JvmStatic external fun nativeGetAirspaceWarnings(core: Long): String?
     /** @param mode XCS_ACK_WARNING (0) or XCS_ACK_DAY (1) */
     @JvmStatic external fun nativeAirspaceAcknowledge(core: Long, id: String, mode: Int): Int
+    /** @return the JSON of `xcs_waypoints_search`, or null on error */
+    @JvmStatic external fun nativeWaypointsSearch(core: Long, name: String, filter: Int, max: Int): String?
     @JvmStatic external fun nativeGotoWaypoint(core: Long, id: Int): Int
     @JvmStatic external fun nativeMapSetOption(core: Long, option: Int, value: Int): Int
     /** @return the value, or Int.MIN_VALUE on error */

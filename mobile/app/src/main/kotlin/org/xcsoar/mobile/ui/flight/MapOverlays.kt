@@ -6,6 +6,9 @@ package org.xcsoar.mobile.ui.flight
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -69,7 +72,7 @@ fun FloatingCard(
  * arrival height above (safe) or below (caution) the glide path.
  */
 @Composable
-fun NextWaypointCard(next: NextWaypoint?, modifier: Modifier = Modifier) {
+fun NextWaypointCard(next: NextWaypoint?, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     val colors = XcsTheme.colors
     val distance = Format.distance(next?.distance)
     val bearing = Format.bearing(next?.bearing)
@@ -78,6 +81,11 @@ fun NextWaypointCard(next: NextWaypoint?, modifier: Modifier = Modifier) {
 
     FloatingCard(
         modifier
+            .then(if (onClick != null)
+                Modifier.clip(RoundedCornerShape(16.dp))
+                    .clickable(role = Role.Button, onClickLabel = "Choose where to go",
+                               onClick = onClick)
+            else Modifier)
             .clearAndSetSemantics {
                 contentDescription = if (next == null) "No target" else
                     "Next $name, ${distance.text} ${distance.unit}, bearing ${bearing.text}, " +

@@ -23,6 +23,8 @@ import org.xcsoar.mobile.core.GlideComputerEvent
 import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOption
 import org.xcsoar.mobile.core.RepositoryFile
+import org.xcsoar.mobile.core.WaypointFilter
+import org.xcsoar.mobile.core.WaypointInfo
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SnapshotDecoder
 import org.xcsoar.mobile.core.XcsoarCore
@@ -102,6 +104,15 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun acknowledgeAirspace(id: String, day: Boolean) =
         command { NativeCore.nativeAirspaceAcknowledge(it, id, if (day) 1 else 0) }
+
+    override suspend fun searchWaypoints(name: String, filter: WaypointFilter,
+                                         max: Int): List<WaypointInfo> = lock.withLock {
+        check(handle != 0L) { "core not started" }
+        val json = withContext(Dispatchers.IO) {
+            NativeCore.nativeWaypointsSearch(handle, name, filter.code, max)
+        }
+        WaypointInfo.parseList(checkNotNull(json) { "xcs_waypoints_search failed" })
+    }
 
     override suspend fun gotoWaypoint(id: Int) =
         command { NativeCore.nativeGotoWaypoint(it, id) }

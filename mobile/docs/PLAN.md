@@ -261,9 +261,11 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 - [ ] Location permission + foreground service (GPS keeps running with screen off)
 - [ ] Internal GPS + barometer → core (reuse `InternalGPS.java`, `NonGPSSensors.java`)
 - [ ] MC / ballast / bugs quick controls
-- [~] Go To: "Go to" on waypoints in the map's hold card
-      (`xcs_goto_waypoint`, like XCSoar's map item list); waypoint search
-      (nearest, name, type) still to do
+- [x] Go To: from the map's hold card and from a waypoint list (Menu → Go
+      to waypoint, or tap the next waypoint card): nearest first, landable /
+      airports / all, name search, distance, bearing and arrival height
+      (`xcs_waypoints_search`: XCSoar's WaypointFilter, WaypointListBuilder
+      and CalculateWaypointReach; `xcs_goto_waypoint`)
 - [ ] Task: view, edit (points, sectors, AAT), load/save `.tsk`/`.cup`, advance/restart
 - [~] Airspace warnings: banner above the cards (red inside, orange
       ahead or crossing the task, time and distance to it), "Ack" until it

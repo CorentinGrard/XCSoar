@@ -283,6 +283,31 @@ xcs_set_mac_cready(xcs_core *core, double mac_cready);
 XCS_EXPORT xcs_status
 xcs_get_snapshot(xcs_core *core, xcs_flight_snapshot *snapshot);
 
+enum {
+  XCS_WAYPOINTS_ALL = 0,
+  /** Airfields and outlandings. */
+  XCS_WAYPOINTS_LANDABLE = 1,
+  XCS_WAYPOINTS_AIRPORT = 2,
+};
+
+/**
+ * Search the waypoints like XCSoar's waypoint list: name (a substring,
+ * NULL or "" for all) and type filter, nearest first (from the
+ * aircraft, else from home), at most max entries, as JSON:
+ *
+ *   [{"id": 42, "name": "Anduze", "landable": true, "airport": false,
+ *     "elevation": 136.0, "distance": 23400.0, "bearing": 41.0,
+ *     "reachable": true, "arrival": 340}, ...]
+ *
+ * "arrival" is the arrival height in metres as XCSoar's map labels
+ * show it (around terrain when known, else straight glide); it and
+ * "reachable" are only there for landables, with a GPS fix.  Buffer rules as for xcs_get_data_status().
+ */
+XCS_EXPORT xcs_status
+xcs_waypoints_search(xcs_core *core, const char *name, uint32_t filter,
+                     uint32_t max, char *buffer, size_t size,
+                     size_t *length_r);
+
 /**
  * Fly directly to a waypoint (XCSoar's "Go to"): the next point of the
  * snapshot becomes that waypoint.  waypoint_id comes from
