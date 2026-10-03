@@ -15,6 +15,10 @@
 #include "Components.hpp"
 #include "BackendComponents.hpp"
 #include "DataComponents.hpp"
+#include "NetComponents.hpp"
+#include "Tracking/TrackingGlue.hpp"
+#include "Weather/NOAAGlue.hpp"
+#include "CoreRasp.hpp"
 #include "MapWindow/MapWindow.hpp"
 #include "Look/MapLook.hpp"
 #include "Look/TrafficLook.hpp"
@@ -163,6 +167,16 @@ struct Graphics {
     map->SetAirspaces(data.airspaces.get());
     map->SetTopography(data.topography.get());
     map->SetTerrain(data.terrain.get());
+
+    map->SetNOAAStore(noaa_store);
+    map->SetRasp(CoreRasp::Get());
+
+    /* live tracking: SkyLines traffic and thermals (the cloud's traffic
+       comes with the FLARM traffic, merged by the merge thread) */
+    if (net_components != nullptr) {
+      map->SetSkyLinesData(&net_components->tracking->GetSkyLinesData());
+      map->SetThermalInfoMap(net_components->tim.get());
+    }
 
     if (!CommonInterface::Basic().location_available)
       CentreWithoutFix();

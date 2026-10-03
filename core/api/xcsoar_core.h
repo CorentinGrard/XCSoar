@@ -576,6 +576,9 @@ typedef enum xcs_data_file {
   XCS_DATA_AIRSPACE = 2,
   /** Waypoints (.cup, .dat, ...).  Profile key WPFileList. */
   XCS_DATA_WAYPOINTS = 3,
+  /** RASP forecast ("-rasp.dat", see xcs_rasp_get()).  Profile key
+      RaspFile. */
+  XCS_DATA_RASP = 4,
 } xcs_data_file;
 
 /**
@@ -820,6 +823,100 @@ xcs_crew_get(xcs_core *core, char *buffer, size_t size, size_t *length_r);
 /** Set the crew for the next IGC files; "" co-pilot: solo; NULL: keep. */
 XCS_EXPORT xcs_status
 xcs_crew_set(xcs_core *core, const char *pilot, const char *copilot);
+
+/*
+ * Live tracking: SkyLines, LiveTrack24 and the XCSoar Cloud (which also
+ * sends nearby traffic, including OGN).  The core sends positions while
+ * it runs; these are XCSoar's settings (TrackingConfigPanel,
+ * CloudConfigPanel), saved in the profile.
+ */
+
+/**
+ * The settings as JSON:
+ *
+ *   {"skylines": {"enabled": false, "roaming": true, "interval": 5,
+ *                 "traffic": false, "near_traffic": false, "key": "0"},
+ *    "livetrack24": {"enabled": false, "server": "www.livetrack24.com",
+ *                    "username": "", "password": "", "interval": 60,
+ *                    "vehicle_type": 0, "vehicle_name": ""},
+ *    "cloud": {"enabled": null, "show_traffic": true,
+ *              "show_thermals": true, "roaming": true}}
+ *
+ * "key" is hexadecimal; cloud "enabled" is null until the pilot
+ * answered; intervals are seconds, one of 1, 2, 3, 5, 10, 15, 20, 30,
+ * 45, 60, 120, 180, 300, 600, 900, 1200, 1800, 2400, 3000, 3600;
+ * "vehicle_type" 0..5 (glider, paraglider, powered, balloon, flex and
+ * rigid hang glider).
+ */
+XCS_EXPORT xcs_status
+xcs_tracking_get(xcs_core *core, char *buffer, size_t size,
+                 size_t *length_r);
+
+/**
+ * Change the settings: JSON shaped like xcs_tracking_get(), every
+ * section and value optional.  Turning the cloud on creates its key.
+ * XCS_ERROR_INVALID_ARGUMENT (nothing changed) for malformed JSON or a
+ * value out of range (strings: at most 63 bytes of UTF-8).
+ */
+XCS_EXPORT xcs_status
+xcs_tracking_set(xcs_core *core, const char *json);
+
+/*
+ * RASP forecasts drawn on the map, from the XCS_DATA_RASP file.
+ */
+
+/**
+ * The fields of the RASP file and what the map shows, as JSON:
+ *
+ *   {"fields": [{"name": "wstar", "label": "W*", "help": "...",
+ *                "times": ["09:00", ..., "18:00"]}, ...],
+ *    "field": 0, "time": "13:00"}
+ *
+ * Times are local.  "field" is -1 when the map shows none; "time" is
+ * null when it follows the clock.  No file: no fields.
+ */
+XCS_EXPORT xcs_status
+xcs_rasp_get(xcs_core *core, char *buffer, size_t size, size_t *length_r);
+
+/**
+ * Show @p field on the map (-1: none) at @p time "HH:MM" local, one of
+ * the field's times; NULL or "" follows the clock.
+ * XCS_ERROR_INVALID_ARGUMENT if the field or time is not in the file.
+ */
+XCS_EXPORT xcs_status
+xcs_rasp_set(xcs_core *core, int32_t field, const char *time);
+
+/*
+ * Weather: METAR and TAF of the pilot's stations, from NOAA (XCSoar's
+ * weather station list; the map shows the stations).
+ */
+
+/**
+ * The stations as a JSON array (core/host/CoreWeather.hpp has the
+ * format): code, METAR and TAF as received, the decoded values, and
+ * XCSoar's decoded report in the user's units.
+ */
+XCS_EXPORT xcs_status
+xcs_weather_list(xcs_core *core, char *buffer, size_t size,
+                 size_t *length_r);
+
+/** Add a station by its four letter ICAO code; saved in the profile.
+    XCS_ERROR_INVALID_ARGUMENT if the code is not valid, is already
+    there, or the list is full (20). */
+XCS_EXPORT xcs_status
+xcs_weather_add(xcs_core *core, const char *code);
+
+/** XCS_ERROR_INVALID_ARGUMENT if there is no such station. */
+XCS_EXPORT xcs_status
+xcs_weather_remove(xcs_core *core, const char *code);
+
+/**
+ * Download METAR and TAF of every station.  Blocks: call it from a
+ * worker thread (XCS_ERROR_STATE on the core main thread).
+ * XCS_ERROR_FAILED if no station got anything.
+ */
+XCS_EXPORT xcs_status
+xcs_weather_update(xcs_core *core);
 
 /*
  * WeGlide (core/host/CoreWeGlide.hpp has the JSON formats).

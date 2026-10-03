@@ -14,6 +14,8 @@ enum class DataFile(val code: Int) {
     AIRSPACE(2),
     /** Waypoints (.cup, .dat, ...). */
     WAYPOINTS(3),
+    /** RASP forecast for the map ("-rasp.dat"). */
+    RASP(4),
 }
 
 /** What `xcs_get_data_status` reports: the configured files and what loaded. */
@@ -22,6 +24,8 @@ data class DataStatus(
     val map: MapStatus,
     val airspace: FileStatus,
     val waypoints: FileStatus,
+    /** [FileStatus.count] is the number of forecast fields. */
+    val rasp: FileStatus = FileStatus(emptyList(), 0),
 ) {
     companion object {
         private val json = Json { ignoreUnknownKeys = true }

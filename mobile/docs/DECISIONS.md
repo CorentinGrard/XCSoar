@@ -250,3 +250,21 @@ Design rework" (claude.ai artifact 5t6DJiHxmxJykMMzDUNvCA) draws it.
   does not change the target.
 - Map buttons sit in one row along the bottom of the map; the north mark
   is black, not red (red means warning).
+
+## D20 — The core's own NetComponents
+**Status:** Accepted (2026-10-03)
+
+Live tracking, the thermal info map and NOTAMs live in upstream's
+`NetComponents`, which the backend timer and the merge thread already
+feed.  Its constructor also creates the RASP, xctherm and EDL download
+glue, which reach dialogs and the main window.  The core defines the
+`NetComponents` constructor, destructor and `BeginShutdown()` itself
+(`core/host/CoreNetComponents.cpp`, a link-time seam like D5) and creates
+only tracking, TIM and NOTAMs; the never-created members' destructors are
+empty seams there too.  If one of those downloads is wanted later, its
+seam goes and the real object is linked (the linker reports duplicates).
+
+In the app, blocking network calls (WeGlide, weather) take their own
+lock instead of the one every command takes, so a slow download never
+holds up a MacCready change; stopping the core waits for both.
+

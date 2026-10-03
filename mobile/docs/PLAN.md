@@ -433,9 +433,41 @@ the core already links but that has never run in this app:
 - [ ] Settings screens backed by `xcs_settings_*` JSON sections: units, polar /
       plane, safety heights, airspace filters, audio, map, InfoBox pages
 - [ ] Profiles: list, switch, import existing `.prf`
+- [x] Live tracking (Settings → Live tracking): XCSoar Cloud (position
+      out, nearby traffic incl. OGN and thermals in), SkyLines (key,
+      interval, friends, nearby pilots, roaming) and LiveTrack24 (server,
+      account, interval), XCSoar's profile keys.  The core now creates
+      the network components (tracking, thermal info map, NOTAMs) with
+      its own NetComponents (D20); the map gets the SkyLines traffic and
+      thermals.  `xcs_tracking_get` / `_set` (`core/host/CoreTracking.cpp`).
+      Screen round trip checked on a Pixel 7; **no position sent yet**
+      (needs a GPS fix and an account)
+- [x] Weather (Menu → Weather): METAR and TAF of up to 20 stations from
+      NOAA, a summary line (wind, QNH, temperatures) and XCSoar's decoded
+      report; the map shows the stations.  `xcs_weather_*`
+      (`core/host/CoreWeather.cpp`).  Checked on a Pixel 7 (LFMT)
+- [x] RASP forecast on the map (Menu → Weather, Data files): a
+      "-rasp.dat" from XCSoar's repository (thermalmap.info, 17 regions),
+      a field and a time (or now), "Today's" downloads the file again.
+      `XCS_DATA_RASP`, `xcs_rasp_get` / `_set` (`core/host/CoreRasp.cpp`),
+      drawn by upstream's RaspRenderer.  Checked on a Pixel 7 with the
+      France file (33 fields)
 - [x] File manager: download waypoints, airspace, maps from the XCSoar repository
       (Data files → Download, M2)
 - [ ] Translations: convert `po/*.po` → Android `strings.xml` at build time
+
+### Not done: weather and tracking
+
+- RASP: no colour legend on the map (upstream draws none either; its
+  dialog shows the field), no automatic daily download (upstream's
+  RaspDownloadGlue), thermalmap.info's field names are not translated
+- SkySight, pc_met, EDL and xctherm overlays (accounts, or OpenGL tile
+  stores the core leaves out, D20)
+- NOTAMs: the core fetches them when enabled in the profile, but there
+  is no setting or display yet
+- Online traffic from the cloud and SkyLines reaches the map through
+  the FLARM traffic: not yet seen with real data
+- No automatic METAR refresh
 
 ### Not done: aircraft, crew and WeGlide
 
@@ -505,6 +537,11 @@ the core already links but that has never run in this app:
 
 ## Log
 Newest first. One line per session: what was done and what's next.
+
+- 2026-10-03 — Live tracking (Cloud, SkyLines, LiveTrack24), METAR/TAF
+  stations and the RASP forecast on the map.  Network calls from the
+  app no longer hold up commands (own lock).  TestCoreApi 278 checks.
+  Next: send a position with a GPS fix, RASP legend.
 
 - 2026-10-03 — Plane editor "Masses and limits" section and crew mass on
   the Flight setup page (the core API was in the commit before).

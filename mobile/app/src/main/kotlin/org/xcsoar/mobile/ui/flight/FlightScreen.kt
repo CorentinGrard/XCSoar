@@ -73,6 +73,7 @@ fun FlightScreen(
     onOpenCrew: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenAirspaceAlerts: () -> Unit = {},
+    onOpenWeather: () -> Unit = {},
     onEditTile: (TileLayout, Int) -> Unit = { _, _ -> },
     /** the menu is open (kept under the pages it opens) */
     menuOpen: Boolean = false,
@@ -126,6 +127,7 @@ fun FlightScreen(
         menu = flightMenu(
             onOpenWaypoints, onOpenTask, onOpenFlightSetup, onOpenAnalysis, onOpenCrew,
             onOpenFlights, onOpenDataFiles, onOpenSettings, onOpenAirspaceAlerts,
+            onOpenWeather = onOpenWeather,
             airspaceAlerts = airspaceAlerts,
             replay = state?.replay == true,
             // on the ground only: a demo, not something to press in flight
@@ -593,6 +595,7 @@ fun flightMenu(
     onOpenDataFiles: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenAirspaceAlerts: () -> Unit = {},
+    onOpenWeather: () -> Unit = {},
     airspaceAlerts: AirspaceAlerts = AirspaceAlerts(),
     replay: Boolean = false,
     canReplay: Boolean = false,
@@ -610,6 +613,7 @@ fun flightMenu(
     ground = listOf(
         MenuAction("Aircraft & crew", "Plane and co-pilot", onClick = onOpenCrew),
         MenuAction("Flights", "Share, upload to WeGlide", onClick = onOpenFlights),
+        MenuAction("Weather", "METAR and TAF", onClick = onOpenWeather),
         MenuAction("Airspace", describe(airspaceAlerts), onClick = onOpenAirspaceAlerts),
         MenuAction("Data files", "Map, airspace, waypoints", onClick = onOpenDataFiles),
         MenuAction("Settings", "Units, map, pilot and WeGlide", onClick = onOpenSettings),

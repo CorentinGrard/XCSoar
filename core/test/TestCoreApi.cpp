@@ -25,6 +25,8 @@
 #include <thread>
 #include <vector>
 
+#include <fmt/format.h>
+
 static constexpr const char *DATA_PATH = "output/test/TestCoreApi";
 static constexpr const char *FLIGHT = "test/data/01lz1hq1.igc";
 static constexpr const char *AIRSPACE = "test/data/AirspaceAus-DAA.txt";
@@ -183,7 +185,7 @@ TestDataFiles(xcs_core *core)
   const auto map = std::filesystem::absolute(MAP).string();
 
   ok1(xcs_set_data_file(core, 0, airspace.c_str()) == XCS_ERROR_INVALID_ARGUMENT);
-  ok1(xcs_set_data_file(core, 4, airspace.c_str()) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_data_file(core, 5, airspace.c_str()) == XCS_ERROR_INVALID_ARGUMENT);
   ok1(xcs_set_data_file(core, XCS_DATA_AIRSPACE, "\xff") == XCS_ERROR_INVALID_ARGUMENT);
 
   /* too small: nothing written, the needed length reported */
@@ -454,6 +456,117 @@ TestPlanesAndCrew(xcs_core *core)
   char answer[512];
   ok1(xcs_weglide_upload(core, FLIGHT, answer, sizeof(answer), &length) == XCS_ERROR_FAILED &&
       Contains(answer, "\"error\":"));
+}
+
+/* nothing is switched on: the test must not send positions */
+static void
+TestTracking(xcs_core *core)
+{
+  auto tracking = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_tracking_get(core, b, s, l);
+    });
+  };
+  /* the profile is kept between runs: check the shape, not defaults */
+  ok1(Contains(tracking(), "{\"skylines\":{\"enabled\":") &&
+      Contains(tracking(), "\"livetrack24\":{\"enabled\":") &&
+      Contains(tracking(), "\"cloud\":{\"enabled\":"));
+
+  ok1(xcs_tracking_set(core, "{\"skylines\":") == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_tracking_set(core, "{\"skylines\":{\"interval\":7}}") ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_tracking_set(core, "{\"skylines\":{\"enabled\":1}}") ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_tracking_set(core, "{\"skylines\":{\"key\":\"XYZ\"}}") ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_tracking_set(core, "{\"livetrack24\":{\"vehicle_type\":6}}") ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_tracking_set(core, ("{\"livetrack24\":{\"username\":\"" +
+                              std::string(64, 'a') + "\"}}").c_str()) ==
+      XCS_ERROR_INVALID_ARGUMENT);
+
+  /* all or nothing: the valid section is not applied either */
+  ok1(xcs_tracking_set(core, "{\"skylines\":{\"interval\":5}}") == XCS_OK);
+  ok1(xcs_tracking_set(core, "{\"skylines\":{\"interval\":10},"
+                       "\"cloud\":{\"roaming\":\"no\"}}") ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  ok1(Contains(tracking(), "\"interval\":5,"));
+
+  ok1(xcs_tracking_set(core, "{\"skylines\":{\"interval\":10,"
+                       "\"key\":\"abcdef0123\"},"
+                       "\"livetrack24\":{\"server\":\"livexc.dhv.de\","
+                       "\"username\":\"pilot\",\"vehicle_type\":1}}") == XCS_OK);
+  ok1(Contains(tracking(), "\"interval\":10,") &&
+      Contains(tracking(), "\"key\":\"ABCDEF0123\"") &&
+      Contains(tracking(), "\"server\":\"livexc.dhv.de\",\"username\":\"pilot\"") &&
+      Contains(tracking(), "\"vehicle_type\":1"));
+
+  /* one value: the others stay */
+  ok1(xcs_tracking_set(core, "{\"cloud\":{\"enabled\":false}}") == XCS_OK);
+  ok1(Contains(tracking(), "\"cloud\":{\"enabled\":false") &&
+      Contains(tracking(), "\"interval\":10,"));
+}
+
+/* the station list only: no download, the test must not use the network */
+static void
+TestWeather(xcs_core *core)
+{
+  auto stations = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_weather_list(core, b, s, l);
+    });
+  };
+
+  /* the profile is kept between runs */
+  xcs_weather_remove(core, "LFMT");
+
+  ok1(xcs_weather_add(core, "lfmt") == XCS_OK);
+  ok1(xcs_weather_add(core, "LFMT") == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_weather_add(core, "LFM") == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_weather_add(core, "LF-T") == XCS_ERROR_INVALID_ARGUMENT);
+  /* nothing downloaded yet: the code alone */
+  ok1(Contains(stations(), "{\"code\":\"LFMT\"}"));
+  ok1(xcs_weather_remove(core, "lfmt") == XCS_OK);
+  ok1(xcs_weather_remove(core, "LFMT") == XCS_ERROR_INVALID_ARGUMENT);
+
+  /* at most 20 (what the profile value holds) */
+  std::vector<std::string> codes;
+  for (unsigned i = 0; i < 21; ++i)
+    codes.push_back(fmt::format("X{:03}", i));
+  bool all_added = true;
+  for (unsigned i = 0; i < 20; ++i)
+    all_added = xcs_weather_add(core, codes[i].c_str()) == XCS_OK && all_added;
+  ok1(all_added);
+  ok1(xcs_weather_add(core, codes[20].c_str()) == XCS_ERROR_INVALID_ARGUMENT);
+  bool all_removed = true;
+  for (unsigned i = 0; i < 20; ++i)
+    all_removed = xcs_weather_remove(core, codes[i].c_str()) == XCS_OK && all_removed;
+  ok1(all_removed && stations() == "[]");
+}
+
+/* without a RASP file: there is no small sample to test with */
+static void
+TestRasp(xcs_core *core)
+{
+  auto rasp = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_rasp_get(core, b, s, l);
+    });
+  };
+  auto status = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_get_data_status(core, b, s, l);
+    });
+  };
+
+  ok1(xcs_set_data_file(core, XCS_DATA_RASP, "does/not/exist-rasp.dat") == XCS_OK);
+  ok1(Contains(status(), "\"rasp\":{\"files\":[\"") &&
+      Contains(status(), "exist-rasp.dat\"],\"count\":0}"));
+  ok1(rasp() == "{\"fields\":[],\"field\":-1,\"time\":null}");
+  ok1(xcs_rasp_set(core, 0, nullptr) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_rasp_set(core, -1, nullptr) == XCS_OK);
+  ok1(xcs_set_data_file(core, XCS_DATA_RASP, nullptr) == XCS_OK);
+  ok1(Contains(status(), "\"rasp\":{\"files\":[],\"count\":0}"));
 }
 
 static void
@@ -749,7 +862,11 @@ TestRepositoryList()
           "\n"
           "name=france.txt\n"
           "uri=https://example.org/france.txt\n"
-          "type=airspace\n", f);
+          "type=airspace\n"
+          "\n"
+          "name=FR-RASP-National-ThermalMap.dat\n"
+          "uri=https://example.org/fr-rasp.dat\n"
+          "type=rasp\n", f);
     fclose(f);
   }
 
@@ -766,6 +883,7 @@ TestRepositoryList()
   ok1(json.find("\"name\":\"FRA_FULL.xcm\"") != std::string::npos);
   ok1(json.find("\"type\":\"map\"") != std::string::npos);
   ok1(json.find("\"folder\":\"maps\"") != std::string::npos);
+  ok1(json.find("\"type\":\"rasp\"") != std::string::npos);
   ok1(json.find("\"updated\":\"2026-05-01\"") != std::string::npos);
   ok1(json.find("\"type\":\"airspace\"") != std::string::npos);
 }
@@ -773,7 +891,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -796,6 +914,9 @@ main()
   TestAirspaceOptions(core);
   TestSafety(core);
   TestPlanesAndCrew(core);
+  TestTracking(core);
+  TestWeather(core);
+  TestRasp(core);
   TestTiles(core);
   ok1(xcs_stop(core) == XCS_OK);
 

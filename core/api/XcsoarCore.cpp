@@ -42,6 +42,9 @@
 #include "CorePlanes.hpp"
 #include "CoreInfoBoxes.hpp"
 #include "CoreWeGlide.hpp"
+#include "CoreTracking.hpp"
+#include "CoreWeather.hpp"
+#include "CoreRasp.hpp"
 #include "util/Exception.hxx"
 #include "CoreUnits.hpp"
 
@@ -945,6 +948,8 @@ DataFileKey(uint32_t kind) noexcept
     return ProfileKeys::AirspaceFileList;
   case XCS_DATA_WAYPOINTS:
     return ProfileKeys::WaypointFileList;
+  case XCS_DATA_RASP:
+    return ProfileKeys::RaspFile;
   }
 
   return {};
@@ -963,9 +968,13 @@ xcs_set_data_file(xcs_core *core, uint32_t kind, const char *path)
     Profile::SetPath(key, Path{path != nullptr ? path : ""});
     Profile::Save();
 
-    PopupOperationEnvironment operation;
-    CoreReloadDataFiles(kind == XCS_DATA_MAP, kind == XCS_DATA_WAYPOINTS,
-                        kind == XCS_DATA_AIRSPACE, operation);
+    if (kind == XCS_DATA_RASP) {
+      CoreRasp::Load();
+    } else {
+      PopupOperationEnvironment operation;
+      CoreReloadDataFiles(kind == XCS_DATA_MAP, kind == XCS_DATA_WAYPOINTS,
+                          kind == XCS_DATA_AIRSPACE, operation);
+    }
 #ifdef ANDROID
     CoreMap::OnDataChanged();
 #endif
@@ -1003,6 +1012,10 @@ xcs_get_data_status(xcs_core *core, char *buffer, size_t size,
       {"waypoints", {
           {"files", ConfiguredFiles(ProfileKeys::WaypointFileList)},
           {"count", data.waypoints->size()},
+        }},
+      {"rasp", {
+          {"files", ConfiguredFiles(ProfileKeys::RaspFile)},
+          {"count", CoreRasp::CountFields()},
         }},
     };
 
@@ -1345,6 +1358,113 @@ xcs_crew_set(xcs_core *core, const char *pilot, const char *copilot)
     return CorePlanes::SetCrew(pilot, copilot)
       ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
   });
+}
+
+xcs_status
+xcs_tracking_get(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r, CoreTracking::Describe);
+}
+
+xcs_status
+xcs_tracking_set(xcs_core *core, const char *json)
+{
+  if (core == nullptr || json == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [json]{
+    return CoreTracking::Set(json) ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_rasp_get(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r, CoreRasp::Describe);
+}
+
+xcs_status
+xcs_rasp_set(xcs_core *core, int32_t field, const char *time)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [field, time]{
+    if (!CoreRasp::Select(field, time))
+      return XCS_ERROR_INVALID_ARGUMENT;
+#ifdef ANDROID
+    CoreMap::Render();
+#endif
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_weather_list(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r, CoreWeather::Describe);
+}
+
+xcs_status
+xcs_weather_add(xcs_core *core, const char *code)
+{
+  if (core == nullptr || code == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [code]{
+    return CoreWeather::Add(code) ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_weather_remove(xcs_core *core, const char *code)
+{
+  if (core == nullptr || code == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [code]{
+    return CoreWeather::Remove(code) ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_weather_update(xcs_core *core)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  if (!core->started || core->IsMainThread())
+    return XCS_ERROR_STATE;
+
+  std::vector<std::string> codes;
+  xcs_status status = RunOnMain(*core, [&codes]{
+    codes = CoreWeather::Codes();
+    return XCS_OK;
+  });
+  if (status != XCS_OK || codes.empty())
+    return status;
+
+  /* one station at a time: the map keeps drawing the others */
+  bool any = false;
+  for (const auto &code : codes) {
+    try {
+      const auto item = CoreWeather::Download(code.c_str());
+      if (!item.metar_available && !item.taf_available)
+        continue;
+
+      any = true;
+      status = RunOnMain(*core, [&item]{
+        CoreWeather::Store(item);
+        return XCS_OK;
+      });
+      if (status != XCS_OK)
+        return status;
+    } catch (...) {
+      LogError(std::current_exception(), "Weather download failed");
+    }
+  }
+
+  return any ? XCS_OK : XCS_ERROR_FAILED;
 }
 
 xcs_status
@@ -1706,6 +1826,8 @@ RepositoryTypeName(FileType type) noexcept
     return "airspace";
   case FileType::WAYPOINT:
     return "waypoint";
+  case FileType::RASP:
+    return "rasp";
   default:
     return "other";
   }

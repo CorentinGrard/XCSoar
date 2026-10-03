@@ -16,6 +16,8 @@
 #include "InfoBoxes/InfoBoxManager.hpp"
 #include "Protection.hpp"
 #include "LogFile.hpp"
+#include "DataGlobals.hpp"
+#include "Weather/SkySight/SkySightClient.hpp"
 
 /* src/Input/InputQueue.cpp */
 bool
@@ -106,4 +108,12 @@ InfoBoxManager::SetDirty() noexcept
 void
 InfoBoxManager::ProcessTimer() noexcept
 {
+}
+
+/* src/DataGlobals.cpp: no SkySight client yet (weather overlays come
+   through the app) */
+std::shared_ptr<SkySightClient>
+DataGlobals::GetSkySight() noexcept
+{
+  return {};
 }

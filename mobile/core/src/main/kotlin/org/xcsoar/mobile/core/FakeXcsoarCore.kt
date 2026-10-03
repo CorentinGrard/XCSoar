@@ -134,6 +134,48 @@ class FakeXcsoarCore(
         safety[option] = value
     }
 
+    private var rasp = RaspInfo()
+
+    override suspend fun raspInfo(): RaspInfo = rasp
+
+    override suspend fun setRasp(field: Int, time: String?) {
+        rasp = rasp.copy(field = field, time = time)
+    }
+
+    private val stations = mutableListOf<WeatherStation>()
+
+    override suspend fun weatherStations(): List<WeatherStation> = stations.toList()
+
+    override suspend fun addWeatherStation(code: String): Boolean {
+        val c = code.uppercase()
+        if (!WeatherStation.isValidCode(c) || stations.any { it.code == c } ||
+            stations.size >= WeatherStation.MAX_STATIONS)
+            return false
+        stations += WeatherStation(c)
+        return true
+    }
+
+    override suspend fun removeWeatherStation(code: String) {
+        stations.removeAll { it.code == code.uppercase() }
+    }
+
+    override suspend fun updateWeather() {
+        stations.replaceAll {
+            it.copy(metar = "${it.code} 031830Z 22008KT CAVOK 18/12 Q1021",
+                    metarTime = "2026-10-03T18:30:00Z", qnh = 1021.0, windBearing = 220.0,
+                    windSpeed = 4.1, temperature = 291.15, dewPoint = 285.15, cavok = true,
+                    text = "${it.code} 031830Z 22008KT CAVOK 18/12 Q1021\nWind: 220° 15 km/h\n")
+        }
+    }
+
+    private var tracking = TrackingSettings()
+
+    override suspend fun trackingSettings(): TrackingSettings = tracking
+
+    override suspend fun setTrackingSettings(settings: TrackingSettings) {
+        tracking = settings
+    }
+
     private var crew = 90.0
 
     override suspend fun crewMass(): Double = crew
@@ -167,6 +209,7 @@ class FakeXcsoarCore(
         map = MapStatus(listOfNotNull(files[DataFile.MAP]), terrain = false),
         airspace = FileStatus(listOfNotNull(files[DataFile.AIRSPACE]), count = 0),
         waypoints = FileStatus(listOfNotNull(files[DataFile.WAYPOINTS]), count = 0),
+        rasp = FileStatus(listOfNotNull(files[DataFile.RASP]), count = 0),
     )
 
     override suspend fun startReplay(path: String, timeScale: Double) {

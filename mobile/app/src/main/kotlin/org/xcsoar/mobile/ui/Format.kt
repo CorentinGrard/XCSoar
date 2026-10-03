@@ -147,6 +147,12 @@ object Format {
         return Value(kgm2?.let { formatter.wingLoading(it, unit) } ?: INVALID, unit.name)
     }
 
+    /** Temperatures: whole degrees ("18", unit "°C"). */
+    fun temperature(kelvin: Double?): Value {
+        val unit = unit(UnitGroup.TEMPERATURE)
+        return Value(kelvin?.let { formatter.temperature(it, unit) } ?: INVALID, unit.name)
+    }
+
     /** Pressure like XCSoar's FormatPressure(): "1013" hPa, "29.92" inHg. */
     fun pressure(hpa: Double?): Value {
         val unit = unit(UnitGroup.PRESSURE)

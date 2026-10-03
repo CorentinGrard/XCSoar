@@ -7,18 +7,9 @@
  * weather services (SkySight) come later, through the app.
  */
 
-#include "DataGlobals.hpp"
 #include "UIGlobals.hpp"
 #include "MainWindow.hpp"
-#include "Weather/SkySight/SkySightClient.hpp"
 #include "Look/DialogLook.hpp"
-
-/* src/DataGlobals.cpp */
-std::shared_ptr<SkySightClient>
-DataGlobals::GetSkySight() noexcept
-{
-  return {};
-}
 
 /* src/UIGlobals.cpp: there is no GlueMapWindow in the core */
 GlueMapWindow *

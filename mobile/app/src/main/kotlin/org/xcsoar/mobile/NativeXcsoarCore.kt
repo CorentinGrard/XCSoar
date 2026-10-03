@@ -25,7 +25,10 @@ import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.core.WeGlideAircraft
 import org.xcsoar.mobile.core.WeGlideException
 import org.xcsoar.mobile.core.WeGlideFlight
+import org.xcsoar.mobile.core.RaspInfo
+import org.xcsoar.mobile.core.TrackingSettings
 import org.xcsoar.mobile.core.WeGlideSettings
+import org.xcsoar.mobile.core.WeatherStation
 import org.xcsoar.mobile.core.CoreEvent
 import org.xcsoar.mobile.core.CoreEventType
 import org.xcsoar.mobile.core.DataFile
@@ -69,6 +72,11 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
     override val events: SharedFlow<CoreEvent> = eventFlow.asSharedFlow()
 
     private val lock = Mutex()
+    /**
+     * Held by network calls instead of [lock], so commands do not wait
+     * for a download; [stop] takes both (always [lock] first).
+     */
+    private val networkLock = Mutex()
     @Volatile
     private var handle = 0L
 
@@ -88,11 +96,14 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
     }
 
     override suspend fun stop() = lock.withLock {
-        if (handle == 0L) return@withLock
-        withContext(Dispatchers.IO) {
-            NativeCore.nativeDestroy(handle)   // stops first
-            handle = 0L
-            NativeCore.listener = null
+        // waits for a download in progress
+        networkLock.withLock {
+            if (handle == 0L) return@withLock
+            withContext(Dispatchers.IO) {
+                NativeCore.nativeDestroy(handle)   // stops first
+                handle = 0L
+                NativeCore.listener = null
+            }
         }
     }
 
@@ -242,12 +253,17 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
         }
 
     /** A blocking network call: parse throws WeGlideException for an error. */
-    private suspend fun <T> network(call: (Long) -> String?, parse: (String) -> T): T =
-        lock.withLock {
-            check(handle != 0L) { "core not started" }
-            val answer = withContext(Dispatchers.IO) { call(handle) }
-            parse(answer ?: throw WeGlideException("No answer"))
-        }
+    private suspend fun <T> network(call: (Long) -> String?, parse: (String) -> T): T {
+        val answer = networkCall(call)
+        return parse(answer ?: throw WeGlideException("No answer"))
+    }
+
+    /** One network call at a time, beside the commands ([networkLock]). */
+    private suspend fun <T> networkCall(call: (Long) -> T): T = networkLock.withLock {
+        val h = handle
+        check(h != 0L) { "core not started" }
+        withContext(Dispatchers.IO) { call(h) }
+    }
 
     override suspend fun tileTypes() =
         query(NativeCore::nativeTilesTypes, TileType::parseList).orEmpty()
@@ -306,6 +322,34 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun setCrew(pilot: String?, copilot: String?) =
         command { NativeCore.nativeCrewSet(it, pilot, copilot) }
+
+    override suspend fun raspInfo() =
+        query(NativeCore::nativeRaspGet, RaspInfo::parse) ?: RaspInfo()
+
+    override suspend fun setRasp(field: Int, time: String?) =
+        command { NativeCore.nativeRaspSet(it, field, time) }
+
+    override suspend fun weatherStations() =
+        query(NativeCore::nativeWeatherList, WeatherStation::parseList).orEmpty()
+
+    override suspend fun addWeatherStation(code: String): Boolean = lock.withLock {
+        check(handle != 0L) { "core not started" }
+        withContext(Dispatchers.IO) { NativeCore.nativeWeatherAdd(handle, code) } == 0
+    }
+
+    override suspend fun removeWeatherStation(code: String) =
+        command { NativeCore.nativeWeatherRemove(it, code) }
+
+    override suspend fun updateWeather() {
+        val status = networkCall(NativeCore::nativeWeatherUpdate)
+        check(status == 0) { "No weather received" }
+    }
+
+    override suspend fun trackingSettings() =
+        query(NativeCore::nativeTrackingGet, TrackingSettings::parse)
+
+    override suspend fun setTrackingSettings(settings: TrackingSettings) =
+        command { NativeCore.nativeTrackingSet(it, settings.toJson()) }
 
     override suspend fun weGlideSettings() =
         query(NativeCore::nativeWeGlideGet, WeGlideSettings::parse)

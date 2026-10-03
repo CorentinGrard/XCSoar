@@ -120,6 +120,16 @@ fun DataFilesContent(
             onRemove = { onRemove(DataFile.WAYPOINTS) },
             onDownload = onDownload?.let { { it(DataFile.WAYPOINTS) } },
         )
+        FileCard(
+            title = "RASP forecast",
+            formats = "Soaring forecast for the map (-rasp.dat), new every day",
+            files = status?.rasp?.files,
+            loaded = status?.rasp?.let { count(it.count, "field", "fields") },
+            busy = state.busy == DataFile.RASP,
+            onChoose = { onChoose(DataFile.RASP) },
+            onRemove = { onRemove(DataFile.RASP) },
+            onDownload = onDownload?.let { { it(DataFile.RASP) } },
+        )
 
         if (state.error != null)
             Text(state.error, color = colors.warning, fontSize = 16.sp)

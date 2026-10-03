@@ -43,6 +43,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.xcsoar.mobile.ui.theme.XcsTheme
@@ -105,6 +107,8 @@ fun InputField(
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
+    /** Hides what is typed. */
+    password: Boolean = false,
 ) {
     val colors = XcsTheme.colors
     OutlinedTextField(
@@ -112,8 +116,11 @@ fun InputField(
         onValueChange = onValueChange,
         singleLine = true,
         label = { Text(label) },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType,
-                                          capitalization = capitalization),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = if (password) KeyboardType.Password else keyboardType,
+            capitalization = capitalization),
+        visualTransformation = if (password) PasswordVisualTransformation()
+                               else VisualTransformation.None,
         modifier = modifier.fillMaxWidth().heightIn(min = 56.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = colors.selected, focusedLabelColor = colors.text,

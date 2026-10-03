@@ -156,6 +156,29 @@ interface XcsoarCore {
     /** Set the crew mass for this flight (and the next start). */
     suspend fun setCrewMass(kg: Double) {}
 
+    /** The RASP forecast's fields and what the map shows. */
+    suspend fun raspInfo(): RaspInfo = RaspInfo()
+
+    /** Show [field] (-1: none) at [time] "HH:MM" (null: now) on the map. */
+    suspend fun setRasp(field: Int, time: String?) {}
+
+    /** The weather stations and their last METAR and TAF. */
+    suspend fun weatherStations(): List<WeatherStation> = emptyList()
+
+    /** Add a station; false if the code is not valid, known or the list full. */
+    suspend fun addWeatherStation(code: String): Boolean = false
+
+    suspend fun removeWeatherStation(code: String) {}
+
+    /** Download METAR and TAF of every station (network). */
+    suspend fun updateWeather() {}
+
+    /** Live tracking settings; null if unknown. */
+    suspend fun trackingSettings(): TrackingSettings? = null
+
+    /** Change the live tracking settings (saved in the profile). */
+    suspend fun setTrackingSettings(settings: TrackingSettings) {}
+
     /** Fly this plane from now on. */
     suspend fun activatePlane(path: String) {}
 

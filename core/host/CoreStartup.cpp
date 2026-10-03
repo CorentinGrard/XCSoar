@@ -33,6 +33,7 @@
 #include "io/async/AsioThread.hpp"
 #include "io/async/GlobalAsioThread.hpp"
 #include "net/http/Init.hpp"
+#include "NetComponents.hpp"
 #include "Terrain/RasterTerrain.hpp"
 #include "Waypoint/Waypoints.hpp"
 #include "Waypoint/WaypointGlue.hpp"
@@ -60,6 +61,8 @@
 #include "Replay/Replay.hpp"
 #include "Plane/PlaneGlue.hpp"
 #include "CorePlanes.hpp"
+#include "CoreWeather.hpp"
+#include "CoreRasp.hpp"
 #include "FLARM/Glue.hpp"
 #include "NMEA/Aircraft.hpp"
 #include "Storage/StorageManager.hpp"
@@ -149,6 +152,9 @@ CoreStartup(OperationEnvironment &operation, bool open_devices)
 
   ReadLanguageFile();
 
+  /* the weather stations (Startup() loads them here too) */
+  CoreWeather::Initialise();
+
   backend_components->igc_logger = std::make_unique<Logger>();
   backend_components->nmea_logger = std::make_unique<NMEALogger>();
 
@@ -176,6 +182,7 @@ CoreStartup(OperationEnvironment &operation, bool open_devices)
                                            computer_settings.task);
 
   LoadTerrain(operation);
+  CoreRasp::Load();
 
   backend_components->glide_computer =
     std::make_unique<GlideComputer>(computer_settings,
@@ -283,6 +290,14 @@ CoreStartup(OperationEnvironment &operation, bool open_devices)
     backend_components->nmea_logger->Enable();
 
   LogString("CoreStarted");
+
+#ifdef HAVE_HTTP
+  /* live tracking, thermal info map and NOTAMs; the backend timer
+     feeds them (BackendProcessTimer) */
+  net_components = new NetComponents(*asio_thread, *Net::curl,
+                                     computer_settings.tracking,
+                                     computer_settings.airspace.notam);
+#endif
 
   assert(!global_running);
   global_running = true;
@@ -407,6 +422,11 @@ CoreShutdown() noexcept
 
   CoreStopTimer();
 
+#ifdef HAVE_HTTP
+  if (net_components != nullptr)
+    net_components->BeginShutdown();
+#endif
+
   if (backend_components != nullptr &&
       backend_components->igc_logger != nullptr) {
     try {
@@ -505,8 +525,16 @@ CoreShutdown() noexcept
   delete data_components;
   data_components = nullptr;
 
+  CoreWeather::Deinitialise();
+  CoreRasp::Deinitialise();
+
   delete file_cache;
   file_cache = nullptr;
+
+#ifdef HAVE_HTTP
+  delete net_components;
+  net_components = nullptr;
+#endif
 
   CloseLanguageFile();
 

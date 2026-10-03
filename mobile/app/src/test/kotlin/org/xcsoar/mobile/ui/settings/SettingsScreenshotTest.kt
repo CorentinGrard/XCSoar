@@ -14,6 +14,7 @@ import org.xcsoar.mobile.core.AirspaceAlerts
 import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.SafetyOption
 import org.xcsoar.mobile.core.SoundOption
+import org.xcsoar.mobile.core.TrackingSettings
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 /** L4: the settings screen (mobile/docs/ARCHITECTURE.md §6). */
@@ -65,6 +66,20 @@ class SettingsScreenshotTest {
                       SoundOption.VARIO_DEAD_BAND_MIN to -30,
                       SoundOption.VARIO_DEAD_BAND_MAX to 10),
                 { _, _ -> }, {})
+        }
+    }
+
+    /** The cloud and SkyLines on, LiveTrack24 off; tall enough for all. */
+    @Test
+    @Config(qualifiers = "w390dp-h1500dp-xxhdpi")
+    fun tracking() = captureRoboImage("src/test/screenshots/tracking.png") {
+        XcsTheme(dark = false) {
+            TrackingContent(
+                TrackingState(loaded = true, settings = TrackingSettings(
+                    skylines = TrackingSettings.SkyLines(enabled = true, interval = 10,
+                                                         traffic = true, key = "ABCDEF0123"),
+                    cloud = TrackingSettings.Cloud(enabled = true))),
+                {}, {}, {})
         }
     }
 }

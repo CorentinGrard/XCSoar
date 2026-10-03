@@ -15,6 +15,7 @@ import org.xcsoar.AppPermissionManager
 import org.xcsoar.CoreGraphics
 import org.xcsoar.mobile.core.DataFile
 import org.xcsoar.mobile.core.FakeXcsoarCore
+import org.xcsoar.mobile.core.REPOSITORY_URI
 import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.XcsoarCore
 import org.xcsoar.mobile.ui.flights.FlightLog
@@ -69,6 +70,7 @@ class XcsoarApp : Application() {
             DataFile.MAP -> "maps"
             DataFile.AIRSPACE -> "airspace"
             DataFile.WAYPOINTS -> "waypoints"
+            DataFile.RASP -> "weather/rasp"
         }
         val target = File(File(xcsoarDataDir, folder).apply { mkdirs() }, displayName(uri))
         val input = checkNotNull(contentResolver.openInputStream(uri)) { "cannot open $uri" }
@@ -89,6 +91,18 @@ class XcsoarApp : Application() {
         val target = File(File(xcsoarDataDir, folder), File(file.name).name)
         downloader.download(file.uri, target, file.sha256, progress)
         return target.path
+    }
+
+    /**
+     * Download [name] from the repository again and use it as [kind]:
+     * RASP forecasts change every day under the same name.
+     */
+    suspend fun updateDataFile(kind: DataFile, name: String) {
+        val files = anyCore.repositoryFiles(downloader.index(REPOSITORY_URI).path)
+            ?: error("downloads need the native core")
+        val file = files.firstOrNull { it.name == name }
+            ?: error("$name is no longer in XCSoar's repository")
+        anyCore.setDataFile(kind, downloadDataFile(file) {})
     }
 
     /** The file name of a picked document, safe to use as a file name. */

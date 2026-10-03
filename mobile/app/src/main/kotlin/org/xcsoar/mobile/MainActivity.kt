@@ -70,7 +70,11 @@ import org.xcsoar.mobile.ui.settings.SafetyScreen
 import org.xcsoar.mobile.ui.settings.SafetyViewModel
 import org.xcsoar.mobile.ui.settings.SettingsScreen
 import org.xcsoar.mobile.ui.settings.VarioSoundScreen
+import org.xcsoar.mobile.ui.settings.TrackingScreen
+import org.xcsoar.mobile.ui.settings.TrackingViewModel
 import org.xcsoar.mobile.ui.settings.VarioSoundViewModel
+import org.xcsoar.mobile.ui.weather.WeatherScreen
+import org.xcsoar.mobile.ui.weather.WeatherViewModel
 import org.xcsoar.mobile.ui.setup.FlightSetupScreen
 import org.xcsoar.mobile.ui.task.TaskFilesScreen
 import org.xcsoar.mobile.ui.task.TaskScreen
@@ -86,7 +90,7 @@ import java.io.File
 private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS,
                             TASK, TASK_FILES, TASK_ADD_POINT, UNITS, ANALYSIS,
                             CREW, PLANE_EDIT, PILOT, TILE_PICKER, SETTINGS,
-                            AIRSPACE_ALERTS, SAFETY, VARIO_SOUND }
+                            AIRSPACE_ALERTS, SAFETY, VARIO_SOUND, TRACKING, WEATHER }
 
 /** How deep a page is: pages further in slide in from the right. */
 private val Screen.depth: Int
@@ -95,7 +99,7 @@ private val Screen.depth: Int
         Screen.DOWNLOAD -> 3
         Screen.PLANE_EDIT, Screen.PILOT, Screen.UNITS, Screen.MAP_SETTINGS,
         Screen.DATA_FILES, Screen.AIRSPACE_ALERTS, Screen.SAFETY, Screen.VARIO_SOUND,
-        Screen.TASK_FILES,
+        Screen.TRACKING, Screen.TASK_FILES,
         Screen.TASK_ADD_POINT -> 2
         else -> 1
     }
@@ -247,6 +251,16 @@ class MainActivity : ComponentActivity() {
                 })
                 val varioSoundViewModel: VarioSoundViewModel = viewModel(
                     factory = viewModelFactory { initializer { VarioSoundViewModel(app.anyCore) } })
+                val trackingViewModel: TrackingViewModel = viewModel(
+                    factory = viewModelFactory { initializer { TrackingViewModel(app.anyCore) } })
+                val weatherViewModel: WeatherViewModel = viewModel(
+                    factory = viewModelFactory {
+                        initializer {
+                            WeatherViewModel(app.anyCore) { name ->
+                                app.updateDataFile(DataFile.RASP, name)
+                            }
+                        }
+                    })
                 val safetyViewModel: SafetyViewModel = viewModel(
                     factory = viewModelFactory { initializer { SafetyViewModel(app.anyCore) } })
                 val airspaceAlertsViewModel: AirspaceAlertsViewModel = viewModel(
@@ -270,6 +284,8 @@ class MainActivity : ComponentActivity() {
                 /* data files open from the menu and from settings: back to either */
                 var dataFilesBack by rememberSaveable { mutableStateOf(Screen.FLIGHT) }
                 var airspaceAlertsBack by rememberSaveable { mutableStateOf(Screen.FLIGHT) }
+                /* downloads open from data files and from the weather */
+                var downloadBack by rememberSaveable { mutableStateOf(Screen.DATA_FILES) }
                 /* the plane editor opens from the crew screen and from settings */
                 var planeEditBack by rememberSaveable { mutableStateOf(Screen.CREW) }
                 /* the flight menu; it stays open under the pages it opens,
@@ -305,6 +321,7 @@ class MainActivity : ComponentActivity() {
                             screen = Screen.CREW
                         },
                         onOpenSettings = { screen = Screen.SETTINGS },
+                        onOpenWeather = { screen = Screen.WEATHER },
                         onOpenAirspaceAlerts = {
                             airspaceAlertsBack = Screen.FLIGHT
                             screen = Screen.AIRSPACE_ALERTS
@@ -371,6 +388,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onSafety = { screen = Screen.SAFETY },
                                 onVarioSound = { screen = Screen.VARIO_SOUND },
+                                onTracking = { screen = Screen.TRACKING },
                                 onPlane = {
                                     planeEditViewModel.openActive(
                                         onOpened = {
@@ -383,6 +401,16 @@ class MainActivity : ComponentActivity() {
                                         })
                                 },
                             )
+                            Screen.WEATHER -> WeatherScreen(
+                                weatherViewModel,
+                                onDownloadRasp = {
+                                    downloadBack = Screen.WEATHER
+                                    downloadViewModel.open(DataFile.RASP)
+                                    screen = Screen.DOWNLOAD
+                                },
+                                onBack = { screen = Screen.FLIGHT })
+                            Screen.TRACKING -> TrackingScreen(
+                                trackingViewModel, onBack = { screen = Screen.SETTINGS })
                             Screen.VARIO_SOUND -> VarioSoundScreen(
                                 varioSoundViewModel, onBack = { screen = Screen.SETTINGS })
                             Screen.SAFETY -> SafetyScreen(
@@ -399,13 +427,14 @@ class MainActivity : ComponentActivity() {
                                     filePicker.launch(arrayOf("*/*"))
                                 },
                                 onDownload = { kind ->
+                                    downloadBack = Screen.DATA_FILES
                                     downloadViewModel.open(kind)
                                     screen = Screen.DOWNLOAD
                                 },
                                 onBack = { screen = dataFilesBack },
                             )
                             Screen.DOWNLOAD -> DownloadScreen(
-                                downloadViewModel, onDone = { screen = Screen.DATA_FILES })
+                                downloadViewModel, onDone = { screen = downloadBack })
                             Screen.WAYPOINTS -> WaypointsScreen(
                                 waypointsViewModel,
                                 // flying somewhere new: back to the map itself

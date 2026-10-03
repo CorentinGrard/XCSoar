@@ -778,6 +778,73 @@ Java_org_xcsoar_mobile_NativeCore_nativeCrewSet(JNIEnv *env, jclass,
 }
 
 JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeRaspGet(JNIEnv *env, jclass,
+                                                jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_rasp_get(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeRaspSet(JNIEnv *env, jclass,
+                                                jlong core, jint field,
+                                                jstring time)
+{
+  const auto t = OptionalUTFChars(env, time);
+  return xcs_rasp_set(ToCore(core), field, t.c_str());
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWeatherList(JNIEnv *env, jclass,
+                                                    jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_weather_list(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWeatherAdd(JNIEnv *env, jclass,
+                                                   jlong core, jstring code)
+{
+  const auto c = Java::String::GetUTFChars(env, code);
+  return xcs_weather_add(ToCore(core), c.c_str());
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWeatherRemove(JNIEnv *env, jclass,
+                                                      jlong core, jstring code)
+{
+  const auto c = Java::String::GetUTFChars(env, code);
+  return xcs_weather_remove(ToCore(core), c.c_str());
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWeatherUpdate(JNIEnv *, jclass,
+                                                      jlong core)
+{
+  return xcs_weather_update(ToCore(core));
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTrackingGet(JNIEnv *env, jclass,
+                                                    jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_tracking_get(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTrackingSet(JNIEnv *env, jclass,
+                                                    jlong core, jstring json)
+{
+  const auto j = Java::String::GetUTFChars(env, json);
+  return xcs_tracking_set(ToCore(core), j.c_str());
+}
+
+JNIEXPORT jstring JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeWeGlideGet(JNIEnv *env, jclass,
                                                    jlong core)
 {

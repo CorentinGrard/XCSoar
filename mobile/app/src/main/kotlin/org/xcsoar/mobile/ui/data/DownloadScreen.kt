@@ -73,6 +73,7 @@ fun DownloadContent(
         DataFile.MAP -> "maps"
         DataFile.AIRSPACE -> "airspace"
         DataFile.WAYPOINTS -> "waypoints"
+        DataFile.RASP -> "RASP forecasts"
     }
     Column(
         Modifier

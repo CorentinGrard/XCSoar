@@ -15,7 +15,7 @@ const val REPOSITORY_URI = "https://download.xcsoar.org/repository"
 data class RepositoryFile(
     val name: String,
     val uri: String,
-    /** map, airspace, waypoint or other */
+    /** map, airspace, waypoint, rasp or other */
     val type: String,
     /** Country code, e.g. "fr"; may be empty. */
     val area: String = "",
@@ -33,6 +33,7 @@ data class RepositoryFile(
             "map" -> DataFile.MAP
             "airspace" -> DataFile.AIRSPACE
             "waypoint" -> DataFile.WAYPOINTS
+            "rasp" -> DataFile.RASP
             else -> null
         }
 
