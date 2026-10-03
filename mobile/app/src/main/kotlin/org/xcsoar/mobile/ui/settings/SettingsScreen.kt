@@ -83,7 +83,7 @@ fun SettingsContent(
             Setting("Map", "Terrain, topography, trail", onMap)))
         Section("Flying", listOf(
             Setting("Safety heights"),
-            Setting("Airspace alerts", "Warnings, sound, vibration", onAirspaceAlerts),
+            Setting("Airspace", "Warnings, classes, sound", onAirspaceAlerts),
             Setting("Vario sound")))
         Section("Data and devices", listOf(
             Setting("Data files", "Map, airspace, waypoints", onDataFiles),

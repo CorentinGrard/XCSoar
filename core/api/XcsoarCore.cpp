@@ -47,8 +47,8 @@
 
 #ifdef ANDROID
 #include "CoreMap.hpp"
-#include "MapSettings.hpp"
 #endif
+#include "MapSettings.hpp"
 #include "Interface.hpp"
 #include "ActionInterface.hpp"
 #include "Components.hpp"
@@ -64,6 +64,10 @@
 #include "Input/InputQueue.hpp"
 #include "Profile/Profile.hpp"
 #include "Profile/Keys.hpp"
+#include "Profile/AirspaceConfig.hpp"
+#include "Profile/Current.hpp"
+#include "Renderer/AirspaceRendererSettings.hpp"
+#include "Engine/Airspace/Airspace.hpp"
 #include "Audio/VarioGlue.hpp"
 #include "DataComponents.hpp"
 #include "Terrain/RasterTerrain.hpp"
@@ -95,6 +99,7 @@
 
 #include <boost/json.hpp>
 
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <chrono>
@@ -1787,6 +1792,12 @@ AirspaceAlertKey(uint32_t option) noexcept
 }
 
 static constexpr bool
+IsAirspaceOption(uint32_t option) noexcept
+{
+  return option >= XCS_AIRSPACE_WARNINGS && option <= XCS_AIRSPACE_ACK_TIME;
+}
+
+static constexpr bool
 IsValidAirspaceOption(uint32_t option, int32_t value) noexcept
 {
   switch (option) {
@@ -1796,6 +1807,9 @@ IsValidAirspaceOption(uint32_t option, int32_t value) noexcept
     return value == 0 || value == 1;
   case XCS_AIRSPACE_AUTO_HIDE:
     return value >= 0 && value <= 600;
+  case XCS_AIRSPACE_WARNING_TIME:
+  case XCS_AIRSPACE_ACK_TIME:
+    return value >= 10 && value <= 1000;
   default:
     return false;
   }
@@ -1808,14 +1822,30 @@ xcs_airspace_set_option(xcs_core *core, uint32_t option, int32_t value)
     return XCS_ERROR_INVALID_ARGUMENT;
 
   return RunOnMain(*core, [option, value]{
-    if (option == XCS_AIRSPACE_WARNINGS) {
-      /* like AirspaceConfigPanel; the calculation thread gets the
-         settings on the next timer tick and clears the warnings */
-      auto &settings = CommonInterface::SetComputerSettings().airspace;
+    /* like AirspaceConfigPanel; the calculation thread gets the
+       settings on the next timer tick (and clears the warnings when
+       they are off) */
+    auto &settings = CommonInterface::SetComputerSettings().airspace;
+    const std::chrono::duration<unsigned> seconds(value);
+    switch (option) {
+    case XCS_AIRSPACE_WARNINGS:
       settings.enable_warnings = value != 0;
       Profile::Set(ProfileKeys::AirspaceWarning, settings.enable_warnings);
-    } else
+      break;
+
+    case XCS_AIRSPACE_WARNING_TIME:
+      settings.warnings.warning_time = seconds;
+      Profile::Set(ProfileKeys::WarningTime, seconds);
+      break;
+
+    case XCS_AIRSPACE_ACK_TIME:
+      settings.warnings.acknowledgement_time = seconds;
+      Profile::Set(ProfileKeys::AcknowledgementTime, seconds);
+      break;
+
+    default:
       Profile::Set(AirspaceAlertKey(option), value);
+    }
 
     Profile::Save();
     return XCS_OK;
@@ -1825,14 +1855,22 @@ xcs_airspace_set_option(xcs_core *core, uint32_t option, int32_t value)
 xcs_status
 xcs_airspace_get_option(xcs_core *core, uint32_t option, int32_t *value_r)
 {
-  if (core == nullptr || value_r == nullptr ||
-      !IsValidAirspaceOption(option, 0))
+  if (core == nullptr || value_r == nullptr || !IsAirspaceOption(option))
     return XCS_ERROR_INVALID_ARGUMENT;
 
   return RunOnMain(*core, [option, value_r]{
-    if (option == XCS_AIRSPACE_WARNINGS) {
-      const auto &settings = CommonInterface::GetComputerSettings().airspace;
+    const auto &settings = CommonInterface::GetComputerSettings().airspace;
+    switch (option) {
+    case XCS_AIRSPACE_WARNINGS:
       *value_r = settings.enable_warnings;
+      return XCS_OK;
+
+    case XCS_AIRSPACE_WARNING_TIME:
+      *value_r = settings.warnings.warning_time.count();
+      return XCS_OK;
+
+    case XCS_AIRSPACE_ACK_TIME:
+      *value_r = settings.warnings.acknowledgement_time.count();
       return XCS_OK;
     }
 
@@ -1840,6 +1878,63 @@ xcs_airspace_get_option(xcs_core *core, uint32_t option, int32_t *value_r)
     int value = option != XCS_AIRSPACE_AUTO_HIDE;
     Profile::Get(AirspaceAlertKey(option), value);
     *value_r = value;
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_airspace_classes(xcs_core *core, char *buffer, size_t size,
+                     size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [buffer, size, length_r]{
+    /* counted like the warnings filter them: by class, or by type
+       when the file gives no class (OpenAir "AY TMA" and the like) */
+    std::array<unsigned, AIRSPACECLASSCOUNT> counts{};
+    if (data_components != nullptr && data_components->airspaces != nullptr)
+      for (const auto &i : data_components->airspaces->QueryAll())
+        ++counts[unsigned(i.GetAirspace().GetClassOrType())];
+
+    const auto &renderer = CommonInterface::GetMapSettings().airspace;
+    const auto &warnings =
+      CommonInterface::GetComputerSettings().airspace.warnings;
+    boost::json::array classes;
+    for (unsigned i = 0; i < AIRSPACECLASSCOUNT; ++i) {
+      const char *name = AirspaceFormatter::GetClass(AirspaceClass(i));
+      classes.emplace_back(boost::json::object{
+        {"class", i},
+        {"name", name != nullptr ? name : ""},
+        {"display", renderer.classes[i].display},
+        {"warning", warnings.class_warnings[i]},
+        {"count", counts[i]},
+      });
+    }
+
+    StringOutputStream os;
+    Json::Serialize(os, classes);
+    return CopyJson(os.GetValue(), buffer, size, length_r);
+  });
+}
+
+xcs_status
+xcs_airspace_set_class(xcs_core *core, uint32_t airspace_class,
+                       int32_t display, int32_t warning)
+{
+  if (core == nullptr || airspace_class >= AIRSPACECLASSCOUNT ||
+      (display != 0 && display != 1) || (warning != 0 && warning != 1))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [airspace_class, display, warning]{
+    /* like dlgAirspace; the map reads its settings on the next frame */
+    CommonInterface::SetMapSettings().airspace.classes[airspace_class]
+      .display = display != 0;
+    CommonInterface::SetComputerSettings().airspace.warnings
+      .class_warnings[airspace_class] = warning != 0;
+    Profile::SetAirspaceMode(Profile::map, airspace_class,
+                             display != 0, warning != 0);
+    Profile::Save();
     return XCS_OK;
   });
 }

@@ -605,7 +605,7 @@ fun flightMenu(
     ground = listOf(
         MenuAction("Aircraft & crew", "Plane and co-pilot", onClick = onOpenCrew),
         MenuAction("Flights", "Share, upload to WeGlide", onClick = onOpenFlights),
-        MenuAction("Airspace alerts", describe(airspaceAlerts), onClick = onOpenAirspaceAlerts),
+        MenuAction("Airspace", describe(airspaceAlerts), onClick = onOpenAirspaceAlerts),
         MenuAction("Data files", "Map, airspace, waypoints", onClick = onOpenDataFiles),
         MenuAction("Settings", "Units, map, pilot and WeGlide", onClick = onOpenSettings),
         if (replay)

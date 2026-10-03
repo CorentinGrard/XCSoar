@@ -451,6 +451,35 @@ Java_org_xcsoar_mobile_NativeCore_nativeAirspaceGetOption(JNIEnv *, jclass,
     : INT32_MIN;
 }
 
+/** @return the JSON of xcs_airspace_classes(), or null */
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeAirspaceClasses(JNIEnv *env, jclass,
+                                                        jlong core)
+{
+  std::string buffer(8192, '\0');
+  size_t length;
+  xcs_status status = xcs_airspace_classes(ToCore(core), buffer.data(),
+                                           buffer.size(), &length);
+  if (status == XCS_ERROR_INVALID_ARGUMENT && length >= buffer.size()) {
+    buffer.resize(length + 1);
+    status = xcs_airspace_classes(ToCore(core), buffer.data(),
+                                  buffer.size(), &length);
+  }
+
+  return status == XCS_OK ? env->NewStringUTF(buffer.c_str()) : nullptr;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeAirspaceSetClass(JNIEnv *, jclass,
+                                                         jlong core,
+                                                         jint airspace_class,
+                                                         jint display,
+                                                         jint warning)
+{
+  return xcs_airspace_set_class(ToCore(core), airspace_class, display,
+                                warning);
+}
+
 JNIEXPORT jint JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeSoundSetOption(JNIEnv *, jclass,
                                                        jlong core, jint option,

@@ -3,6 +3,7 @@
 
 package org.xcsoar.mobile.core
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -34,6 +35,27 @@ data class AirspaceWarningInfo(
     }
 }
 
+/** One of XCSoar's airspace classes (`xcs_airspace_classes`). */
+@Serializable
+data class AirspaceClassInfo(
+    /** XCSoar's number for the class. */
+    @SerialName("class") val code: Int,
+    val name: String,
+    /** Drawn on the map. */
+    val display: Boolean,
+    /** Warned of. */
+    val warning: Boolean,
+    /** Airspaces of this class in the loaded files. */
+    val count: Int = 0,
+) {
+    companion object {
+        private val json = Json { ignoreUnknownKeys = true }
+
+        fun parseList(text: String): List<AirspaceClassInfo> =
+            json.decodeFromString(ListSerializer(serializer()), text)
+    }
+}
+
 /**
  * How airspace warnings reach the pilot (`xcs_airspace_option`):
  * whether XCSoar computes them at all, a tone and a vibration for a new
@@ -44,6 +66,10 @@ data class AirspaceAlerts(
     val sound: Boolean = true,
     val vibration: Boolean = true,
     val autoHideSeconds: Int = 0,
+    /** Warn this long before entering, s. */
+    val warningSeconds: Int = 30,
+    /** An acknowledged warning stays quiet this long, s. */
+    val ackSeconds: Int = 30,
 ) {
     companion object {
         /** The banner's time before it hides itself, when the pilot wants that. */
@@ -61,5 +87,7 @@ suspend fun XcsoarCore.airspaceAlerts(): AirspaceAlerts {
         sound = flag(AirspaceOption.ALERT_SOUND, default.sound),
         vibration = flag(AirspaceOption.ALERT_VIBRATION, default.vibration),
         autoHideSeconds = airspaceOption(AirspaceOption.AUTO_HIDE) ?: default.autoHideSeconds,
+        warningSeconds = airspaceOption(AirspaceOption.WARNING_TIME) ?: default.warningSeconds,
+        ackSeconds = airspaceOption(AirspaceOption.ACK_TIME) ?: default.ackSeconds,
     )
 }

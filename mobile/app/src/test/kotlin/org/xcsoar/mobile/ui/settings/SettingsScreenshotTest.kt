@@ -9,7 +9,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import kotlinx.coroutines.runBlocking
 import org.xcsoar.mobile.core.AirspaceAlerts
+import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 /** L4: the settings screen (mobile/docs/ARCHITECTURE.md §6). */
@@ -28,7 +30,8 @@ class SettingsScreenshotTest {
     fun airspaceAlerts() = captureRoboImage("src/test/screenshots/airspace_alerts.png") {
         XcsTheme(dark = false) {
             AirspaceAlertsContent(AirspaceAlerts(vibration = false, autoHideSeconds = 10),
-                                  { _, _ -> }, {})
+                                  { _, _ -> }, {},
+                                  runBlocking { FakeXcsoarCore(this).airspaceClasses() })
         }
     }
 

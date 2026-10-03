@@ -483,6 +483,12 @@ typedef enum xcs_airspace_option {
   /** 0..600: hide a warning after this many seconds, 0 (the default)
       keeps it until acknowledged [MobileAirspaceAutoHide] */
   XCS_AIRSPACE_AUTO_HIDE = 4,
+  /** 10..1000: warn this many seconds before entering, 30 by default
+      [WarningTime] */
+  XCS_AIRSPACE_WARNING_TIME = 5,
+  /** 10..1000: an acknowledged warning stays quiet this many seconds,
+      30 by default [AcknowledgementTime] */
+  XCS_AIRSPACE_ACK_TIME = 6,
 } xcs_airspace_option;
 
 /** Set an airspace warning option; saved in the profile.
@@ -492,6 +498,27 @@ xcs_airspace_set_option(xcs_core *core, uint32_t option, int32_t value);
 
 XCS_EXPORT xcs_status
 xcs_airspace_get_option(xcs_core *core, uint32_t option, int32_t *value_r);
+
+/**
+ * XCSoar's airspace classes, in its numbering, with whether each is
+ * drawn on the map and warned of, and how many the loaded airspace
+ * files hold (by class, or by type when a file gives none, as the
+ * warnings filter them), as a JSON array (UTF-8, null-terminated):
+ *
+ *   [{"class": 2, "name": "Prohibited", "display": true,
+ *     "warning": true, "count": 14}, ...]
+ *
+ * Buffer rules as for xcs_get_data_status().
+ */
+XCS_EXPORT xcs_status
+xcs_airspace_classes(xcs_core *core, char *buffer, size_t size,
+                     size_t *length_r);
+
+/** Draw (@p display 0/1) and warn of (@p warning 0/1) one class; saved
+    in the profile [AirspaceDisplay<n>, AirspaceWarning<n>]. */
+XCS_EXPORT xcs_status
+xcs_airspace_set_class(xcs_core *core, uint32_t airspace_class,
+                       int32_t display, int32_t warning);
 
 /*
  * Data files: the same files and profile settings as XCSoar.

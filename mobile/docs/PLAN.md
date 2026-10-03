@@ -413,6 +413,11 @@ the core already links but that has never run in this app:
       (`core/host/CoreWeGlide.cpp`), network calls on a worker thread.
       Aircraft list and type lookup checked on a Pixel 7; **no real upload
       yet** (needs the pilot's own account and flight)
+- [x] Airspace settings (Menu → Airspace, also in Settings): warn-ahead and
+      acknowledgement times, and per class "Map" and "Warn" switches, the
+      classes of the loaded files first with their counts (by class, or
+      type when a file has none, as the warnings filter them):
+      `xcs_airspace_classes`, `xcs_airspace_set_class`, options 5 and 6
 - [ ] Settings screens backed by `xcs_settings_*` JSON sections: units, polar /
       plane, safety heights, airspace filters, audio, map, InfoBox pages
 - [ ] Profiles: list, switch, import existing `.prf`

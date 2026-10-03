@@ -21,6 +21,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -511,7 +512,25 @@ TestAirspaceOptions(xcs_core *core)
   ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_ALERT_VIBRATION, 0) == XCS_OK);
   ok1(xcs_airspace_get_option(core, XCS_AIRSPACE_ALERT_VIBRATION, &value) == XCS_OK && value == 0);
 
+  ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_WARNING_TIME, 9) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_WARNING_TIME, 60) == XCS_OK);
+  ok1(xcs_airspace_get_option(core, XCS_AIRSPACE_WARNING_TIME, &value) == XCS_OK && value == 60);
+
+  /* class 3 is XCSoar's DANGER */
+  ok1(xcs_airspace_set_class(core, 999, 1, 1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_airspace_set_class(core, 3, 1, 0) == XCS_OK);
+  {
+    char buffer[16384];
+    size_t length = 0;
+    ok1(xcs_airspace_classes(core, buffer, sizeof(buffer), &length) == XCS_OK &&
+        std::string_view{buffer}.find("{\"class\":3,\"name\":\"Danger Area\","
+                                      "\"display\":true,\"warning\":false")
+        != std::string_view::npos);
+  }
+
   /* back to the defaults */
+  ok1(xcs_airspace_set_class(core, 3, 1, 1) == XCS_OK);
+  ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_WARNING_TIME, 30) == XCS_OK);
   ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_WARNINGS, 1) == XCS_OK);
   ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_AUTO_HIDE, 0) == XCS_OK);
   ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_ALERT_VIBRATION, 1) == XCS_OK);
@@ -692,7 +711,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 15);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23);
 
   Recorder recorder;
   TestCreateArguments(recorder);

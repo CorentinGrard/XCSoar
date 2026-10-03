@@ -70,6 +70,12 @@ interface XcsoarCore {
     /** Set an airspace warning option; saved in the profile. */
     suspend fun setAirspaceOption(option: AirspaceOption, value: Int) {}
 
+    /** XCSoar's airspace classes, drawn and warned of or not. */
+    suspend fun airspaceClasses(): List<AirspaceClassInfo> = emptyList()
+
+    /** Draw and warn of one airspace class; saved in the profile. */
+    suspend fun setAirspaceClass(code: Int, display: Boolean, warning: Boolean) {}
+
     /** Whether this core draws XCSoar's moving map ([attachMap]). */
     val hasMap: Boolean get() = false
 
@@ -290,6 +296,10 @@ enum class AirspaceOption(val code: Int) {
     ALERT_VIBRATION(3),
     /** 0..600: hide a warning after this many seconds, 0 never */
     AUTO_HIDE(4),
+    /** 10..1000: warn this many seconds before entering */
+    WARNING_TIME(5),
+    /** 10..1000: an acknowledged warning stays quiet this many seconds */
+    ACK_TIME(6),
 }
 
 /** Values of `xcs_map_option` (core/api/xcsoar_core.h). */

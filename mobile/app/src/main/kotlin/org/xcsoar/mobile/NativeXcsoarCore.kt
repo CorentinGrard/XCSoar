@@ -33,6 +33,7 @@ import org.xcsoar.mobile.core.DataStatus
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.GlideComputerEvent
 import org.xcsoar.mobile.core.MapItemInfo
+import org.xcsoar.mobile.core.AirspaceClassInfo
 import org.xcsoar.mobile.core.AirspaceOption
 import org.xcsoar.mobile.core.MapOption
 import org.xcsoar.mobile.core.RepositoryFile
@@ -196,6 +197,18 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun setAirspaceOption(option: AirspaceOption, value: Int) =
         command { NativeCore.nativeAirspaceSetOption(it, option.code, value) }
+
+    override suspend fun airspaceClasses(): List<AirspaceClassInfo> = lock.withLock {
+        if (handle == 0L) return@withLock emptyList()
+        val json = withContext(Dispatchers.IO) { NativeCore.nativeAirspaceClasses(handle) }
+        AirspaceClassInfo.parseList(checkNotNull(json) { "xcs_airspace_classes failed" })
+    }
+
+    override suspend fun setAirspaceClass(code: Int, display: Boolean, warning: Boolean) =
+        command {
+            NativeCore.nativeAirspaceSetClass(it, code, if (display) 1 else 0,
+                                              if (warning) 1 else 0)
+        }
 
     override suspend fun task(edited: Boolean): TaskInfo? = lock.withLock {
         if (handle == 0L) return@withLock null

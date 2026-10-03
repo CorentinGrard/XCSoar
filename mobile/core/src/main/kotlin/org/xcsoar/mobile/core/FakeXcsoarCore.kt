@@ -107,7 +107,25 @@ class FakeXcsoarCore(
 
     private val airspaceOptions = mutableMapOf(
         AirspaceOption.WARNINGS to 1, AirspaceOption.ALERT_SOUND to 1,
-        AirspaceOption.ALERT_VIBRATION to 1, AirspaceOption.AUTO_HIDE to 0)
+        AirspaceOption.ALERT_VIBRATION to 1, AirspaceOption.AUTO_HIDE to 0,
+        AirspaceOption.WARNING_TIME to 30, AirspaceOption.ACK_TIME to 30)
+
+    private var classes = listOf(
+        AirspaceClassInfo(1, "Restricted", display = true, warning = true, count = 12),
+        AirspaceClassInfo(2, "Prohibited", display = true, warning = true, count = 4),
+        AirspaceClassInfo(3, "Danger Area", display = true, warning = true, count = 21),
+        AirspaceClassInfo(7, "Class D", display = true, warning = true, count = 9),
+        AirspaceClassInfo(9, "Control Zone", display = true, warning = true, count = 6),
+        AirspaceClassInfo(12, "Class E", display = true, warning = false, count = 3),
+        AirspaceClassInfo(15, "Class G", display = false, warning = false))
+
+    override suspend fun airspaceClasses(): List<AirspaceClassInfo> = classes
+
+    override suspend fun setAirspaceClass(code: Int, display: Boolean, warning: Boolean) {
+        classes = classes.map {
+            if (it.code == code) it.copy(display = display, warning = warning) else it
+        }
+    }
 
     override suspend fun airspaceOption(option: AirspaceOption): Int? = airspaceOptions[option]
 
