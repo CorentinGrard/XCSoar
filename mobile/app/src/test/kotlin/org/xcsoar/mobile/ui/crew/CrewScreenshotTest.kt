@@ -9,6 +9,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.xcsoar.mobile.core.PlaneDetails
 import org.xcsoar.mobile.core.PlaneInfo
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
@@ -42,15 +43,21 @@ class CrewScreenshotTest {
     @Test
     fun noPlaneYet() = crew("empty", CrewState(emptyList()), onBack = null)
 
+    /** Tall enough for the masses and limits under the model. */
     @Test
+    @Config(qualifiers = "w390dp-h1700dp-xxhdpi")
     fun planeEditor() = captureRoboImage("src/test/screenshots/plane_edit.png") {
         XcsTheme(dark = false) {
             PlaneEditContent(
                 PlaneEditState(path = "/d/planes/D-5678.xcp", registration = "D-5678",
                                type = "Duo Discus", polarName = "Duo Discus",
                                weGlideType = 61, weGlideName = "Duo Discus",
-                               doubleSeater = true),
-                {}, {}, {}, {}, {}, {}, {}, {})
+                               doubleSeater = true,
+                               details = PlaneDetails(emptyMass = 420.0, referenceMass = 700.0,
+                                                      maxBallast = 200.0, dumpTime = 120,
+                                                      maxSpeed = 75.0, wingArea = 16.4,
+                                                      handicap = 112)),
+                {}, {}, {}, {}, {}, {}, {}, {}, {})
         }
     }
 
@@ -62,7 +69,7 @@ class CrewScreenshotTest {
                 PlaneEditState(registration = "F-CGXB", type = "Arcus M",
                                weGlideType = 214, weGlideName = "Arcus M",
                                doubleSeater = true),
-                {}, {}, {}, {}, {}, {}, {}, {})
+                {}, {}, {}, {}, {}, {}, {}, {}, {})
         }
     }
 

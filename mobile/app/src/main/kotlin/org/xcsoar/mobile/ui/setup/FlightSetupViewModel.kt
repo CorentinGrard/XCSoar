@@ -22,6 +22,8 @@ data class FlightSetup(
     val maxBallast: Double,
     val bugs: Double,
     val wingLoading: Double?,
+    /** kg; null until read from the core. */
+    val crewMass: Double? = null,
     /** null while not set: the standard atmosphere. */
     val qnh: Double? = null,
     /** null without a barometer. */
@@ -38,11 +40,22 @@ class FlightSetupViewModel(private val core: XcsoarCore) : ViewModel() {
     private val pendingBallast = MutableStateFlow<Double?>(null)
     private val pendingBugs = MutableStateFlow<Double?>(null)
     private val pendingQnh = MutableStateFlow<Double?>(null)
+    /** Not in the snapshot: read once, then what the pilot set. */
+    private val crewMass = MutableStateFlow<Double?>(null)
+
+    init {
+        viewModelScope.launch {
+            try {
+                crewMass.value = core.crewMass()
+            } catch (_: Exception) {
+            }
+        }
+    }
 
     /** `null` until the core has started. */
     val setup: StateFlow<FlightSetup?> =
-        combine(core.flightState, pendingBallast, pendingBugs, pendingQnh) {
-                state, ballast, bugs, qnh ->
+        combine(core.flightState, pendingBallast, pendingBugs, pendingQnh, crewMass) {
+                state, ballast, bugs, qnh, crew ->
             state ?: return@combine null
             if (ballast != null && same(ballast, state.ballast))
                 pendingBallast.value = null
@@ -51,7 +64,7 @@ class FlightSetupViewModel(private val core: XcsoarCore) : ViewModel() {
             if (qnh != null && state.qnh?.let { same(qnh, it) } == true)
                 pendingQnh.value = null
             FlightSetup(ballast ?: state.ballast, state.maxBallast,
-                        bugs ?: state.bugs, state.wingLoading,
+                        bugs ?: state.bugs, state.wingLoading, crew,
                         qnh ?: state.qnh, state.staticPressure,
                         // computed with the old QNH until the core has the new one
                         state.baroAltitude.takeIf { qnh == null })
@@ -91,6 +104,20 @@ class FlightSetupViewModel(private val core: XcsoarCore) : ViewModel() {
         }
     }
 
+    /** Crew mass one step up or down ([Format.stepMass]), 0..[MAX_CREW_MASS] kg. */
+    fun changeCrewMass(direction: Int) {
+        val old = crewMass.value ?: return
+        val value = Format.stepMass(old, direction).coerceIn(0.0, MAX_CREW_MASS)
+        crewMass.value = value
+        viewModelScope.launch {
+            try {
+                core.setCrewMass(value)
+            } catch (_: Exception) {
+                crewMass.value = old
+            }
+        }
+    }
+
     /** QNH one step up or down ([Format.stepPressure]), within XCSoar's range. */
     fun changeQnh(direction: Int) {
         val s = setup.value ?: return
@@ -112,5 +139,7 @@ class FlightSetupViewModel(private val core: XcsoarCore) : ViewModel() {
         const val BALLAST_STEP = 5.0
         const val BUGS_STEP = 5
         const val MAX_BUGS_PERCENT = 50
+        /** xcs_set_crew_mass() */
+        const val MAX_CREW_MASS = 300.0
     }
 }

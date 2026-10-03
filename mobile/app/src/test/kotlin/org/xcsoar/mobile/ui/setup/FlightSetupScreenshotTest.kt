@@ -21,8 +21,9 @@ class FlightSetupScreenshotTest {
         XcsTheme(dark = false) {
             FlightSetupContent(
                 FlightSetup(ballast = 80.0, maxBallast = 150.0, bugs = 0.9, wingLoading = 38.2,
-                            qnh = 1021.0, staticPressure = 950.0, baroAltitude = 642.0),
-                {}, {}, {}, {}, {})
+                            crewMass = 90.0, qnh = 1021.0, staticPressure = 950.0,
+                            baroAltitude = 642.0),
+                {}, {}, {}, {}, {}, {})
         }
     }
 
@@ -31,7 +32,7 @@ class FlightSetupScreenshotTest {
         XcsTheme(dark = false) {
             FlightSetupContent(
                 FlightSetup(ballast = 0.0, maxBallast = 0.0, bugs = 1.0, wingLoading = null),
-                {}, {}, {}, {}, {})
+                {}, {}, {}, {}, {}, {})
         }
     }
 }

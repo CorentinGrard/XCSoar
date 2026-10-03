@@ -44,6 +44,7 @@ import org.xcsoar.mobile.ui.flight.Stepper
 import org.xcsoar.mobile.ui.setup.FlightSetupViewModel.Companion.BALLAST_STEP
 import org.xcsoar.mobile.ui.setup.FlightSetupViewModel.Companion.BUGS_STEP
 import org.xcsoar.mobile.ui.setup.FlightSetupViewModel.Companion.MAX_BUGS_PERCENT
+import org.xcsoar.mobile.ui.setup.FlightSetupViewModel.Companion.MAX_CREW_MASS
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 @Composable
@@ -51,16 +52,18 @@ fun FlightSetupScreen(viewModel: FlightSetupViewModel, onBack: () -> Unit) {
     val setup by viewModel.setup.collectAsStateWithLifecycle()
     BackHandler(onBack = onBack)
     FlightSetupContent(setup, viewModel::changeBallast, viewModel::setBallast,
-                       viewModel::changeBugs, viewModel::changeQnh, onBack)
+                       viewModel::changeBugs, viewModel::changeCrewMass, viewModel::changeQnh,
+                       onBack)
 }
 
-/** Water ballast, bugs, the resulting wing loading, and QNH. */
+/** Crew mass, water ballast, bugs, the resulting wing loading, and QNH. */
 @Composable
 fun FlightSetupContent(
     setup: FlightSetup?,
     onChangeBallast: (Double) -> Unit,
     onSetBallast: (Double) -> Unit,
     onChangeBugs: (Int) -> Unit,
+    onChangeCrewMass: (Int) -> Unit,
     onChangeQnh: (Int) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -80,6 +83,19 @@ fun FlightSetupContent(
             Text("Flight setup", color = colors.text, fontSize = 24.sp,
                  fontWeight = FontWeight.Bold)
         }
+
+        Caption("Crew", Modifier.padding(start = 4.dp))
+        val crew = setup?.crewMass
+        val mass = Format.mass(crew)
+        Stepper("crew mass", "Crew mass · ${mass.unit}", mass.text, "${mass.text} ${mass.unit}",
+                canDecrease = crew != null && crew > 0,
+                canIncrease = crew != null && crew < MAX_CREW_MASS,
+                onDecrease = { onChangeCrewMass(-1) },
+                onIncrease = { onChangeCrewMass(+1) },
+                modifier = Modifier.fillMaxWidth())
+        Text("Pilots, parachutes and baggage: all on board but the glider and the water.",
+             color = colors.textSecondary, fontSize = 15.sp,
+             modifier = Modifier.padding(horizontal = 4.dp))
 
         val ballastable = setup != null && setup.maxBallast > 0
         Caption("Water ballast", Modifier.padding(start = 4.dp))
@@ -198,6 +214,7 @@ private fun TextButton(
 private fun FlightSetupPreview() {
     XcsTheme(dark = false) {
         FlightSetupContent(FlightSetup(ballast = 80.0, maxBallast = 150.0, bugs = 0.9,
-                                       wingLoading = 38.2), {}, {}, {}, {}, {})
+                                       wingLoading = 38.2, crewMass = 90.0),
+                           {}, {}, {}, {}, {}, {})
     }
 }

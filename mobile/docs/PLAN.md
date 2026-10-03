@@ -405,7 +405,12 @@ the core already links but that has never run in this app:
       IGC header (HFCM2CREW2); the profile keeps the recent ones
       ("MobileCoPilots") and the plane of the last take-off
       ("MobileLastFlownPlane").  C API `xcs_planes_*`, `xcs_plane_*`,
-      `xcs_crew_*` (`core/host/CorePlanes.cpp`).  Checked on a Pixel 7
+      `xcs_crew_*` (`core/host/CorePlanes.cpp`).  Checked on a Pixel 7.
+      The editor's "Masses and limits" (empty and reference mass, water
+      ballast, dump time, speed limit, wing area, handicap; the polar
+      fills them in, `xcs_plane_set_details`) and the crew mass on the
+      Flight setup page (`xcs_set_crew_mass`, also the default for the
+      next start): screenshot tests only, not yet on the phone
 - [~] WeGlide: Menu → Pilot & WeGlide (pilot name, pilot ID, date of
       birth, XCSoar's own profile keys); aircraft types downloaded from
       WeGlide; Flights → "Upload to WeGlide" with upstream's UploadFlight,
@@ -443,8 +448,9 @@ the core already links but that has never run in this app:
 - Remembering which flights were uploaded (the list forgets on restart;
   WeGlide refuses a second upload of the same file)
 - "Last flown" is recorded at take-off: not yet seen on a real take-off
-- Plane editor: no custom polar, masses, ballast, handicap or speed
-  editing yet (upstream's PlanePolarDialog import / custom polar)
+- Plane editor: no custom polar yet (upstream's PlanePolarDialog import
+  / custom polar coefficients); masses, ballast, dump time, speed limit,
+  wing area and handicap are editable (2026-10-03)
 - Plane editor (2026-10-03): the pilot picks one model from WeGlide's
   types and XCSoar's built-in polars together; it sets the type, the
   polar (matched by name: 134 of the 201 polars have a WeGlide type),
@@ -499,6 +505,11 @@ the core already links but that has never run in this app:
 
 ## Log
 Newest first. One line per session: what was done and what's next.
+
+- 2026-10-03 — Plane editor "Masses and limits" section and crew mass on
+  the Flight setup page (the core API was in the commit before).
+  Roborazzi screenshots re-recorded.  Next: check both on the Pixel 7,
+  field test, WeGlide upload.
 
 - 2026-10-03 — Performance: release build type (and its fix: the reused
   I/O classes' JNI functions are linked directly, else release builds

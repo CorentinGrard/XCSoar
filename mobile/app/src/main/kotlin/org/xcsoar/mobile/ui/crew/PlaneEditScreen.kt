@@ -44,8 +44,14 @@ import org.xcsoar.mobile.ui.ActionButton
 import org.xcsoar.mobile.ui.InputField
 import org.xcsoar.mobile.ui.PageLayout
 import org.xcsoar.mobile.ui.ScreenHeader
+import org.xcsoar.mobile.core.PlaneDetails
+import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.flight.Caption
+import org.xcsoar.mobile.ui.flight.Stepper
+import org.xcsoar.mobile.ui.settings.Explanation
 import org.xcsoar.mobile.ui.theme.XcsTheme
+import java.util.Locale
+import kotlin.math.round
 
 private enum class Picker { NONE, MODEL, POLAR }
 
@@ -71,6 +77,7 @@ fun PlaneEditScreen(
                 onRegistration = viewModel::setRegistration,
                 onCompetitionId = viewModel::setCompetitionId,
                 onDoubleSeater = viewModel::setDoubleSeater,
+                onDetails = viewModel::setDetails,
                 onPickModel = { picker = Picker.MODEL },
                 onPickPolar = { picker = Picker.POLAR },
                 onSave = { viewModel.save(onSaved) },
@@ -102,6 +109,7 @@ fun PlaneEditContent(
     onRegistration: (String) -> Unit,
     onCompetitionId: (String) -> Unit,
     onDoubleSeater: (Boolean) -> Unit,
+    onDetails: ((PlaneDetails) -> PlaneDetails) -> Unit,
     onPickModel: () -> Unit,
     onPickPolar: () -> Unit,
     onSave: () -> Unit,
@@ -156,12 +164,115 @@ fun PlaneEditContent(
                    colors = SwitchDefaults.colors(checkedTrackColor = colors.selected))
         }
 
+        state.details?.let { MassesAndLimits(it, onDetails) }
+
         state.error?.let { Text(it, color = colors.warning, fontSize = 16.sp) }
 
         if (!state.isNew)
             ActionButton("Delete aircraft", modifier = Modifier.fillMaxWidth(),
                          onClick = onDelete)
     }
+}
+
+/**
+ * XCSoar's plane details and polar masses; the polar fills them in, the
+ * pilot corrects them for this glider.
+ */
+@Composable
+private fun MassesAndLimits(
+    details: PlaneDetails,
+    onChange: ((PlaneDetails) -> PlaneDetails) -> Unit,
+) {
+    Caption("Masses and limits", Modifier.padding(start = 4.dp, top = 8.dp))
+    MassStepper("empty mass", "Empty mass", details.emptyMass, 0.0) { m ->
+        onChange { it.copy(emptyMass = m) }
+    }
+    Explanation("The rigged glider without pilots and water.")
+    MassStepper("reference mass", "Polar reference mass", details.referenceMass, 1.0) { m ->
+        onChange { it.copy(referenceMass = m) }
+    }
+    Explanation("The mass the polar was measured at.")
+
+    val ballast = Format.ballast(details.maxBallast).text
+    Stepper("water ballast", "Water ballast · l", ballast, "$ballast litres",
+            canDecrease = details.maxBallast > 0, canIncrease = details.maxBallast < MAX_BALLAST,
+            onDecrease = {
+                onChange { it.copy(maxBallast = step(it.maxBallast, -5.0, 0.0, MAX_BALLAST)) }
+            },
+            onIncrease = {
+                onChange { it.copy(maxBallast = step(it.maxBallast, +5.0, 0.0, MAX_BALLAST)) }
+            },
+            modifier = Modifier.fillMaxWidth())
+    if (details.maxBallast > 0) {
+        val dump = details.dumpTime.toString()
+        Stepper("dump time", "Dump time · s", dump, "$dump seconds",
+                canDecrease = details.dumpTime > 10, canIncrease = details.dumpTime < 300,
+                onDecrease = {
+                    onChange { it.copy(dumpTime = step(it.dumpTime, -10, 10, 300)) }
+                },
+                onIncrease = {
+                    onChange { it.copy(dumpTime = step(it.dumpTime, +10, 10, 300)) }
+                },
+                modifier = Modifier.fillMaxWidth())
+        Explanation("The time to dump full ballast.")
+    }
+
+    val speed = Format.speed(details.maxSpeed)
+    val speedText = if (details.maxSpeed > 0) speed.text else "None"
+    Stepper("speed limit", "Speed limit · ${speed.unit}", speedText,
+            if (details.maxSpeed > 0) "$speedText ${speed.unit}" else speedText,
+            canDecrease = details.maxSpeed > 0, canIncrease = details.maxSpeed < MAX_SPEED,
+            onDecrease = {
+                onChange {
+                    it.copy(maxSpeed = Format.stepSpeed(it.maxSpeed, -1).coerceIn(0.0, MAX_SPEED))
+                }
+            },
+            onIncrease = {
+                onChange {
+                    it.copy(maxSpeed = Format.stepSpeed(it.maxSpeed, +1).coerceIn(0.0, MAX_SPEED))
+                }
+            },
+            modifier = Modifier.fillMaxWidth())
+    Explanation("Speed to fly stays below it (VNE or VNO); none: no limit.")
+
+    val area = String.format(Locale.ROOT, "%.1f", details.wingArea)
+    Stepper("wing area", "Wing area · m²", area, "$area square metres",
+            canDecrease = details.wingArea > 0, canIncrease = details.wingArea < 40,
+            onDecrease = { onChange { it.copy(wingArea = step(it.wingArea, -0.1, 0.0, 40.0)) } },
+            onIncrease = { onChange { it.copy(wingArea = step(it.wingArea, +0.1, 0.0, 40.0)) } },
+            modifier = Modifier.fillMaxWidth())
+    Explanation("For the wing loading.")
+
+    val handicap = details.handicap.toString()
+    Stepper("handicap", "Handicap · %", handicap, "$handicap percent",
+            canDecrease = details.handicap > 50, canIncrease = details.handicap < 150,
+            onDecrease = { onChange { it.copy(handicap = step(it.handicap, -1, 50, 150)) } },
+            onIncrease = { onChange { it.copy(handicap = step(it.handicap, +1, 50, 150)) } },
+            modifier = Modifier.fillMaxWidth())
+    Explanation("The contest handicap, for the scores XCSoar computes.")
+}
+
+/* the ranges of XCSoar's plane dialogs */
+private const val MAX_BALLAST = 500.0
+private const val MAX_SPEED = 160.0
+private const val MAX_MASS = 1000.0
+
+/** [value] + [delta] to the tenth, within [min]..[max]. */
+private fun step(value: Double, delta: Double, min: Double, max: Double) =
+    (round((value + delta) * 10) / 10).coerceIn(min, max)
+
+private fun step(value: Int, delta: Int, min: Int, max: Int) =
+    (value + delta).coerceIn(min, max)
+
+@Composable
+private fun MassStepper(name: String, caption: String, kg: Double, min: Double,
+                        onChange: (Double) -> Unit) {
+    val value = Format.mass(kg)
+    Stepper(name, "$caption · ${value.unit}", value.text, "${value.text} ${value.unit}",
+            canDecrease = kg > min, canIncrease = kg < MAX_MASS,
+            onDecrease = { onChange(Format.stepMass(kg, -1).coerceIn(min, MAX_MASS)) },
+            onIncrease = { onChange(Format.stepMass(kg, +1).coerceIn(min, MAX_MASS)) },
+            modifier = Modifier.fillMaxWidth())
 }
 
 @Composable
