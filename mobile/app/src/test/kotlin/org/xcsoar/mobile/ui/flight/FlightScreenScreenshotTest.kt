@@ -28,7 +28,7 @@ class FlightScreenScreenshotTest {
     @Config(qualifiers = "w390dp-h844dp-xxhdpi")
     fun cruiseSunlight() = capture("cruise_sunlight") {
         XcsTheme(dark = false) {
-            FlightContent(FakeXcsoarCore.syntheticState(120), "Cruise", circling = false, {},
+            FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {},
                           varioSound = true)
         }
     }
@@ -37,7 +37,7 @@ class FlightScreenScreenshotTest {
     @Config(qualifiers = "w390dp-h844dp-xxhdpi")
     fun circlingSunlight() = capture("circling_sunlight") {
         XcsTheme(dark = false) {
-            FlightContent(FakeXcsoarCore.syntheticState(320), "Climb", circling = true, {},
+            FlightContent(FakeXcsoarCore.syntheticState(320), null, circling = true, {},
                           varioSound = false)
         }
     }
@@ -56,6 +56,26 @@ class FlightScreenScreenshotTest {
     fun noData() = capture("no_data") {
         XcsTheme(dark = false) {
             FlightContent(null, null, circling = false, {})
+        }
+    }
+
+    /** Airspace warnings turned off: a reminder on the map. */
+    @Test
+    @Config(qualifiers = "w390dp-h844dp-xxhdpi")
+    fun airspaceAlertsOff() = capture("airspace_alerts_off_chip") {
+        XcsTheme(dark = false) {
+            FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {},
+                          airspaceAlertsOff = true)
+        }
+    }
+
+    /** The menu open over the flight screen. */
+    @Test
+    @Config(qualifiers = "w390dp-h844dp-xxhdpi")
+    fun menu() = capture("flight_menu") {
+        XcsTheme(dark = false) {
+            FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {},
+                          menu = flightMenu(canReplay = true), menuOpen = true)
         }
     }
 

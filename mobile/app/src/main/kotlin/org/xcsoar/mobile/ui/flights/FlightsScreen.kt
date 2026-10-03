@@ -84,7 +84,8 @@ fun FlightsContent(
         ScreenHeader("Flights", onBack)
 
         if (!weGlideReady && !flights.isNullOrEmpty())
-            Text("To upload flights to WeGlide, set your pilot ID in Menu → Pilot & WeGlide.",
+            Text("To upload flights to WeGlide, set your pilot ID in " +
+                     "Menu → Settings → Pilot & WeGlide.",
                  color = colors.textSecondary, fontSize = 15.sp,
                  modifier = Modifier.padding(horizontal = 4.dp))
 

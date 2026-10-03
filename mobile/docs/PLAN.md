@@ -260,7 +260,8 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       `xcs_map_items_at` (XCSoar's map item builder, JSON) → floating card,
       not modal: terrain, airspace with class and limits, waypoints with
       elevation and frequency, task points, thermals, traffic
-- [ ] Overlays in Compose: vario bar, final-glide bar, wind arrow, status icons
+- [x] Overlays in Compose: vario bar and final-glide bar on the map's edges,
+      wind and status chips (D19)
 - [~] Measure: frame time, CPU, battery over a 1-hour replay.  First look
       (debug build, Pixel 7, on the ground): core thread incl. map ~4 % of
       a core, Android main thread ~30 % (debug Compose, ~14 ms per frame).
@@ -315,7 +316,11 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       `xcs_airspace_acknowledge`, XCSoar's warning manager); polled every
       second and on airspace events.  Tested live (inside CTR Montpellier).
       A tone (alarm stream) and vibration once per new warning and again
-      when it gets worse (ahead → inside)
+      when it gets worse (ahead → inside).  Menu → Airspace alerts (also in
+      Settings): warnings on/off (XCSoar's AirspaceWarn; "Airspace alerts
+      off" reminder on the map), sound, vibration, and a banner that hides
+      after 10 s with a countdown bar and comes back when it gets worse
+      (`xcs_airspace_set_option` / `_get_option`)
 - [x] Vario / speed-to-fly audio: XCSoar's synthesiser through its own
       OpenSL ES player (D18), switched by a speaker button over the map
       (`xcs_sound_set_option` / `xcs_sound_get_option`, saved in the
@@ -411,7 +416,8 @@ the core already links but that has never run in this app:
 - [ ] Settings screens backed by `xcs_settings_*` JSON sections: units, polar /
       plane, safety heights, airspace filters, audio, map, InfoBox pages
 - [ ] Profiles: list, switch, import existing `.prf`
-- [ ] File manager: download waypoints, airspace, maps from the XCSoar repository
+- [x] File manager: download waypoints, airspace, maps from the XCSoar repository
+      (Data files → Download, M2)
 - [ ] Translations: convert `po/*.po` → Android `strings.xml` at build time
 
 ### Not done: aircraft, crew and WeGlide
@@ -427,6 +433,10 @@ the core already links but that has never run in this app:
 - "Last flown" is recorded at take-off: not yet seen on a real take-off
 - Plane editor: no custom polar, masses, ballast, handicap or speed
   editing yet (upstream's PlanePolarDialog import / custom polar)
+- Plane editor (2026-10-03): the pilot picks one model from WeGlide's
+  types and XCSoar's built-in polars together; it sets the type, the
+  polar (matched by name: 134 of the 201 polars have a WeGlide type),
+  the WeGlide type and the seats.  A model without a polar asks for one
 - WeGlide tasks (upstream's WeGlideTasksPanel / DownloadTask)
 
 ## M7 — Polish & beta
@@ -445,9 +455,25 @@ the core already links but that has never run in this app:
       from client arrays); R8 for the release build (needs JNI keep rules);
       the archive `core-candidates.a` gets `core.mk` as a member (harmless
       warning, from its dependency on build/core.mk)
+- [~] Design rework: brief written (2026-10-03, claude.ai doc "XCSoar
+      Mobile — Product and Design Brief",
+      https://claude.ai/code/artifact/76556a35-f3d5-43f3-acfb-8ee40fc07ff5):
+      users and conditions, rules, every screen, alerts, planned features,
+      10 known problems, deliverables, open questions (answered: gliders
+      only, backup instrument, portrait first, no quick-action bar, a
+      modern look).  First design canvas "XCSoar Mobile — Design rework"
+      (https://claude.ai/artifact/5t6DJiHxmxJykMMzDUNvCA): flight screen
+      cruise / circling / inside airspace / landscape, menu, Go to,
+      settings; vario and final glide as bars on the map edges, sink in
+      neutral ink.  Decision D19 replaces D16.  Built: flight screen
+      (edge bars, map buttons in a row, tiles + MC + menu button), menu
+      sheet (in flight / tiles Auto-Cruise-Circling / ground), Settings
+      page with "Soon" rows, Go to with a button per row; Roborazzi
+      screenshots re-recorded.  Not yet: the task editor, aircraft and
+      crew screens, first run, night theme review, FLARM alarm
 - [ ] Cockpit UX pass: touch targets ≥ 56 dp, sunlight contrast audit,
       one-handed quick actions, landscape + portrait, tablet layouts
-- [ ] Screen always on, orientation lock, brightness shortcut
+- [~] Screen always on (done), orientation lock, brightness shortcut
 - [ ] Crash reporting (opt-in, privacy-friendly) + native crash symbolication
 - [ ] F-Droid / Play internal testing track
 - [ ] User docs: migration guide from XCSoar

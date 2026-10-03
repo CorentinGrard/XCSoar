@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.xcsoar.mobile.core.PlaneEdit
 import org.xcsoar.mobile.core.PlaneInfo
-import org.xcsoar.mobile.core.WeGlideAircraft
 import org.xcsoar.mobile.core.XcsoarCore
 
 /** A plane being created or changed. */
@@ -30,15 +29,18 @@ data class PlaneEditState(
     val weGlideName: String = "",
     val doubleSeater: Boolean = false,
     val polars: List<String> = emptyList(),
-    /** Results of the WeGlide aircraft search. */
-    val weGlideResults: List<WeGlideAircraft> = emptyList(),
-    /** WeGlide's list has been downloaded (it can be searched). */
+    /** WeGlide's types and XCSoar's polars ([aircraftModels]). */
+    val models: List<AircraftModel> = emptyList(),
+    /** The models matching the pilot's search. */
+    val modelResults: List<AircraftModel> = emptyList(),
+    /** WeGlide's list has been downloaded (its types are models). */
     val weGlideListLoaded: Boolean = false,
     val busy: Boolean = false,
     val error: String? = null,
 ) {
     val isNew get() = path.isEmpty()
-    val canSave get() = registration.isNotBlank() && (!isNew || polar >= 0) && !busy
+    /** A plane needs a polar: the model's, or one the pilot chose. */
+    val canSave get() = registration.isNotBlank() && polarName.isNotEmpty() && !busy
 }
 
 class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
@@ -58,8 +60,10 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
         viewModelScope.launch {
             val polars = core.polars()
             val all = core.searchWeGlideAircraft("", Int.MAX_VALUE)
+            val models = aircraftModels(all, polars)
             stateFlow.update { s ->
-                s.copy(polars = polars, weGlideListLoaded = all.isNotEmpty(),
+                s.copy(polars = polars, models = models, modelResults = models,
+                       weGlideListLoaded = all.isNotEmpty(),
                        weGlideName = all.firstOrNull { it.id == s.weGlideType }?.name.orEmpty())
             }
         }
@@ -71,32 +75,28 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
     fun setCompetitionId(value: String) =
         stateFlow.update { it.copy(competitionId = value.uppercase().take(3)) }
 
-    fun setType(value: String) = stateFlow.update { it.copy(type = value) }
-
     fun setDoubleSeater(value: Boolean) = stateFlow.update { it.copy(doubleSeater = value) }
 
-    /** One of the built-in polars; it also names an untyped plane. */
+    /** One of the built-in polars, when the model has none (or another). */
     fun pickPolar(index: Int) = stateFlow.update {
         val name = it.polars[index]
         it.copy(polar = index, polarName = name, type = it.type.ifBlank { name })
     }
 
-    fun searchWeGlide(query: String) {
-        viewModelScope.launch {
-            val results = core.searchWeGlideAircraft(query, 100)
-            stateFlow.update { it.copy(weGlideResults = results) }
-        }
-    }
+    fun searchModels(query: String) =
+        stateFlow.update { it.copy(modelResults = it.models.search(query)) }
 
-    /** Download WeGlide's aircraft list, then search it. */
+    /** Download WeGlide's aircraft list: its types become models. */
     fun downloadWeGlideList(query: String) {
         stateFlow.update { it.copy(busy = true, error = null) }
         viewModelScope.launch {
             try {
                 core.updateWeGlideAircraftList()
-                val results = core.searchWeGlideAircraft(query, 100)
+                val all = core.searchWeGlideAircraft("", Int.MAX_VALUE)
                 stateFlow.update {
-                    it.copy(weGlideListLoaded = true, weGlideResults = results, busy = false)
+                    val models = aircraftModels(all, it.polars)
+                    it.copy(weGlideListLoaded = true, models = models,
+                            modelResults = models.search(query), busy = false)
                 }
             } catch (e: Exception) {
                 stateFlow.update { it.copy(busy = false, error = e.message) }
@@ -104,15 +104,23 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
         }
     }
 
-    /** WeGlide's type; its seats come with it (from WeGlide). */
-    fun pickWeGlide(aircraft: WeGlideAircraft) {
+    /**
+     * The plane is a [model]: its type, XCSoar's polar for it (none: the
+     * pilot chooses one), its WeGlide type and, from WeGlide, its seats.
+     */
+    fun pickModel(model: AircraftModel) {
+        val weGlide = model.weGlide
         stateFlow.update {
-            it.copy(weGlideType = aircraft.id, weGlideName = aircraft.name,
-                    type = it.type.ifBlank { aircraft.name }, busy = true, error = null)
+            it.copy(type = model.name,
+                    polar = model.polar ?: -1,
+                    polarName = model.polar?.let { i -> it.polars[i] }.orEmpty(),
+                    weGlideType = weGlide?.id ?: 0, weGlideName = weGlide?.name.orEmpty(),
+                    busy = weGlide != null, error = null)
         }
+        if (weGlide == null) return
         viewModelScope.launch {
             try {
-                val detail = core.weGlideAircraft(aircraft.id)
+                val detail = core.weGlideAircraft(weGlide.id)
                 stateFlow.update { it.copy(doubleSeater = detail.doubleSeater, busy = false) }
             } catch (e: Exception) {
                 // the pilot can still say how many seats it has

@@ -56,11 +56,15 @@
 #include "LogFile.hpp"
 #include "thread/Debug.hpp"
 #include "ui/event/Timer.hpp"
+#include "ui/event/PeriodicTimer.hpp"
 
 #include <android/native_window.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <memory>
+#include <optional>
 
 namespace {
 
@@ -99,6 +103,8 @@ private:
   }
 };
 
+void ZoomFrame() noexcept;
+
 /** Created on the first Attach(), kept until the process exits. */
 struct Graphics {
   UI::Display display{EGL_DEFAULT_DISPLAY};
@@ -106,6 +112,10 @@ struct Graphics {
   /* new data is drawn at most this often */
   static constexpr auto REDRAW_INTERVAL = std::chrono::milliseconds{250};
   UI::Timer redraw_timer{[]{ CoreMap::Render(); }};
+
+  /* a zoom button's step is drawn over a few frames */
+  static constexpr auto ZOOM_FRAME = std::chrono::milliseconds{16};
+  UI::PeriodicTimer zoom_timer{ZoomFrame};
 
   MapLook map_look;
   TrafficLook traffic_look;
@@ -154,15 +164,20 @@ struct Graphics {
     map->SetTopography(data.topography.get());
     map->SetTerrain(data.terrain.get());
 
-    /* until the GPS has a fix: the home waypoint, else the middle of
-       the map file (Startup() only knows home) */
-    if (!CommonInterface::Basic().location_available) {
-      const auto &settings = CommonInterface::GetComputerSettings();
-      if (settings.poi.home_location_available)
-        map->SetLocation(settings.poi.home_location);
-      else if (data.terrain != nullptr)
-        map->SetLocation(data.terrain->GetTerrainCenter());
-    }
+    if (!CommonInterface::Basic().location_available)
+      CentreWithoutFix();
+  }
+
+  /**
+   * Until the GPS has a fix: the home waypoint, else the middle of the
+   * map file (Startup() only knows home).
+   */
+  void CentreWithoutFix() noexcept {
+    const auto &settings = CommonInterface::GetComputerSettings();
+    if (settings.poi.home_location_available)
+      map->SetLocation(settings.poi.home_location);
+    else if (data_components->terrain != nullptr)
+      map->SetLocation(data_components->terrain->GetTerrainCenter());
   }
 };
 
@@ -174,6 +189,16 @@ PixelPoint aircraft_position;
 
 /* the map follows the aircraft until the pilot pans it */
 bool follow = true;
+
+/** A zoom button's step in progress: map scales, logarithmic. */
+struct ZoomAnimation {
+  double from, to;
+  std::chrono::steady_clock::time_point start;
+};
+
+std::optional<ZoomAnimation> zoom;
+
+constexpr auto ZOOM_DURATION = std::chrono::milliseconds{200};
 
 /* for the circling zoom: the flight mode of the last frame */
 bool was_circling = false;
@@ -256,6 +281,37 @@ ReleaseSurface() noexcept
   }
 }
 
+/** Draw the next frame of the zoom animation (eased out). */
+void
+ZoomFrame() noexcept
+{
+  if (graphics == nullptr)
+    return;
+
+  if (!zoom) {
+    graphics->zoom_timer.Cancel();
+    return;
+  }
+
+  auto &projection = graphics->map->Projection();
+  const double t = std::min(
+    std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                  zoom->start) / ZOOM_DURATION, 1.);
+  if (t >= 1) {
+    /* end exactly on the step of the scale list */
+    projection.SetMapScale(zoom->to);
+    zoom.reset();
+    graphics->zoom_timer.Cancel();
+  } else {
+    const double eased = 1 - std::pow(1 - t, 3);
+    projection.SetFreeMapScale(
+      std::exp(std::log(zoom->from) +
+               (std::log(zoom->to) - std::log(zoom->from)) * eased));
+  }
+
+  CoreMap::Render();
+}
+
 } // namespace
 
 bool
@@ -304,6 +360,7 @@ CoreMap::Deinitialise() noexcept
   graphics = nullptr;
   aircraft_position = {};
   follow = true;
+  zoom.reset();
   was_circling = false;
 }
 
@@ -327,9 +384,16 @@ CoreMap::Zoom(int steps) noexcept
     return;
 
   auto &projection = graphics->map->Projection();
-  projection.SetMapScale(projection.StepMapScale(projection.GetMapScale(),
-                                                 steps));
-  Render();
+  const double current = projection.GetMapScale();
+  /* a tap during the animation steps on from where it is going */
+  const double target = projection.StepMapScale(zoom ? zoom->to : current,
+                                                steps);
+  if (!(current > 0) || !(target > 0))
+    return;
+
+  zoom = ZoomAnimation{current, target, std::chrono::steady_clock::now()};
+  graphics->zoom_timer.Schedule(Graphics::ZOOM_FRAME);
+  ZoomFrame();
 }
 
 void
@@ -356,6 +420,8 @@ CoreMap::Scale(double factor) noexcept
   if (graphics == nullptr || !(factor > 0))
     return;
 
+  /* the fingers take over from a zoom button */
+  zoom.reset();
   auto &projection = graphics->map->Projection();
   projection.SetFreeMapScale(projection.GetMapScale() / factor);
   Render();
@@ -365,6 +431,10 @@ void
 CoreMap::Follow() noexcept
 {
   follow = true;
+  /* without a fix there is no aircraft to follow: back to where the
+     map started */
+  if (graphics != nullptr && !CommonInterface::Basic().location_available)
+    graphics->CentreWithoutFix();
   Render();
 }
 

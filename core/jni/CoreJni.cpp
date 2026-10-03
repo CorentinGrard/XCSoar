@@ -431,6 +431,27 @@ Java_org_xcsoar_mobile_NativeCore_nativeMapGetOption(JNIEnv *, jclass,
 }
 
 JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeAirspaceSetOption(JNIEnv *, jclass,
+                                                          jlong core,
+                                                          jint option,
+                                                          jint value)
+{
+  return xcs_airspace_set_option(ToCore(core), option, value);
+}
+
+/** @return the value, or Integer.MIN_VALUE on error */
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeAirspaceGetOption(JNIEnv *, jclass,
+                                                          jlong core,
+                                                          jint option)
+{
+  int32_t value;
+  return xcs_airspace_get_option(ToCore(core), option, &value) == XCS_OK
+    ? value
+    : INT32_MIN;
+}
+
+JNIEXPORT jint JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeSoundSetOption(JNIEnv *, jclass,
                                                        jlong core, jint option,
                                                        jint value)

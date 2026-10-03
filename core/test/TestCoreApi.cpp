@@ -494,6 +494,30 @@ TestUnits(xcs_core *core)
 }
 
 static void
+TestAirspaceOptions(xcs_core *core)
+{
+  int32_t value = -1;
+  ok1(xcs_airspace_set_option(core, 99, 1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_WARNINGS, 2) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_AUTO_HIDE, -1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_AUTO_HIDE, 601) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_airspace_get_option(core, XCS_AIRSPACE_WARNINGS, nullptr) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_airspace_get_option(core, 99, &value) == XCS_ERROR_INVALID_ARGUMENT);
+
+  ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_WARNINGS, 0) == XCS_OK);
+  ok1(xcs_airspace_get_option(core, XCS_AIRSPACE_WARNINGS, &value) == XCS_OK && value == 0);
+  ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_AUTO_HIDE, 10) == XCS_OK);
+  ok1(xcs_airspace_get_option(core, XCS_AIRSPACE_AUTO_HIDE, &value) == XCS_OK && value == 10);
+  ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_ALERT_VIBRATION, 0) == XCS_OK);
+  ok1(xcs_airspace_get_option(core, XCS_AIRSPACE_ALERT_VIBRATION, &value) == XCS_OK && value == 0);
+
+  /* back to the defaults */
+  ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_WARNINGS, 1) == XCS_OK);
+  ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_AUTO_HIDE, 0) == XCS_OK);
+  ok1(xcs_airspace_set_option(core, XCS_AIRSPACE_ALERT_VIBRATION, 1) == XCS_OK);
+}
+
+static void
 TestStarted(xcs_core *core, Recorder &recorder)
 {
   ok1(xcs_start(core) == XCS_ERROR_STATE);
@@ -668,7 +692,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 15);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -688,6 +712,7 @@ main()
   TestDataFiles(core);
   TestTask(core);
   TestUnits(core);
+  TestAirspaceOptions(core);
   TestPlanesAndCrew(core);
   TestTiles(core);
   ok1(xcs_stop(core) == XCS_OK);

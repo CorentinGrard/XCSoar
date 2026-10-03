@@ -9,25 +9,19 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.xcsoar.mobile.core.PlaneInfo
 import org.xcsoar.mobile.ui.ActionButton
+import org.xcsoar.mobile.ui.PageLayout
 import org.xcsoar.mobile.ui.InputField
 import org.xcsoar.mobile.ui.ScreenHeader
 import org.xcsoar.mobile.ui.flight.Caption
@@ -78,18 +73,22 @@ fun CrewContent(
     onBack: (() -> Unit)?,
 ) {
     val colors = XcsTheme.colors
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(colors.sheet)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .verticalScroll(rememberScrollState())
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    val plane = state.selectedPlane
+    val planes = state.planes
+    // nothing to choose yet: the pilot may still fly ("Not now")
+    val canSkip = onBack == null && planes != null
+    PageLayout(bottom = if (plane == null && !canSkip) null else ({
+        if (plane != null) {
+            val crew = if (plane.doubleSeater && state.copilot.isNotEmpty())
+                " with ${state.copilot}" else ""
+            ActionButton("Fly ${plane.registration}$crew", primary = true,
+                         modifier = Modifier.weight(1f), onClick = onConfirm)
+        } else
+            ActionButton("Not now", outlined = true, modifier = Modifier.weight(1f),
+                         onClick = onSkip)
+    })) {
         ScreenHeader("Aircraft & crew", onBack)
 
-        val planes = state.planes
         Caption("Aircraft", Modifier.padding(start = 4.dp))
         if (planes != null && planes.isEmpty())
             Text("Add the aircraft you fly: its registration, its polar and its " +
@@ -107,22 +106,10 @@ fun CrewContent(
             onEditPlane(null)
         }
 
-        val plane = state.selectedPlane
         if (plane != null && plane.doubleSeater)
             CopilotChoice(state, onSelectCopilot, onAddCopilot)
 
         state.error?.let { Text(it, color = colors.warning, fontSize = 16.sp) }
-
-        if (plane != null) {
-            val crew = if (plane.doubleSeater && state.copilot.isNotEmpty())
-                " with ${state.copilot}" else ""
-            ActionButton("Fly ${plane.registration}$crew", primary = true,
-                         modifier = Modifier.fillMaxWidth(), onClick = onConfirm)
-        } else if (onBack == null && planes != null) {
-            // nothing to choose yet: the pilot may still fly
-            ActionButton("Not now", outlined = true, modifier = Modifier.fillMaxWidth(),
-                         onClick = onSkip)
-        }
     }
 }
 

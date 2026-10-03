@@ -3,6 +3,13 @@
 
 package org.xcsoar.mobile.ui.flight
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,16 +20,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,7 +37,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -45,17 +51,13 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import org.xcsoar.mobile.core.FinalGlide
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.UnitGroup
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.XcsTheme
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
 /**
  * Cockpit controls are at least 56 dp and act on release: Compose's
@@ -64,8 +66,8 @@ import kotlin.math.roundToInt
  */
 private val TOUCH = 56.dp
 
-/** Altitude difference that fills the final glide bar, m. */
-private const val FINAL_GLIDE_RANGE = 500.0
+/** How long a stepper's value takes to slide to the next one. */
+private const val STEP_MILLIS = 150
 
 /**
  * MacCready − value + stepper, in the pilot's vertical speed unit.
@@ -107,6 +109,8 @@ fun Stepper(
     modifier: Modifier = Modifier,
 ) {
     val colors = XcsTheme.colors
+    // the new value slides in from the side of the button pressed
+    var up by remember { mutableStateOf(true) }
     Row(
         modifier = modifier
             .background(colors.panel, RoundedCornerShape(12.dp))
@@ -114,14 +118,32 @@ fun Stepper(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        StepButton("Decrease $name", plus = false, enabled = canDecrease, onClick = onDecrease)
+        StepButton("Decrease $name", plus = false, enabled = canDecrease) {
+            up = false
+            onDecrease()
+        }
         Column(horizontalAlignment = Alignment.CenterHorizontally,
                modifier = Modifier.clearAndSetSemantics { contentDescription = "$name $spoken" }) {
             Caption(caption)
-            Text(text, color = colors.text, style = XcsTheme.numberStyle,
-                 fontWeight = FontWeight.Bold, fontSize = 26.sp, maxLines = 1)
+            AnimatedContent(
+                targetState = text,
+                transitionSpec = {
+                    val sign = if (up) 1 else -1
+                    (slideInVertically(tween(STEP_MILLIS)) { sign * it } +
+                        fadeIn(tween(STEP_MILLIS))) togetherWith
+                        (slideOutVertically(tween(STEP_MILLIS)) { -sign * it } +
+                            fadeOut(tween(STEP_MILLIS)))
+                },
+                label = "stepper value",
+            ) { value ->
+                Text(value, color = colors.text, style = XcsTheme.numberStyle,
+                     fontWeight = FontWeight.Bold, fontSize = 26.sp, maxLines = 1)
+            }
         }
-        StepButton("Increase $name", plus = true, enabled = canIncrease, onClick = onIncrease)
+        StepButton("Increase $name", plus = true, enabled = canIncrease) {
+            up = true
+            onIncrease()
+        }
     }
 }
 
@@ -150,55 +172,14 @@ private fun StepButton(label: String, plus: Boolean, enabled: Boolean, onClick: 
 }
 
 /**
- * Final glide to the task finish: a small bar (up = above glide, down =
- * below) and the altitude difference in safe or caution colour.
+ * A row of segments, one selected: the whole segment height is the
+ * touch target; the pill is inset.
  */
 @Composable
-fun FinalGlideTile(finalGlide: FinalGlide?, modifier: Modifier = Modifier) {
-    val colors = XcsTheme.colors
-    val difference = finalGlide?.altitudeDifference
-    val value = Format.altitudeDifference(difference)
-    val color = difference?.let { if (it >= 0) colors.safe else colors.caution }
-    Row(
-        modifier = modifier
-            .background(colors.panel, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-            .clearAndSetSemantics {
-                contentDescription = "Final glide ${value.text} ${value.unit}"
-            },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        val track = colors.panelBorder
-        val mark = colors.text
-        Canvas(Modifier.width(12.dp).height(44.dp)) {
-            drawRoundRect(track, cornerRadius = CornerRadius(3.dp.toPx()))
-            val centre = size.height / 2
-            if (difference != null && color != null) {
-                val h = (abs(difference).coerceAtMost(FINAL_GLIDE_RANGE) / FINAL_GLIDE_RANGE
-                         * centre).toFloat()
-                val top = if (difference >= 0) centre - h else centre
-                drawRect(color, Offset(0f, top), Size(size.width, h))
-            }
-            val line = 2.dp.toPx()
-            drawRect(mark, Offset(0f, centre - line / 2), Size(size.width, line))
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Caption("Final glide")
-            Text(valueWithUnit(value, 26.sp, color ?: colors.text, colors.textSecondary),
-                 style = XcsTheme.numberStyle, fontWeight = FontWeight.Bold, maxLines = 1)
-        }
-    }
-}
-
-/**
- * Cruise / Circling switch.  It follows the glide computer's flight mode;
- * a tap shows the other layout until the next mode change.
- */
-@Composable
-fun FlightModeSwitch(
-    circling: Boolean,
-    onSelect: (circling: Boolean) -> Unit,
+fun Segmented(
+    options: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = XcsTheme.colors
@@ -208,84 +189,66 @@ fun FlightModeSwitch(
             .background(colors.panel, RoundedCornerShape(12.dp))
             .selectableGroup(),
     ) {
-        ModeSegment("Cruise", selected = !circling, selectedColor = colors.selected,
-                    Modifier.weight(1f)) { onSelect(false) }
-        ModeSegment("Circling", selected = circling, selectedColor = colors.lift,
-                    Modifier.weight(1f)) { onSelect(true) }
+        options.forEachIndexed { index, label ->
+            val isSelected = index == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .selectable(selected = isSelected, role = Role.Tab) { onSelect(index) }
+                    .padding(4.dp)
+                    .background(if (isSelected) colors.selected else Color.Transparent,
+                                RoundedCornerShape(9.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(label, color = if (isSelected) colors.onSelected else colors.text,
+                     fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            }
+        }
     }
 }
 
+/** Opens the flight menu. */
 @Composable
-private fun ModeSegment(
-    label: String,
-    selected: Boolean,
-    selectedColor: Color,
-    modifier: Modifier,
-    onClick: () -> Unit,
-) {
+fun MenuButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = XcsTheme.colors
     Box(
-        // the whole segment height is the touch target; the pill is inset
         modifier = modifier
-            .fillMaxHeight()
-            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
-            .padding(4.dp)
-            .background(if (selected) selectedColor else Color.Transparent,
-                        RoundedCornerShape(9.dp)),
+            .size(TOUCH)
+            .background(colors.selected, RoundedCornerShape(16.dp))
+            .clickable(role = Role.Button, onClickLabel = "Open menu", onClick = onClick)
+            .semantics { contentDescription = "Menu" },
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = if (selected) colors.onSelected else colors.text,
-             fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        Canvas(Modifier.size(20.dp)) {
+            val stroke = 2.25.dp.toPx()
+            for (y in listOf(0.2f, 0.5f, 0.8f))
+                drawLine(colors.onSelected, Offset(stroke, size.height * y),
+                         Offset(size.width - stroke, size.height * y), stroke, StrokeCap.Round)
+        }
     }
 }
 
-/** An action in the flight menu; disabled items stay visible. */
-data class MenuAction(val label: String, val enabled: Boolean, val onClick: () -> Unit)
-
+/** A white button floating over the map. */
 @Composable
-fun FlightMenuButton(actions: List<MenuAction>, modifier: Modifier = Modifier) {
+private fun Modifier.mapButton(): Modifier {
     val colors = XcsTheme.colors
-    var open by remember { mutableStateOf(false) }
-    Box(modifier) {
-        Box(
-            modifier = Modifier
-                .size(TOUCH)
-                .background(colors.selected, RoundedCornerShape(12.dp))
-                .clickable(role = Role.Button, onClickLabel = "Open menu") { open = true }
-                .semantics { contentDescription = "Menu" },
-            contentAlignment = Alignment.Center,
-        ) {
-            Canvas(Modifier.size(20.dp)) {
-                val stroke = 2.25.dp.toPx()
-                for (y in listOf(0.2f, 0.5f, 0.8f))
-                    drawLine(colors.onSelected, Offset(stroke, size.height * y),
-                             Offset(size.width - stroke, size.height * y), stroke, StrokeCap.Round)
-            }
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            actions.forEach { action ->
-                DropdownMenuItem(
-                    text = { Text(action.label, fontSize = 16.sp) },
-                    enabled = action.enabled,
-                    onClick = { open = false; action.onClick() },
-                    modifier = Modifier.height(TOUCH),
-                )
-            }
-        }
-    }
+    val shape = RoundedCornerShape(16.dp)
+    return this
+        .shadow(8.dp, shape, ambientColor = colors.text, spotColor = colors.text)
+        .background(colors.card, shape)
+        .border(1.dp, colors.panelBorder, shape)
+        .clip(shape)
 }
 
-/** Map zoom: + over −, like the design's map controls. */
+/** Map zoom: − and + side by side. */
 @Composable
 fun ZoomButtons(onZoom: (steps: Int) -> Unit, modifier: Modifier = Modifier) {
     val colors = XcsTheme.colors
-    val shape = RoundedCornerShape(14.dp)
-    Column(
-        modifier
-            .background(colors.card, shape)
-            .border(1.dp, colors.panelBorder, shape),
-    ) {
-        for ((label, steps) in listOf("Zoom in" to -1, "Zoom out" to 1))
+    Row(modifier.mapButton(), verticalAlignment = Alignment.CenterVertically) {
+        for ((label, steps) in listOf("Zoom out" to 1, "Zoom in" to -1)) {
+            if (steps < 0)
+                Box(Modifier.width(1.dp).height(32.dp).background(colors.panelBorder))
             Box(
                 Modifier
                     .size(TOUCH)
@@ -303,6 +266,7 @@ fun ZoomButtons(onZoom: (steps: Int) -> Unit, modifier: Modifier = Modifier) {
                                  StrokeCap.Round)
                 }
             }
+        }
     }
 }
 
@@ -313,7 +277,7 @@ fun CentreButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier
             .size(TOUCH)
-            .background(colors.selected, CircleShape)
+            .background(colors.selected, RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClickLabel = "Centre on aircraft", onClick = onClick)
             .semantics { contentDescription = "Centre on aircraft" },
         contentAlignment = Alignment.Center,
@@ -354,8 +318,7 @@ fun OrientationButton(orientation: MapOrientation, mapAngle: Double?, onClick: (
     Column(
         modifier
             .size(TOUCH)
-            .background(colors.card, CircleShape)
-            .border(1.dp, colors.panelBorder, CircleShape)
+            .mapButton()
             .clickable(role = Role.Button, onClickLabel = "Change map orientation",
                        onClick = onClick)
             .semantics { contentDescription = "Map orientation: $description" },
@@ -370,7 +333,7 @@ fun OrientationButton(orientation: MapOrientation, mapAngle: Double?, onClick: (
                     lineTo(size.width * 0.9f, size.height * 0.8f)
                     lineTo(size.width * 0.1f, size.height * 0.8f)
                     close()
-                }, colors.warning)
+                }, colors.text)
             }
         }
         Text(label, color = colors.text, style = XcsTheme.numberStyle,
@@ -386,8 +349,7 @@ fun VarioSoundButton(enabled: Boolean, onToggle: (Boolean) -> Unit,
     Box(
         modifier
             .size(TOUCH)
-            .background(colors.card, CircleShape)
-            .border(1.dp, colors.panelBorder, CircleShape)
+            .mapButton()
             .toggleable(enabled, role = Role.Switch, onValueChange = onToggle)
             .semantics { contentDescription = "Vario sound" },
         contentAlignment = Alignment.Center,
@@ -421,21 +383,24 @@ fun VarioSoundButton(enabled: Boolean, onToggle: (Boolean) -> Unit,
     }
 }
 
-/** In a thermal: set MacCready to its average climb (the design's button). */
+/** In a thermal: set MacCready to its average climb (updraft data, sky blue). */
 @Composable
 fun SetMacCreadyButton(lift: Double, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = XcsTheme.colors
     val value = Format.macCready(Format.stepVerticalSpeed(lift, 0).coerceIn(0.0, 5.0))
-    Box(
+    Column(
         modifier
             .heightIn(min = TOUCH)
-            .background(colors.lift, RoundedCornerShape(12.dp))
+            .background(colors.updraft, RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClickLabel = "Set MacCready to ${value.text}",
                        onClick = onClick)
             .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-        Text("Set MC from thermal (${value.text})", color = colors.onSelected,
-             fontSize = 15.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+        Text("SET MC", color = colors.onSelected, fontSize = 11.sp,
+             fontWeight = FontWeight.Bold, letterSpacing = 0.06.em, maxLines = 1)
+        Text(value.text, color = colors.onSelected, style = XcsTheme.numberStyle,
+             fontWeight = FontWeight.Bold, fontSize = 22.sp, maxLines = 1)
     }
 }

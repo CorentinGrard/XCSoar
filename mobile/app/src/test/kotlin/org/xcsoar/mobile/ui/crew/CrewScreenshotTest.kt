@@ -50,7 +50,19 @@ class CrewScreenshotTest {
                                type = "Duo Discus", polarName = "Duo Discus",
                                weGlideType = 61, weGlideName = "Duo Discus",
                                doubleSeater = true),
-                {}, {}, {}, {}, {}, {}, {}, {}, {})
+                {}, {}, {}, {}, {}, {}, {}, {})
+        }
+    }
+
+    /** A new plane whose model has no built-in polar: the pilot picks one. */
+    @Test
+    fun planeWithoutPolar() = captureRoboImage("src/test/screenshots/plane_no_polar.png") {
+        XcsTheme(dark = false) {
+            PlaneEditContent(
+                PlaneEditState(registration = "F-CGXB", type = "Arcus M",
+                               weGlideType = 214, weGlideName = "Arcus M",
+                               doubleSeater = true),
+                {}, {}, {}, {}, {}, {}, {}, {})
         }
     }
 

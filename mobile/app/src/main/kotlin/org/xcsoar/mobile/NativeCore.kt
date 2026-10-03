@@ -100,6 +100,9 @@ internal object NativeCore {
     @JvmStatic external fun nativeUnitsGet(core: Long): String?
     @JvmStatic external fun nativeUnitsSet(core: Long, group: Int, unit: Int): Int
     @JvmStatic external fun nativeUnitsPreset(core: Long, index: Int): Int
+    @JvmStatic external fun nativeAirspaceSetOption(core: Long, option: Int, value: Int): Int
+    /** @return the value, or Int.MIN_VALUE on error */
+    @JvmStatic external fun nativeAirspaceGetOption(core: Long, option: Int): Int
     @JvmStatic external fun nativeSoundSetOption(core: Long, option: Int, value: Int): Int
     /** @return the value, or Int.MIN_VALUE on error */
     @JvmStatic external fun nativeSoundGetOption(core: Long, option: Int): Int

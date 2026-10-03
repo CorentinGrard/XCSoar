@@ -48,6 +48,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.xcsoar.mobile.core.MapOption
 import org.xcsoar.mobile.core.TerrainRamp
 import org.xcsoar.mobile.ui.flight.Caption
+import org.xcsoar.mobile.ui.SettingsGroup
+import org.xcsoar.mobile.ui.SwitchRow
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 @Composable
@@ -90,7 +92,7 @@ fun MapSettingsContent(
             Text("Map", color = colors.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         }
 
-        Group {
+        SettingsGroup {
             SwitchRow("Terrain", "Shaded relief from the map file",
                       options[MapOption.TERRAIN]?.let { it != 0 }) {
                 onSet(MapOption.TERRAIN, if (it) 1 else 0)
@@ -102,7 +104,7 @@ fun MapSettingsContent(
         }
 
         Caption("Terrain colours", Modifier.padding(start = 4.dp))
-        Group(Modifier.selectableGroup()) {
+        SettingsGroup(Modifier.selectableGroup()) {
             for (ramp in TerrainRamp.entries)
                 ChoiceRow(ramp.label, options[MapOption.TERRAIN_RAMP] == ramp.code) {
                     onSet(MapOption.TERRAIN_RAMP, ramp.code)
@@ -132,36 +134,6 @@ fun MapSettingsContent(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun Group(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Column(modifier
-        .fillMaxWidth()
-        .background(XcsTheme.colors.panel, RoundedCornerShape(14.dp))
-        .padding(vertical = 4.dp)) { content() }
-}
-
-@Composable
-private fun SwitchRow(title: String, detail: String, checked: Boolean?,
-                      onChange: (Boolean) -> Unit) {
-    val colors = XcsTheme.colors
-    Row(Modifier
-            .fillMaxWidth()
-            .toggleable(checked == true, enabled = checked != null, role = Role.Switch,
-                        onValueChange = onChange)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, color = colors.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            Text(detail, color = colors.textSecondary, fontSize = 14.sp)
-        }
-        Switch(checked = checked == true, onCheckedChange = null, enabled = checked != null,
-               colors = SwitchDefaults.colors(
-                   checkedTrackColor = colors.selected, checkedThumbColor = colors.onSelected,
-                   uncheckedTrackColor = colors.control, uncheckedThumbColor = colors.textSecondary,
-                   uncheckedBorderColor = colors.textSecondary))
     }
 }
 

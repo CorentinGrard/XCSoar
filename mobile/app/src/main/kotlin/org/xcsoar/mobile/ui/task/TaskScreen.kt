@@ -12,31 +12,25 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -52,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.xcsoar.mobile.core.TaskInfo
 import org.xcsoar.mobile.core.TaskPointInfo
 import org.xcsoar.mobile.ui.Format
+import org.xcsoar.mobile.ui.PageLayout
 import org.xcsoar.mobile.ui.flight.Caption
 import org.xcsoar.mobile.ui.flight.Stepper
 import org.xcsoar.mobile.ui.theme.XcsTheme
@@ -112,22 +107,21 @@ fun TaskContent(state: TaskState, onBack: () -> Unit, actions: TaskActions = Tas
     val editing = task?.editing == true
     var saving by remember { mutableStateOf(false) }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(colors.sheet)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .verticalScroll(rememberScrollState())
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    PageLayout(bottom = if (task == null) null else ({
+        // the edit replaces the active task on "Done"
+        if (editing)
+            TaskButton("Done", primary = true, modifier = Modifier.weight(1f),
+                       onClick = actions.done)
+        else
+            TaskButton("Edit", primary = true, modifier = Modifier.weight(1f),
+                       onClick = actions.beginEdit)
+    })) {
         Row(verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (editing) {
                 TaskButton("Cancel", onClick = actions.cancel)
                 Text("Edit task", color = colors.text, fontSize = 24.sp,
                      fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                TaskButton("Done", primary = true, onClick = actions.done)
             } else {
                 TaskButton("Back", onClick = onBack)
                 Text("Task", color = colors.text, fontSize = 24.sp,
@@ -146,7 +140,7 @@ fun TaskContent(state: TaskState, onBack: () -> Unit, actions: TaskActions = Tas
 
         if (task == null) {
             Text("Starting…", color = colors.textSecondary, fontSize = 16.sp)
-            return@Column
+            return@PageLayout
         }
 
         Summary(task, editing, actions)
@@ -185,13 +179,9 @@ fun TaskContent(state: TaskState, onBack: () -> Unit, actions: TaskActions = Tas
                     TaskButton("Restart", outlined = true, modifier = Modifier.weight(1f),
                                onClick = actions.restart)
                 }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TaskButton("Edit", primary = true, modifier = Modifier.weight(1f),
-                           onClick = actions.beginEdit)
-                TaskButton("Load…", outlined = true, modifier = Modifier.weight(1f)) {
-                    actions.beginEdit()
-                    actions.openFiles()
-                }
+            TaskButton("Load…", outlined = true, modifier = Modifier.fillMaxWidth()) {
+                actions.beginEdit()
+                actions.openFiles()
             }
         }
     }

@@ -1694,9 +1694,11 @@ xcs_get_airspace_warnings(xcs_core *core, char *buffer, size_t size,
     if (auto *manager = backend_components->GetAirspaceWarnings()) {
       const ProtectedAirspaceWarningManager::Lease lease{*manager};
       const AirspaceWarningManager &list = lease;
-      /* most severe first, like the warning dialog */
+      /* most severe first, like the warning dialog; the
+         acknowledgement itself, not IsActive(), which the calculation
+         thread only updates on its next pass, so "Ack" shows at once */
       for (const auto &warning : list) {
-        if (!warning.IsActive() || !warning.IsWarning())
+        if (!warning.IsWarning() || !warning.IsAckExpired())
           continue;
 
         const auto &airspace = warning.GetAirspace();
@@ -1764,6 +1766,80 @@ xcs_airspace_acknowledge(xcs_core *core, const char *id, uint32_t mode)
       manager->AcknowledgeDay(std::move(airspace));
     else
       manager->Acknowledge(std::move(airspace));
+    return XCS_OK;
+  });
+}
+
+/** Profile keys of the app's airspace alert options, by option. */
+static constexpr std::string_view
+AirspaceAlertKey(uint32_t option) noexcept
+{
+  switch (option) {
+  case XCS_AIRSPACE_ALERT_SOUND:
+    return "MobileAirspaceSound";
+  case XCS_AIRSPACE_ALERT_VIBRATION:
+    return "MobileAirspaceVibration";
+  case XCS_AIRSPACE_AUTO_HIDE:
+    return "MobileAirspaceAutoHide";
+  default:
+    return {};
+  }
+}
+
+static constexpr bool
+IsValidAirspaceOption(uint32_t option, int32_t value) noexcept
+{
+  switch (option) {
+  case XCS_AIRSPACE_WARNINGS:
+  case XCS_AIRSPACE_ALERT_SOUND:
+  case XCS_AIRSPACE_ALERT_VIBRATION:
+    return value == 0 || value == 1;
+  case XCS_AIRSPACE_AUTO_HIDE:
+    return value >= 0 && value <= 600;
+  default:
+    return false;
+  }
+}
+
+xcs_status
+xcs_airspace_set_option(xcs_core *core, uint32_t option, int32_t value)
+{
+  if (core == nullptr || !IsValidAirspaceOption(option, value))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [option, value]{
+    if (option == XCS_AIRSPACE_WARNINGS) {
+      /* like AirspaceConfigPanel; the calculation thread gets the
+         settings on the next timer tick and clears the warnings */
+      auto &settings = CommonInterface::SetComputerSettings().airspace;
+      settings.enable_warnings = value != 0;
+      Profile::Set(ProfileKeys::AirspaceWarning, settings.enable_warnings);
+    } else
+      Profile::Set(AirspaceAlertKey(option), value);
+
+    Profile::Save();
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_airspace_get_option(xcs_core *core, uint32_t option, int32_t *value_r)
+{
+  if (core == nullptr || value_r == nullptr ||
+      !IsValidAirspaceOption(option, 0))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [option, value_r]{
+    if (option == XCS_AIRSPACE_WARNINGS) {
+      const auto &settings = CommonInterface::GetComputerSettings().airspace;
+      *value_r = settings.enable_warnings;
+      return XCS_OK;
+    }
+
+    /* sound and vibration on, auto hide off until the pilot sets them */
+    int value = option != XCS_AIRSPACE_AUTO_HIDE;
+    Profile::Get(AirspaceAlertKey(option), value);
+    *value_r = value;
     return XCS_OK;
   });
 }

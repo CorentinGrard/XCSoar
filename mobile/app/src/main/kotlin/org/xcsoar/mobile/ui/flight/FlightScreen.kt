@@ -3,6 +3,7 @@
 
 package org.xcsoar.mobile.ui.flight
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -43,10 +44,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.xcsoar.mobile.core.AirspaceAlerts
 import org.xcsoar.mobile.core.AirspaceWarningInfo
 import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.FlightState
@@ -62,28 +65,38 @@ import org.xcsoar.mobile.ui.theme.XcsTheme
 fun FlightScreen(
     viewModel: FlightViewModel,
     onOpenDataFiles: () -> Unit = {},
-    onOpenMapSettings: () -> Unit = {},
     onOpenWaypoints: () -> Unit = {},
     onOpenFlightSetup: () -> Unit = {},
     onOpenFlights: () -> Unit = {},
     onOpenTask: () -> Unit = {},
-    onOpenUnits: () -> Unit = {},
     onOpenAnalysis: () -> Unit = {},
     onOpenCrew: () -> Unit = {},
-    onOpenPilot: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onOpenAirspaceAlerts: () -> Unit = {},
     onEditTile: (TileLayout, Int) -> Unit = { _, _ -> },
+    /** the menu is open (kept under the pages it opens) */
+    menuOpen: Boolean = false,
+    onMenuOpen: (Boolean) -> Unit = {},
+    /** a page lies over the flight screen */
+    covered: Boolean = false,
 ) {
     val state by viewModel.flightState.collectAsStateWithLifecycle()
-    // read where it is shown, so only the vario panel recomposes with it
+    // read where it is shown, so only the vario bar recomposes with it
     val vario = viewModel.vario.collectAsStateWithLifecycle()
     val lastEvent by viewModel.lastEvent.collectAsStateWithLifecycle()
     val circling by viewModel.showCircling.collectAsStateWithLifecycle()
+    val tileLayout by viewModel.tileLayout.collectAsStateWithLifecycle()
     val mapFollows by viewModel.mapFollows.collectAsStateWithLifecycle()
     val mapOrientation by viewModel.mapOrientation.collectAsStateWithLifecycle()
     val mapItems by viewModel.mapItems.collectAsStateWithLifecycle()
     val warnings by viewModel.airspaceWarnings.collectAsStateWithLifecycle()
     val varioSound by viewModel.varioSound.collectAsStateWithLifecycle()
     val tiles by viewModel.tiles.collectAsStateWithLifecycle()
+    val hideTimer by viewModel.airspaceHideTimer.collectAsStateWithLifecycle()
+    val airspaceAlerts by viewModel.airspaceAlerts.collectAsStateWithLifecycle()
+    // back from a page: the airspace alerts may have changed
+    LaunchedEffect(covered) { if (!covered) viewModel.refreshAirspaceAlerts() }
+    BackHandler(enabled = menuOpen && !covered) { onMenuOpen(false) }
 
     FlightContent(
         state = state,
@@ -96,29 +109,26 @@ fun FlightScreen(
         },
         onMacCreadyChange = viewModel::setMacCready,
         onSetMacCready = viewModel::setMacCready,
-        onSelectMode = viewModel::selectFlightMode,
         warnings = warnings,
+        airspaceHideTimer = hideTimer,
+        airspaceAlertsOff = !airspaceAlerts.warnings,
         onAcknowledge = viewModel::acknowledgeAirspace,
         onNextWaypoint = onOpenWaypoints,
         varioSound = varioSound,
         onVarioSound = viewModel::setVarioSound,
-        menu = listOf(
-            MenuAction("Go to waypoint", enabled = true, onClick = onOpenWaypoints),
-            MenuAction("Task", enabled = true, onClick = onOpenTask),
-            MenuAction("Aircraft & crew", enabled = true, onClick = onOpenCrew),
-            MenuAction("Flight setup", enabled = true, onClick = onOpenFlightSetup),
-            MenuAction("Analysis", enabled = true, onClick = onOpenAnalysis),
-            MenuAction("Flights", enabled = true, onClick = onOpenFlights),
-            MenuAction("Pilot & WeGlide", enabled = true, onClick = onOpenPilot),
-            MenuAction("Units", enabled = true, onClick = onOpenUnits),
-            MenuAction("Data files", enabled = true, onClick = onOpenDataFiles),
-            MenuAction("Map", enabled = viewModel.hasMap, onClick = onOpenMapSettings),
+        menuOpen = menuOpen,
+        onMenuOpen = onMenuOpen,
+        menu = flightMenu(
+            onOpenWaypoints, onOpenTask, onOpenFlightSetup, onOpenAnalysis, onOpenCrew,
+            onOpenFlights, onOpenDataFiles, onOpenSettings, onOpenAirspaceAlerts,
+            airspaceAlerts = airspaceAlerts,
+            replay = state?.replay == true,
             // on the ground only: a demo, not something to press in flight
-            MenuAction("Replay demo",
-                       enabled = state?.let { !it.flying && !it.replay } == true,
-                       onClick = viewModel::replayDemo),
-            MenuAction("Stop replay", enabled = state?.replay == true,
-                       onClick = viewModel::stopReplay),
+            canReplay = state?.flying == false,
+            onReplay = viewModel::replayDemo,
+            onStopReplay = viewModel::stopReplay,
+            tileLayout = tileLayout,
+            onTileLayout = viewModel::selectFlightMode,
         ),
         map = if (viewModel.hasMap) MapSlot(
             content = { modifier ->
@@ -170,9 +180,11 @@ class MapSlot(
 )
 
 /**
- * The flight screen: map with floating cards, and the instruments in a
- * bottom sheet (portrait) or a side panel (landscape).  Without
- * [map] (no native core) the map area only shows the glider symbol.
+ * The flight screen, map first: the map with the vario and final glide
+ * bars on its edges, and the tiles with MacCready and the menu button
+ * below it (portrait) or beside it (landscape, with the next waypoint).
+ * Without [map] (no native core) the map area only shows the glider
+ * symbol.
  */
 @Composable
 fun FlightContent(
@@ -181,10 +193,15 @@ fun FlightContent(
     circling: Boolean,
     onMacCreadyChange: (Double) -> Unit,
     onSetMacCready: (Double) -> Unit = {},
-    onSelectMode: (circling: Boolean) -> Unit = {},
-    menu: List<MenuAction> = emptyList(),
+    menu: FlightMenu = FlightMenu(),
+    menuOpen: Boolean = false,
+    onMenuOpen: (Boolean) -> Unit = {},
     map: MapSlot? = null,
     warnings: List<AirspaceWarningInfo> = emptyList(),
+    /** the first warning hides itself then; null: it stays */
+    airspaceHideTimer: HideTimer? = null,
+    /** the pilot turned airspace warnings off: a reminder on the map */
+    airspaceAlertsOff: Boolean = false,
     onAcknowledge: (AirspaceWarningInfo, day: Boolean) -> Unit = { _, _ -> },
     onNextWaypoint: () -> Unit = {},
     varioSound: Boolean? = null,
@@ -197,20 +214,24 @@ fun FlightContent(
     val colors = XcsTheme.colors
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
         val instruments = @Composable {
-            Instruments(state, vario, circling, tiles, onEditTile, onMacCreadyChange,
-                        onSetMacCready, onSelectMode, menu)
+            Instruments(state, circling, tiles, onEditTile, onMacCreadyChange,
+                        onSetMacCready, onMenu = { onMenuOpen(true) })
+        }
+        val mapArea = @Composable { showNext: Boolean, modifier: Modifier,
+                                    insets: WindowInsets ->
+            MapArea(state, lastEvent, map, warnings, airspaceHideTimer, airspaceAlertsOff,
+                    onAcknowledge, onNextWaypoint, showNext, varioSound, onVarioSound, vario,
+                    modifier, insets)
         }
 
         if (maxWidth > maxHeight && maxWidth >= 600.dp) {
             Row(Modifier.fillMaxSize()) {
-                MapArea(state, lastEvent, map, warnings, onAcknowledge, onNextWaypoint,
-                        varioSound, onVarioSound,
-                        Modifier.weight(1f).fillMaxHeight(),
+                mapArea(false, Modifier.weight(1f).fillMaxHeight(),
                         WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical +
                                                       WindowInsetsSides.Start))
                 Column(
                     Modifier
-                        .width(380.dp)
+                        .width(400.dp)
                         .fillMaxHeight()
                         .background(colors.sheet)
                         .windowInsetsPadding(WindowInsets.safeDrawing.only(
@@ -218,16 +239,19 @@ fun FlightContent(
                         .verticalScroll(rememberScrollState())
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) { instruments() }
+                ) {
+                    NextWaypointCard(state?.next, Modifier.fillMaxWidth(),
+                                     state?.nextTimeRemaining, onClick = onNextWaypoint,
+                                     elevated = false)
+                    instruments()
+                }
             }
         } else {
-            // the sheet may scroll on short screens; the next waypoint
-            // card above it always stays visible
-            val sheetMax = maxHeight - 160.dp
+            // the sheet may scroll on short screens; the map keeps most of
+            // the height
+            val sheetMax = maxHeight - 240.dp
             Column(Modifier.fillMaxSize()) {
-                MapArea(state, lastEvent, map, warnings, onAcknowledge, onNextWaypoint,
-                        varioSound, onVarioSound,
-                        Modifier.weight(1f).fillMaxWidth(),
+                mapArea(true, Modifier.weight(1f).fillMaxWidth(),
                         WindowInsets.safeDrawing.only(WindowInsetsSides.Top +
                                                       WindowInsetsSides.Horizontal))
                 val sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
@@ -241,17 +265,13 @@ fun FlightContent(
                         .windowInsetsPadding(WindowInsets.safeDrawing.only(
                             WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
                         .verticalScroll(rememberScrollState())
-                        .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
+                        .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Box(Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .width(36.dp).height(4.dp)
-                        .background(colors.panelBorder, RoundedCornerShape(2.dp)))
-                    instruments()
-                }
+                ) { instruments() }
             }
         }
+
+        FlightMenuSheet(menuOpen, menu, onClose = { onMenuOpen(false) })
     }
 }
 
@@ -261,11 +281,16 @@ private fun MapArea(
     lastEvent: String?,
     map: MapSlot?,
     warnings: List<AirspaceWarningInfo>,
+    hideTimer: HideTimer?,
+    alertsOff: Boolean,
     onAcknowledge: (AirspaceWarningInfo, day: Boolean) -> Unit,
     onNextWaypoint: () -> Unit,
+    /** false in landscape, where the side panel shows it */
+    showNext: Boolean,
     /** null: no vario sound on this device, no button */
     varioSound: Boolean?,
     onVarioSound: (Boolean) -> Unit,
+    vario: (() -> VarioValues?)?,
     modifier: Modifier,
     insets: WindowInsets,
 ) {
@@ -319,10 +344,11 @@ private fun MapArea(
         ) {
             warnings.firstOrNull()?.let { top ->
                 AirspaceWarningBanner(top, warnings.size - 1, { day -> onAcknowledge(top, day) },
-                                      Modifier.fillMaxWidth())
+                                      Modifier.fillMaxWidth(), hideTimer)
             }
-            NextWaypointCard(state?.next, Modifier.fillMaxWidth(), state?.nextTimeRemaining,
-                             onClick = onNextWaypoint)
+            if (showNext)
+                NextWaypointCard(state?.next, Modifier.fillMaxWidth(), state?.nextTimeRemaining,
+                                 onClick = onNextWaypoint)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
@@ -330,6 +356,7 @@ private fun MapArea(
                     else -> {
                         WindChip(state.wind)
                         if (state.position == null) StatusChip("NO GPS", colors.caution)
+                        if (alertsOff) StatusChip("AIRSPACE ALERTS OFF", colors.caution)
                         if (state.replay) StatusChip("REPLAY", colors.neutralSafe)
                         if (!state.flying) StatusChip("On ground", colors.text)
                     }
@@ -338,29 +365,45 @@ private fun MapArea(
             }
         }
 
-        map?.items?.let {
-            MapItemsCard(it, map.onCloseItems, map.onGoto, Modifier
-                .align(Alignment.BottomStart)
-                .windowInsetsPadding(insets)
-                .padding(start = 12.dp, end = 84.dp, bottom = 12.dp))
-        }
-
-        Column(
+        // below the cards: the vario on the left edge, final glide on the
+        // right, the map buttons along the bottom
+        val cardsHeight = with(LocalDensity.current) { cardsBottom.toDp() }
+        BoxWithConstraints(
             Modifier
-                .align(Alignment.BottomEnd)
-                .windowInsetsPadding(insets)
-                .padding(12.dp),
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .fillMaxSize()
+                .padding(top = cardsHeight)
+                .windowInsetsPadding(insets.only(WindowInsetsSides.Horizontal +
+                                                 WindowInsetsSides.Bottom))
+                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
         ) {
-            varioSound?.let { VarioSoundButton(it, onVarioSound) }
-            if (map != null) {
-                map.orientation?.let {
-                    OrientationButton(it, mapAngle(it, state), map.onOrientation)
+            // what is left above the map buttons
+            val barSpace = maxHeight - 56.dp - 12.dp
+            if (barSpace >= 120.dp) {
+                VarioSlot(vario, state, Modifier.align(Alignment.TopStart)
+                    .height(barSpace.coerceAtMost(300.dp)))
+                FinalGlideBar(state?.finalGlide, Modifier.align(Alignment.TopEnd)
+                    .height(barSpace.coerceAtMost(180.dp)))
+            }
+
+            map?.items?.let {
+                MapItemsCard(it, map.onCloseItems, map.onGoto, Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(bottom = 64.dp))
+            }
+
+            Row(
+                Modifier.align(Alignment.BottomEnd),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                varioSound?.let { VarioSoundButton(it, onVarioSound) }
+                if (map != null) {
+                    map.orientation?.let {
+                        OrientationButton(it, mapAngle(it, state), map.onOrientation)
+                    }
+                    if (!map.follows)
+                        CentreButton(map.onFollow)
+                    ZoomButtons(map.onZoom)
                 }
-                if (!map.follows)
-                    CentreButton(map.onFollow)
-                ZoomButtons(map.onZoom)
             }
         }
     }
@@ -382,17 +425,13 @@ private fun mapAngle(orientation: MapOrientation, s: FlightState?): Double? = wh
 @Composable
 private fun Instruments(
     state: FlightState?,
-    vario: (() -> VarioValues?)?,
     circling: Boolean,
     tiles: List<TileValue>?,
     onEditTile: (Int) -> Unit,
     onMacCreadyChange: (Double) -> Unit,
     onSetMacCready: (Double) -> Unit,
-    onSelectMode: (circling: Boolean) -> Unit,
-    menu: List<MenuAction>,
+    onMenu: () -> Unit,
 ) {
-    VarioSlot(vario, state)
-
     // XCSoar's InfoBoxes from the core; a long press picks another
     val colors = XcsTheme.colors
     val boxes = tiles?.map { it.toInfoBoxValue(colors) } ?: infoBoxes(state, circling)
@@ -407,37 +446,30 @@ private fun Instruments(
         }
     }
 
-    // both tiles as tall as the taller one
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
         MacCreadyControl(state?.macCready, onMacCreadyChange,
                          Modifier.weight(1f).fillMaxHeight())
         val thermal = state?.currentThermal
         if (circling && thermal != null && thermal.lift > 0)
             SetMacCreadyButton(thermal.lift,
                                { onSetMacCready(Format.stepVerticalSpeed(thermal.lift, 0)) },
-                               Modifier.weight(1f).fillMaxHeight())
-        else
-            FinalGlideTile(state?.finalGlide, Modifier.weight(1f).fillMaxHeight())
-    }
-
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        FlightModeSwitch(circling, onSelectMode, Modifier.weight(1f))
-        FlightMenuButton(menu)
+                               Modifier.width(96.dp).fillMaxHeight())
+        MenuButton(onMenu)
     }
 }
 
 /**
- * The vario panel, reading [vario] in its own scope: it changes five
+ * The vario bar, reading [vario] in its own scope: it changes five
  * times a second, the rest of the screen once.  Its own layer, too, so
  * redrawing it leaves the rest alone.
  */
 @Composable
-private fun VarioSlot(vario: (() -> VarioValues?)?, state: FlightState?) {
+private fun VarioSlot(vario: (() -> VarioValues?)?, state: FlightState?, modifier: Modifier) {
     val v = vario?.invoke()
         ?: state?.let { VarioValues(it.vario, it.averageVario, it.nettoVario) }
-    VarioPanel(v?.vario, v?.average, v?.netto, Modifier.fillMaxWidth().graphicsLayer())
+    VarioBar(v?.vario, v?.average, v?.netto, modifier.graphicsLayer())
 }
 
 private class InfoBoxValue(val title: String, val value: Format.Value,
@@ -508,7 +540,7 @@ private fun infoBoxes(s: FlightState?, circling: Boolean): List<InfoBoxValue> {
 @Composable
 private fun CruisePreview() {
     XcsTheme(dark = false) {
-        FlightContent(FakeXcsoarCore.syntheticState(120), "Cruise", circling = false, {})
+        FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {})
     }
 }
 
@@ -516,7 +548,7 @@ private fun CruisePreview() {
 @Composable
 private fun CirclingPreview() {
     XcsTheme(dark = false) {
-        FlightContent(FakeXcsoarCore.syntheticState(320), "Climb", circling = true, {})
+        FlightContent(FakeXcsoarCore.syntheticState(320), null, circling = true, {})
     }
 }
 
@@ -535,3 +567,64 @@ private fun NightNoDataPreview() {
         FlightContent(null, null, circling = false, {})
     }
 }
+
+@Preview(widthDp = 390, heightDp = 844)
+@Composable
+private fun MenuPreview() {
+    XcsTheme(dark = false) {
+        FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {},
+                      menu = flightMenu(), menuOpen = true)
+    }
+}
+
+/** The flight menu: in-flight actions, then what is set on the ground. */
+fun flightMenu(
+    onOpenWaypoints: () -> Unit = {},
+    onOpenTask: () -> Unit = {},
+    onOpenFlightSetup: () -> Unit = {},
+    onOpenAnalysis: () -> Unit = {},
+    onOpenCrew: () -> Unit = {},
+    onOpenFlights: () -> Unit = {},
+    onOpenDataFiles: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onOpenAirspaceAlerts: () -> Unit = {},
+    airspaceAlerts: AirspaceAlerts = AirspaceAlerts(),
+    replay: Boolean = false,
+    canReplay: Boolean = false,
+    onReplay: () -> Unit = {},
+    onStopReplay: () -> Unit = {},
+    tileLayout: Boolean? = null,
+    onTileLayout: (circling: Boolean?) -> Unit = {},
+) = FlightMenu(
+    inFlight = listOf(
+        MenuAction("Go to waypoint", "Nearest landable first", onClick = onOpenWaypoints),
+        MenuAction("Task", "Edit, next, previous", onClick = onOpenTask),
+        MenuAction("Flight setup", "Ballast, bugs, QNH", onClick = onOpenFlightSetup),
+        MenuAction("Analysis", "Barograph, climb, contest", onClick = onOpenAnalysis),
+    ),
+    ground = listOf(
+        MenuAction("Aircraft & crew", "Plane and co-pilot", onClick = onOpenCrew),
+        MenuAction("Flights", "Share, upload to WeGlide", onClick = onOpenFlights),
+        MenuAction("Airspace alerts", describe(airspaceAlerts), onClick = onOpenAirspaceAlerts),
+        MenuAction("Data files", "Map, airspace, waypoints", onClick = onOpenDataFiles),
+        MenuAction("Settings", "Units, map, pilot and WeGlide", onClick = onOpenSettings),
+        if (replay)
+            MenuAction("Stop replay", "Back to the GPS", closesMenu = true,
+                       onClick = onStopReplay)
+        else
+            MenuAction("Replay demo", "A demo flight, on the ground only",
+                       enabled = canReplay, closesMenu = true, onClick = onReplay),
+    ),
+    tileLayout = tileLayout,
+    onTileLayout = onTileLayout,
+)
+
+/** "On · sound · vibration", "Off": the airspace alerts at a glance. */
+private fun describe(alerts: AirspaceAlerts): String =
+    if (!alerts.warnings) "Off"
+    else listOfNotNull("On",
+                       "sound".takeIf { alerts.sound },
+                       "vibration".takeIf { alerts.vibration },
+                       "hide after ${alerts.autoHideSeconds} s"
+                           .takeIf { alerts.autoHideSeconds > 0 })
+        .joinToString(" · ")

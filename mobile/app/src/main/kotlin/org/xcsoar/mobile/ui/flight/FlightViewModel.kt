@@ -3,6 +3,7 @@
 
 package org.xcsoar.mobile.ui.flight
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
@@ -23,7 +24,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.xcsoar.mobile.core.AirspaceAlerts
 import org.xcsoar.mobile.core.AirspaceWarningInfo
+import org.xcsoar.mobile.core.airspaceAlerts
 import org.xcsoar.mobile.core.CoreEvent
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.GlideComputerEvent
@@ -68,6 +71,9 @@ class FlightViewModel(
     /* the pilot's choice of layout, until the next flight mode change */
     private val modeOverride = MutableStateFlow<Boolean?>(null)
 
+    /** The pilot's choice of tiles: null follows the flight mode. */
+    val tileLayout: StateFlow<Boolean?> = modeOverride.asStateFlow()
+
     /** Show the circling layout: the glide computer's mode, or the pilot's pick. */
     val showCircling: StateFlow<Boolean> =
         combine(flightState, modeOverride) { state, override ->
@@ -109,8 +115,28 @@ class FlightViewModel(
     }
 
     private val warningsFlow = MutableStateFlow<List<AirspaceWarningInfo>>(emptyList())
-    /** Active airspace warnings, most severe first. */
+    /** Airspace warnings to show, most severe first (hidden ones left out). */
     val airspaceWarnings: StateFlow<List<AirspaceWarningInfo>> = warningsFlow.asStateFlow()
+
+    private val hideTimerFlow = MutableStateFlow<HideTimer?>(null)
+    /** When the first shown warning hides itself; null if it stays. */
+    val airspaceHideTimer: StateFlow<HideTimer?> = hideTimerFlow.asStateFlow()
+
+    private val airspaceAlertsFlow = MutableStateFlow(AirspaceAlerts())
+    /** How warnings reach the pilot (Settings → Airspace alerts). */
+    val airspaceAlerts: StateFlow<AirspaceAlerts> = airspaceAlertsFlow.asStateFlow()
+
+    /** Read the airspace alert options again (after the pilot changed them). */
+    fun refreshAirspaceAlerts() {
+        viewModelScope.launch {
+            airspaceAlertsFlow.value = try {
+                core.airspaceAlerts()
+            } catch (_: Exception) {
+                AirspaceAlerts()
+            }
+            showWarnings()
+        }
+    }
 
     private val varioSoundFlow = MutableStateFlow<Boolean?>(null)
     /** The vario sound is on; null if this device has none (yet). */
@@ -133,12 +159,19 @@ class FlightViewModel(
         null
     }
 
-    private val alertFlow = MutableSharedFlow<Alert>(extraBufferCapacity = 4)
-    /** Something new the pilot must notice: sound and vibrate. */
-    val alerts: SharedFlow<Alert> = alertFlow.asSharedFlow()
+    private val alertFlow = MutableSharedFlow<AirspaceAlert>(extraBufferCapacity = 4)
+    /** Something new the pilot must notice: sound and/or vibrate. */
+    val alerts: SharedFlow<AirspaceAlert> = alertFlow.asSharedFlow()
 
     /* warnings already announced, by airspace and state */
     private var announced = emptySet<String>()
+
+    /* the core's warnings, and when each (airspace and state) appeared */
+    private var activeWarnings = emptyList<AirspaceWarningInfo>()
+    private var shownSince = emptyMap<String, Long>()
+    private var hideJob: Job? = null
+
+    private val AirspaceWarningInfo.key get() = "$id/$state"
 
     private suspend fun refreshWarnings() {
         val warnings = try {
@@ -146,17 +179,51 @@ class FlightViewModel(
         } catch (_: Exception) {
             emptyList()
         }
-        warningsFlow.value = warnings
+        val now = SystemClock.uptimeMillis()
+        activeWarnings = warnings
+        shownSince = warnings.associate { it.key to (shownSince[it.key] ?: now) }
+        showWarnings()
 
         // like XCSoar: alert once per new warning, again when it gets worse
-        val keys = warnings.map { "${it.id}/${it.state}" }.toSet()
-        val fresh = warnings.filter { "${it.id}/${it.state}" !in announced }
+        val keys = warnings.map { it.key }.toSet()
+        val fresh = warnings.filter { it.key !in announced }
         announced = keys
-        if (fresh.isNotEmpty())
-            alertFlow.tryEmit(if (fresh.any { it.inside }) Alert.WARNING else Alert.CAUTION)
+        val options = airspaceAlertsFlow.value
+        if (fresh.isNotEmpty() && (options.sound || options.vibration))
+            alertFlow.tryEmit(AirspaceAlert(
+                if (fresh.any { it.inside }) Alert.WARNING else Alert.CAUTION,
+                options.sound, options.vibration))
+    }
+
+    /**
+     * Publish the warnings still shown: with auto hide, each one goes
+     * after its time, until it gets worse (a new state shows again).
+     */
+    private fun showWarnings() {
+        val now = SystemClock.uptimeMillis()
+        val hideMillis = airspaceAlertsFlow.value.autoHideSeconds * 1000L
+        fun hidesAt(w: AirspaceWarningInfo) = (shownSince[w.key] ?: now) + hideMillis
+
+        val visible = if (hideMillis > 0) activeWarnings.filter { hidesAt(it) > now }
+                      else activeWarnings
+        warningsFlow.value = visible
+        hideTimerFlow.value = visible.firstOrNull()
+            ?.takeIf { hideMillis > 0 }
+            ?.let { HideTimer(hidesAt(it) - hideMillis, hideMillis) }
+
+        hideJob?.cancel()
+        val next = visible.takeIf { hideMillis > 0 }?.minOfOrNull { hidesAt(it) }
+        if (next != null)
+            hideJob = viewModelScope.launch {
+                delay(next - now)
+                showWarnings()
+            }
     }
 
     fun acknowledgeAirspace(warning: AirspaceWarningInfo, day: Boolean) {
+        // gone at once; the core confirms on the refresh below
+        activeWarnings = activeWarnings.filter { it.id != warning.id }
+        showWarnings()
         viewModelScope.launch {
             try {
                 core.acknowledgeAirspace(warning.id, day)
@@ -180,6 +247,7 @@ class FlightViewModel(
             try {
                 core.start()
                 varioSoundFlow.value = readVarioSound()
+                airspaceAlertsFlow.value = core.airspaceAlerts()
                 core.units()?.let { Format.units = it }
             } catch (e: Exception) {
                 // never crash the app: show why and keep the UI usable
@@ -225,8 +293,11 @@ class FlightViewModel(
         }
     }
 
-    /** Show the cruise or circling layout until the next flight mode change. */
-    fun selectFlightMode(circling: Boolean) {
+    /**
+     * Show the cruise or circling layout until the next flight mode
+     * change; null follows the flight mode again.
+     */
+    fun selectFlightMode(circling: Boolean?) {
         modeOverride.value = circling
     }
 
@@ -388,11 +459,10 @@ class FlightViewModel(
         }
     }
 
+    /* climb and cruise are left out: the tiles already show the mode */
     private fun describe(e: GlideComputerEvent): String? = when (e) {
         GlideComputerEvent.TAKEOFF -> "Take-off"
         GlideComputerEvent.LANDING -> "Landing"
-        GlideComputerEvent.FLIGHTMODE_CLIMB -> "Climb"
-        GlideComputerEvent.FLIGHTMODE_CRUISE -> "Cruise"
         GlideComputerEvent.FLIGHTMODE_FINALGLIDE -> "Final glide"
         GlideComputerEvent.TASK_START -> "Task started"
         GlideComputerEvent.TASK_NEXTWAYPOINT -> "Next turnpoint"
@@ -415,6 +485,15 @@ private val AIRSPACE_EVENTS = setOf(
 
 /** How urgent an alert is (doc/architecture.rst colours: red, orange). */
 enum class Alert { WARNING, CAUTION }
+
+/** An alert to play, with the pilot's choice of sound and vibration. */
+data class AirspaceAlert(val level: Alert, val sound: Boolean, val vibration: Boolean)
+
+/**
+ * A banner that hides itself: shown at [start] (SystemClock.uptimeMillis)
+ * for [duration] ms.
+ */
+data class HideTimer(val start: Long, val duration: Long)
 
 /** Total energy vario, its 30 s average and netto (m/s), as the snapshot has them. */
 data class VarioValues(val vario: Double?, val average: Double?, val netto: Double?)

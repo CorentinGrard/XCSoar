@@ -33,6 +33,7 @@ import org.xcsoar.mobile.core.DataStatus
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.GlideComputerEvent
 import org.xcsoar.mobile.core.MapItemInfo
+import org.xcsoar.mobile.core.AirspaceOption
 import org.xcsoar.mobile.core.MapOption
 import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.WaypointFilter
@@ -186,6 +187,15 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun setMapOption(option: MapOption, value: Int) =
         command { NativeCore.nativeMapSetOption(it, option.code, value) }
+
+    override suspend fun airspaceOption(option: AirspaceOption): Int? = lock.withLock {
+        if (handle == 0L) return@withLock null
+        withContext(Dispatchers.IO) { NativeCore.nativeAirspaceGetOption(handle, option.code) }
+            .takeIf { it != Int.MIN_VALUE }
+    }
+
+    override suspend fun setAirspaceOption(option: AirspaceOption, value: Int) =
+        command { NativeCore.nativeAirspaceSetOption(it, option.code, value) }
 
     override suspend fun task(edited: Boolean): TaskInfo? = lock.withLock {
         if (handle == 0L) return@withLock null

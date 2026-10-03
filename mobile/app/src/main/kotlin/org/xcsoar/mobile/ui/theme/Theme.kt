@@ -22,7 +22,8 @@ import org.xcsoar.mobile.R
 /**
  * Colours by function, never by hue (doc/architecture.rst, "User interface
  * guidelines"): red warning, orange caution, green safe, blue neutral
- * safe; lift green, sink copper orange; task ICAO magenta; route dark
+ * safe; lift green; sink neutral grey, so that orange only ever means
+ * caution (mobile/docs/DECISIONS.md D19); task ICAO magenta; route dark
  * purple-blue; updraft data sky blue.  Text stays monochrome.
  */
 @Immutable
@@ -53,15 +54,6 @@ data class XcsColors(
     /** Selected segment, primary action button. */
     val selected: Color,
     val onSelected: Color,
-    /** The dark vario instrument, in every theme. */
-    val instrument: Color,
-    val instrumentText: Color,
-    val instrumentTextSecondary: Color,
-    val instrumentTrack: Color,
-    val instrumentLift: Color,
-    val instrumentSink: Color,
-    /** Averaged climb (updraft data) on the instrument. */
-    val instrumentUpdraft: Color,
     /** Alert banners: warning (inside airspace) and caution (ahead), with
         [onAlert] text at 4.5:1 or more in every theme. */
     val warningContainer: Color,
@@ -70,9 +62,10 @@ data class XcsColors(
 )
 
 /**
- * Daylight: the "modern cockpit" design (pale terrain, white cards,
- * dark instrument).  The default in flight.  Every text colour has at
- * least 4.5:1 contrast on the surface it is drawn on.
+ * Daylight: the "map first" design (pale terrain, white cards, the
+ * vario and final glide on the map's edges).  The default in flight.
+ * Every text colour has at least 4.5:1 contrast on the surface it is
+ * drawn on.
  */
 private val sunlight = XcsColors(
     warning = Color(0xFFB42A30),
@@ -80,7 +73,7 @@ private val sunlight = XcsColors(
     safe = Color(0xFF0B7A5C),
     neutralSafe = Color(0xFF1F5BD6),
     lift = Color(0xFF0B7A5C),
-    sink = Color(0xFFB5440F),
+    sink = Color(0xFF5B635D),
     task = Color(0xFFB5179E),
     route = Color(0xFF3F2A8C),
     updraft = Color(0xFF1A6FA8),
@@ -94,13 +87,6 @@ private val sunlight = XcsColors(
     control = Color(0xFFFFFFFF),
     selected = Color(0xFF0E1210),
     onSelected = Color(0xFFFFFFFF),
-    instrument = Color(0xFF0E1210),
-    instrumentText = Color(0xFFFFFFFF),
-    instrumentTextSecondary = Color(0xFFB9C2BB),
-    instrumentTrack = Color(0xFF262C28),
-    instrumentLift = Color(0xFF3BD1A6),
-    instrumentSink = Color(0xFFFF9F6B),
-    instrumentUpdraft = Color(0xFF7CC8F0),
     warningContainer = Color(0xFFB42A30),
     cautionContainer = Color(0xFFC2410C),
     onAlert = Color(0xFFFFFFFF),
@@ -113,7 +99,7 @@ private val night = XcsColors(
     safe = Color(0xFF3BD1A6),
     neutralSafe = Color(0xFF82B1FF),
     lift = Color(0xFF3BD1A6),
-    sink = Color(0xFFFF9F6B),
+    sink = Color(0xFF9AA29C),
     task = Color(0xFFFF6EE6),
     route = Color(0xFF9FA8DA),
     updraft = Color(0xFF7CC8F0),
@@ -127,13 +113,6 @@ private val night = XcsColors(
     control = Color(0xFF2A302C),
     selected = Color(0xFFE6E6E6),
     onSelected = Color(0xFF0B0D0C),
-    instrument = Color(0xFF000000),
-    instrumentText = Color(0xFFE6E6E6),
-    instrumentTextSecondary = Color(0xFFAAB2AC),
-    instrumentTrack = Color(0xFF262C28),
-    instrumentLift = Color(0xFF3BD1A6),
-    instrumentSink = Color(0xFFFF9F6B),
-    instrumentUpdraft = Color(0xFF7CC8F0),
     warningContainer = Color(0xFF9F1F25),
     cautionContainer = Color(0xFF9A3412),
     onAlert = Color(0xFFFFFFFF),

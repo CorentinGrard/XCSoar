@@ -64,6 +64,12 @@ interface XcsoarCore {
     /** Acknowledge a warning until it changes, or for the whole [day]. */
     suspend fun acknowledgeAirspace(id: String, day: Boolean) {}
 
+    /** An airspace warning option; null if the core has none. */
+    suspend fun airspaceOption(option: AirspaceOption): Int? = null
+
+    /** Set an airspace warning option; saved in the profile. */
+    suspend fun setAirspaceOption(option: AirspaceOption, value: Int) {}
+
     /** Whether this core draws XCSoar's moving map ([attachMap]). */
     val hasMap: Boolean get() = false
 
@@ -272,6 +278,18 @@ enum class SoundOption(val code: Int) {
     VARIO(1),
     /** 0..100, under the system media volume */
     VARIO_VOLUME(2),
+}
+
+/** Values of `xcs_airspace_option` (core/api/xcsoar_core.h). */
+enum class AirspaceOption(val code: Int) {
+    /** 0/1: XCSoar computes airspace warnings */
+    WARNINGS(1),
+    /** 0/1: a tone for a new or worse warning */
+    ALERT_SOUND(2),
+    /** 0/1: vibrate for a new or worse warning */
+    ALERT_VIBRATION(3),
+    /** 0..600: hide a warning after this many seconds, 0 never */
+    AUTO_HIDE(4),
 }
 
 /** Values of `xcs_map_option` (core/api/xcsoar_core.h). */

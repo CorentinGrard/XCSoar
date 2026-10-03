@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import org.xcsoar.mobile.ui.flight.AirspaceAlert
 import org.xcsoar.mobile.ui.flight.Alert
 
 /**
@@ -32,15 +33,22 @@ class Alerts(context: Context) {
             @Suppress("DEPRECATION")
             context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
 
-    fun play(alert: Alert) {
-        when (alert) {
+    /** The tone and/or the vibration of [alert], as the pilot chose. */
+    fun play(alert: AirspaceAlert) {
+        when (alert.level) {
             Alert.WARNING -> {
-                tones?.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 600)
-                vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 300, 150, 300), -1))
+                if (alert.sound)
+                    tones?.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 600)
+                if (alert.vibration)
+                    vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 300, 150, 300),
+                                                                     -1))
             }
             Alert.CAUTION -> {
-                tones?.startTone(ToneGenerator.TONE_PROP_BEEP2, 300)
-                vibrator?.vibrate(VibrationEffect.createOneShot(250, VibrationEffect.DEFAULT_AMPLITUDE))
+                if (alert.sound)
+                    tones?.startTone(ToneGenerator.TONE_PROP_BEEP2, 300)
+                if (alert.vibration)
+                    vibrator?.vibrate(VibrationEffect.createOneShot(250,
+                                                                    VibrationEffect.DEFAULT_AMPLITUDE))
             }
         }
     }

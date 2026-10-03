@@ -276,14 +276,21 @@ negotiable:
 
 On top of that:
 
-- **Flight screen:** full-screen map with a configurable InfoBox strip or
-  grid, plus a vario bar and final-glide bar on the edge. There are pages as
-  in XCSoar (map, map+InfoBoxes, analysis), switched with a horizontal swipe.
-- **Quick actions:** a thumb-reachable bottom bar (MC ±, Go To, Task, Wind,
-  Menu) instead of XCSoar's hardware-key-oriented menu.
+- **Flight screen:** map first (D19): the vario and final glide as bars
+  on the map's edges, the next waypoint over the map (beside it in
+  landscape), and six configurable InfoBoxes with MacCready and the menu
+  below the map (portrait) or beside it (landscape).  Pages switched with
+  a horizontal swipe (map, map + InfoBoxes, analysis) are still planned.
+- **No quick-action bar** (D19): MacCready is on the flight screen; the
+  menu sheet holds the in-flight actions (Go To, Task, Flight setup,
+  Analysis) above the ground ones.
 - **Themes:** Material 3 base with a high-contrast "sunlight" theme (default
   in flight), a night theme, and dynamic sizing for 5"–10" screens,
   landscape and portrait.
+- **Confirmation at the bottom:** a page's confirming action ("Fly",
+  "Save", "Done") sits in a bar at the bottom of the page (`PageLayout`),
+  within reach of the thumb and above the keyboard; the content scrolls
+  above it.  Actions on one row of a list stay on that row.
 - **On the ground:** normal app navigation for task planning, data downloads
   and device setup. Some screens are then disabled while flying.
 - **Language:** reuse XCSoar's gettext catalogues (`po/*.po`) by converting

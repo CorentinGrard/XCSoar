@@ -49,19 +49,26 @@ import org.xcsoar.mobile.ui.theme.XcsTheme
  * here is a true bearing.
  */
 
-/** A white card floating over the map. */
+/**
+ * A white card floating over the map; with [elevated] false, a flat
+ * panel on the instrument sheet instead.
+ */
 @Composable
 fun FloatingCard(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(16.dp),
+    elevated: Boolean = true,
     content: @Composable RowScope.() -> Unit,
 ) {
     val colors = XcsTheme.colors
     Row(
         modifier = modifier
-            .shadow(8.dp, shape, ambientColor = colors.text, spotColor = colors.text)
-            .background(colors.card, shape)
-            .border(1.dp, colors.panelBorder, shape),
+            .then(if (elevated)
+                Modifier
+                    .shadow(8.dp, shape, ambientColor = colors.text, spotColor = colors.text)
+                    .background(colors.card, shape)
+                    .border(1.dp, colors.panelBorder, shape)
+            else Modifier.background(colors.panel, shape)),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
@@ -77,6 +84,7 @@ fun NextWaypointCard(
     modifier: Modifier = Modifier,
     timeRemaining: Double? = null,
     onClick: (() -> Unit)? = null,
+    elevated: Boolean = true,
 ) {
     val colors = XcsTheme.colors
     val distance = Format.distance(next?.distance)
@@ -96,6 +104,7 @@ fun NextWaypointCard(
                     "Next $name, ${distance.text} ${distance.unit}, bearing ${bearing.text}, " +
                         "arrival ${arrival.text} ${arrival.unit}"
             },
+        elevated = elevated,
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,

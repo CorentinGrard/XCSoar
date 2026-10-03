@@ -6,20 +6,12 @@ package org.xcsoar.mobile.ui.crew
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,11 +21,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -54,6 +46,7 @@ import org.xcsoar.mobile.core.WeGlideSettings
 import org.xcsoar.mobile.core.XcsoarCore
 import org.xcsoar.mobile.ui.ActionButton
 import org.xcsoar.mobile.ui.InputField
+import org.xcsoar.mobile.ui.PageLayout
 import org.xcsoar.mobile.ui.ScreenHeader
 import org.xcsoar.mobile.ui.flight.Caption
 import org.xcsoar.mobile.ui.theme.XcsTheme
@@ -138,15 +131,10 @@ fun PilotContent(
 ) {
     val colors = XcsTheme.colors
     var pickDate by rememberSaveable { mutableStateOf(false) }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(colors.sheet)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .verticalScroll(rememberScrollState())
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    PageLayout(bottom = {
+        ActionButton("Save", primary = true, enabled = state.loaded,
+                     modifier = Modifier.weight(1f), onClick = onSave)
+    }) {
         ScreenHeader("Pilot & WeGlide", onBack)
 
         Caption("Pilot", Modifier.padding(start = 4.dp))
@@ -191,8 +179,6 @@ fun PilotContent(
         }
 
         state.error?.let { Text(it, color = colors.warning, fontSize = 16.sp) }
-        ActionButton("Save", primary = true, enabled = state.loaded,
-                     modifier = Modifier.fillMaxWidth(), onClick = onSave)
     }
 
     if (pickDate) {

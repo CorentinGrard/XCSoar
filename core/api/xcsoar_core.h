@@ -468,6 +468,31 @@ enum {
 XCS_EXPORT xcs_status
 xcs_airspace_acknowledge(xcs_core *core, const char *id, uint32_t mode);
 
+/** Airspace warning options (profile keys in brackets).  The core
+    computes warnings only when XCS_AIRSPACE_WARNINGS is on; the others
+    say how the app presents them, and the core only keeps them. */
+typedef enum xcs_airspace_option {
+  /** 0/1: XCSoar's airspace warnings, on by default [AirspaceWarn] */
+  XCS_AIRSPACE_WARNINGS = 1,
+  /** 0/1: a tone for a new or worse warning, on by default
+      [MobileAirspaceSound] */
+  XCS_AIRSPACE_ALERT_SOUND = 2,
+  /** 0/1: vibrate for a new or worse warning, on by default
+      [MobileAirspaceVibration] */
+  XCS_AIRSPACE_ALERT_VIBRATION = 3,
+  /** 0..600: hide a warning after this many seconds, 0 (the default)
+      keeps it until acknowledged [MobileAirspaceAutoHide] */
+  XCS_AIRSPACE_AUTO_HIDE = 4,
+} xcs_airspace_option;
+
+/** Set an airspace warning option; saved in the profile.
+    XCS_ERROR_INVALID_ARGUMENT for an unknown option or value. */
+XCS_EXPORT xcs_status
+xcs_airspace_set_option(xcs_core *core, uint32_t option, int32_t value);
+
+XCS_EXPORT xcs_status
+xcs_airspace_get_option(xcs_core *core, uint32_t option, int32_t *value_r);
+
 /*
  * Data files: the same files and profile settings as XCSoar.
  */

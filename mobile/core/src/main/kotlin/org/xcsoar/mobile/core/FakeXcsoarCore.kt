@@ -105,6 +105,16 @@ class FakeXcsoarCore(
         mapOptions[option] = value
     }
 
+    private val airspaceOptions = mutableMapOf(
+        AirspaceOption.WARNINGS to 1, AirspaceOption.ALERT_SOUND to 1,
+        AirspaceOption.ALERT_VIBRATION to 1, AirspaceOption.AUTO_HIDE to 0)
+
+    override suspend fun airspaceOption(option: AirspaceOption): Int? = airspaceOptions[option]
+
+    override suspend fun setAirspaceOption(option: AirspaceOption, value: Int) {
+        airspaceOptions[option] = value
+    }
+
     private var files = mapOf<DataFile, String>()
 
     /* remembers the files; there is nothing to load */

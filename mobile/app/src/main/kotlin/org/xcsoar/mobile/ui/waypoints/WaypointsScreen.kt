@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -50,6 +51,8 @@ import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 /**
+ * @param onDone a waypoint was chosen (flown to or picked)
+ * @param onBack left without choosing
  * @param onPick instead of "Go to", hand the tapped waypoint over (e.g.
  * to add it to the task); the screen then closes
  */
@@ -57,6 +60,7 @@ import org.xcsoar.mobile.ui.theme.XcsTheme
 fun WaypointsScreen(
     viewModel: WaypointsViewModel,
     onDone: () -> Unit,
+    onBack: () -> Unit = onDone,
     title: String = "Go to",
     onPick: ((WaypointInfo) -> Unit)? = null,
 ) {
@@ -66,13 +70,18 @@ fun WaypointsScreen(
         onDispose { viewModel.close() }
     }
     LaunchedEffect(state.done) { if (state.done) onDone() }
-    BackHandler(onBack = onDone)
+    BackHandler(onBack = onBack)
     val onTap: (WaypointInfo) -> Unit =
         if (onPick != null) { waypoint -> onPick(waypoint); onDone() } else viewModel::goto
-    WaypointsContent(state, viewModel::search, viewModel::filter, onTap, onDone, title)
+    WaypointsContent(state, viewModel::search, viewModel::filter, onTap, onBack, title,
+                     action = if (onPick != null) "Add" else "Go")
 }
 
-/** Nearest first; a tap flies there (XCSoar's "Go to") or picks it. */
+/**
+ * Nearest first; each row's [action] button flies there (XCSoar's "Go
+ * to") or picks it.  Only the button acts, so a bumpy tap on the list
+ * does not change where the pilot flies.
+ */
 @Composable
 fun WaypointsContent(
     state: WaypointsState,
@@ -81,6 +90,7 @@ fun WaypointsContent(
     onGoto: (WaypointInfo) -> Unit,
     onBack: () -> Unit,
     title: String = "Go to",
+    action: String = "Go",
 ) {
     val colors = XcsTheme.colors
     Column(
@@ -151,7 +161,7 @@ fun WaypointsContent(
             .fillMaxWidth()
             .background(colors.panel, RoundedCornerShape(14.dp))) {
             items(waypoints.orEmpty(), key = { it.id }) { waypoint ->
-                WaypointRow(waypoint) { onGoto(waypoint) }
+                WaypointRow(waypoint, action) { onGoto(waypoint) }
                 HorizontalDivider(color = colors.panelBorder,
                                   modifier = Modifier.padding(horizontal = 14.dp))
             }
@@ -160,20 +170,17 @@ fun WaypointsContent(
 }
 
 @Composable
-private fun WaypointRow(waypoint: WaypointInfo, onClick: () -> Unit) {
+private fun WaypointRow(waypoint: WaypointInfo, action: String, onClick: () -> Unit) {
     val colors = XcsTheme.colors
     Row(Modifier
             .fillMaxWidth()
-            .heightIn(min = 64.dp)
-            .clickable(role = Role.Button, onClickLabel = "Go to ${waypoint.name}",
-                       onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .heightIn(min = 72.dp)
+            .padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(waypoint.name, color = colors.text, fontSize = 17.sp,
                  fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val distance = Format.distance(waypoint.distance)
             val bearing = Format.bearing(waypoint.bearing)
             val elevation = waypoint.elevation?.let { Format.altitude(it) }
             Text(listOfNotNull(
@@ -182,17 +189,34 @@ private fun WaypointRow(waypoint: WaypointInfo, onClick: () -> Unit) {
                          waypoint.landable -> "Landable"
                          else -> null
                      },
-                     waypoint.distance?.let { "${distance.text} ${distance.unit}" },
                      waypoint.bearing?.let { "${bearing.text}${bearing.unit}" },
                      elevation?.let { "elev ${it.text} ${it.unit}" })
                      .joinToString(" · "),
                  color = colors.textSecondary, fontSize = 14.sp, maxLines = 1)
         }
-        waypoint.arrival?.let { arrival ->
-            val value = Format.altitudeDifference(arrival.toDouble())
-            Text("${value.text} ${value.unit}",
-                 color = if (waypoint.reachable == true) colors.safe else colors.caution,
-                 style = XcsTheme.numberStyle, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        Column(horizontalAlignment = Alignment.End,
+               verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            waypoint.distance?.let {
+                val distance = Format.distance(it)
+                Text("${distance.text} ${distance.unit}", color = colors.text,
+                     style = XcsTheme.numberStyle, fontSize = 20.sp, maxLines = 1)
+            }
+            waypoint.arrival?.let { arrival ->
+                val value = Format.altitudeDifference(arrival.toDouble())
+                Text("${value.text} ${value.unit}",
+                     color = if (waypoint.reachable == true) colors.safe else colors.caution,
+                     style = XcsTheme.numberStyle, fontWeight = FontWeight.Bold,
+                     fontSize = 17.sp, maxLines = 1)
+            }
+        }
+        Box(Modifier
+                .size(56.dp)
+                .background(colors.selected, RoundedCornerShape(16.dp))
+                .clickable(role = Role.Button, onClickLabel = "$action ${waypoint.name}",
+                           onClick = onClick)
+                .semantics { contentDescription = "$action ${waypoint.name}" },
+            contentAlignment = Alignment.Center) {
+            Text(action, color = colors.onSelected, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

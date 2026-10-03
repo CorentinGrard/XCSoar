@@ -166,7 +166,7 @@ while waiting in `xcs_stop()`. For the iOS app (M8) this means the host's
 main thread must never block on the core while devices are open.
 
 ## D16 — Flight screen follows the "modern cockpit" design canvas
-**Status:** Accepted (2026-10-02)
+**Status:** Superseded by D19
 
 The flight screen follows the design canvas "XCSoar — modern cockpit"
 (claude.ai artifact DNgXpmeJEMwtP2HTs1qzNy): pale map ground, white
@@ -219,3 +219,34 @@ upstream (for both apps) if it ever goes away.
 The app only turns the sound on and off (`xcs_sound_set_option`, saved
 under upstream's profile keys) and makes the volume keys control the
 media stream.
+
+## D19 — Map first: the "Design rework" canvas replaces the modern cockpit
+**Status:** Accepted (2026-10-03)
+
+The design brief ("XCSoar Mobile — Product and Design Brief", claude.ai
+doc 76556a35-f3d5-43f3-acfb-8ee40fc07ff5) and the pilot's answers set the
+direction: gliders only; the phone is mostly a backup next to a
+certified vario; portrait first, landscape supported; same features as
+XCSoar, but a modern look of its own.  The design canvas "XCSoar Mobile —
+Design rework" (claude.ai artifact 5t6DJiHxmxJykMMzDUNvCA) draws it.
+
+- The map gets most of the screen (about 70 % in portrait, was 40 %).
+- The dark vario panel goes.  The vario is a bar on the map's left edge
+  (number, bar from zero, 30 s average marker, netto); final glide is a
+  bar on the right edge.  A backup instrument does not need half the
+  screen.
+- Sink is neutral grey, never orange: orange only ever means caution
+  (arrival below glide, airspace ahead).  Lift stays green.
+- No quick-action bar (ARCHITECTURE §7): it costs room for no gain.
+  MacCready stays one tap away; "Set MC" appears beside it in lift.
+- The Cruise / Circling switch leaves the flight screen: the tiles
+  follow the flight mode, and the menu has Auto / Cruise / Circling.
+- The menu is a sheet: four large in-flight buttons (Go to, Task, Flight
+  setup, Analysis), then a list for the ground (Aircraft & crew,
+  Flights, Data files, Settings, Replay).  Units, Map and Pilot &
+  WeGlide move to a Settings page, which lists the planned settings as
+  "Soon".
+- Go to: only each row's "Go" button acts, so a bumpy tap on the list
+  does not change the target.
+- Map buttons sit in one row along the bottom of the map; the north mark
+  is black, not red (red means warning).

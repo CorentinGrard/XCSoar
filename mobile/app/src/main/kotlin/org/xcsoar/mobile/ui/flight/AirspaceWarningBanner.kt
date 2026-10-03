@@ -3,6 +3,10 @@
 
 package org.xcsoar.mobile.ui.flight
 
+import android.os.SystemClock
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,14 +14,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
@@ -35,6 +44,8 @@ import kotlin.math.roundToInt
  * The most severe airspace warning, over everything else on the map
  * (overlays stack alert > caution > info): red inside, orange before.
  * "Ack" acknowledges it until it changes, "Day" for the rest of the day.
+ * With [hideTimer], a bar along the bottom counts down until it hides
+ * itself.
  */
 @Composable
 fun AirspaceWarningBanner(
@@ -42,13 +53,45 @@ fun AirspaceWarningBanner(
     more: Int,
     onAcknowledge: (day: Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    hideTimer: HideTimer? = null,
 ) {
     val colors = XcsTheme.colors
     val background = if (warning.inside) colors.warningContainer else colors.cautionContainer
     val shape = RoundedCornerShape(16.dp)
+    Column(modifier.clip(shape).background(background)) {
+        BannerContent(warning, more, onAcknowledge)
+        hideTimer?.let { HideCountdown(it) }
+    }
+}
+
+/** A bar that empties until the banner hides itself. */
+@Composable
+private fun HideCountdown(timer: HideTimer) {
+    val colors = XcsTheme.colors
+    fun remaining() = ((timer.start + timer.duration - SystemClock.uptimeMillis()).toFloat() /
+                       timer.duration).coerceIn(0f, 1f)
+    val progress = remember(timer) { Animatable(remaining()) }
+    LaunchedEffect(timer) {
+        progress.animateTo(0f, tween((remaining() * timer.duration).toInt(),
+                                     easing = LinearEasing))
+    }
+    Box(Modifier.fillMaxWidth().height(4.dp).background(colors.onAlert.copy(alpha = 0.3f))) {
+        Box(Modifier
+            .fillMaxWidth(progress.value)
+            .fillMaxHeight()
+            .background(colors.onAlert))
+    }
+}
+
+@Composable
+private fun BannerContent(
+    warning: AirspaceWarningInfo,
+    more: Int,
+    onAcknowledge: (day: Boolean) -> Unit,
+) {
+    val colors = XcsTheme.colors
     Row(
-        modifier
-            .background(background, shape)
+        Modifier
             .padding(start = 14.dp, end = 6.dp, top = 8.dp, bottom = 8.dp)
             .semantics { liveRegion = LiveRegionMode.Assertive },
         verticalAlignment = Alignment.CenterVertically,
