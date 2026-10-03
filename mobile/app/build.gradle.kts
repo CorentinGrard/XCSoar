@@ -40,6 +40,9 @@ android {
         }
     }
 
+    // the core's recorded data (e.g. analysis.json) for screenshot tests
+    sourceSets["test"].resources.srcDir("../core/src/test/resources")
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

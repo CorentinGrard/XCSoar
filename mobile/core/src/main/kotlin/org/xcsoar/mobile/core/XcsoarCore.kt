@@ -102,6 +102,9 @@ interface XcsoarCore {
      */
     suspend fun task(edited: Boolean): TaskInfo? = null
 
+    /** XCSoar's analysis pages; null if the core has not started. */
+    suspend fun analysis(): Analysis? = null
+
     /**
      * Change the task (`xcs_task_edit`); most operations need
      * [TaskOp.BEGIN] first.

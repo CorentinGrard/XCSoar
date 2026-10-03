@@ -23,7 +23,7 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** M4 field test (IGC logging on a takeoff), analysis pages.
+**Current focus:** M4 field test (IGC logging on a takeoff), L5 replay test.
 M5 is on hold: no external device to test with.
 
 ---
@@ -330,8 +330,16 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       shares one through a FileProvider.  List and share checked on a
       Pixel 7; **auto start/stop not yet seen on a real takeoff** (needs
       a car/walk test or test GPS fixes)
-- [ ] Analysis pages: barograph, climb history, task speed, contest (charts drawn
-      in Compose from JSON data)
+- [x] Analysis pages (Menu → Analysis): barograph, climb history, task
+      speed and contest, from XCSoar's FlightStatistics and contest
+      results (`xcs_get_analysis`, `core/host/CoreAnalysis.cpp`), charts
+      drawn in Compose; the numbers of upstream's captions (working band,
+      ceiling and climb trends, Vave / Vest, distance / score / time /
+      speed per contest result).  Refreshed every 5 s while shown.
+      Checked on a Pixel 7 during a replay.  Not yet: upstream's other
+      pages (vario histogram, thermal band, wind, polar, MacCready,
+      temperature trace, task, airspace cross-section) and the contest
+      path on the terrain map (it is drawn on a plain background)
 - [ ] **L5** instrumented replay test on an emulator in CI (nightly)
 - [ ] **Demo / field test:** car or walk test, then a real flight *next to* a
       certified instrument or the upstream XCSoar app
@@ -399,8 +407,10 @@ Newest first. One line per session: what was done and what's next.
   phone's pressure sensor already reached the core through upstream's
   code; QNH added to the C API and Flight setup, checked on a Pixel 7
   with XCSoar's automatic QNH.  TestCoreApi 146 checks pass.  M5 on hold
-  (no hardware); what is not done is listed under M5.  Next: analysis
-  pages, field test.
+  (no hardware); what is not done is listed under M5.  Analysis pages
+  (barograph, climb, task speed, contest) through `xcs_get_analysis`,
+  checked on a Pixel 7 during a replay; TestCoreApi 153 checks.  Next:
+  field test, L5.
 
 - 2026-10-02 — `FlightService`: the flight computer keeps running with the
   screen off or another app in front (location foreground service, wake

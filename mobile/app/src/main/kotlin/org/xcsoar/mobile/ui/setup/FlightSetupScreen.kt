@@ -152,7 +152,7 @@ fun FlightSetupContent(
 
 /** A read-only value, like the wing loading. */
 @Composable
-private fun ValueRow(label: String, value: Format.Value) {
+internal fun ValueRow(label: String, value: Format.Value) {
     val colors = XcsTheme.colors
     Row(Modifier
             .fillMaxWidth()

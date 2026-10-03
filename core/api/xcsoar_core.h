@@ -594,6 +594,16 @@ XCS_EXPORT xcs_status
 xcs_task_save(xcs_core *core, const char *name);
 
 /**
+ * The data of XCSoar's analysis pages (barograph, climb history, task
+ * speed, contest) as a JSON object (UTF-8, null-terminated); the
+ * format is described in core/host/CoreAnalysis.hpp.  Buffer rules as
+ * for xcs_get_data_status().
+ */
+XCS_EXPORT xcs_status
+xcs_get_analysis(xcs_core *core, char *buffer, size_t size,
+                 size_t *length_r);
+
+/**
  * Describe the configured data files and what was loaded from them, as
  * a JSON object (UTF-8, null-terminated):
  *

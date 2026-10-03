@@ -503,6 +503,15 @@ Java_org_xcsoar_mobile_NativeCore_nativeTaskGet(JNIEnv *env, jclass,
   });
 }
 
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeGetAnalysis(JNIEnv *env, jclass,
+                                                    jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_get_analysis(ToCore(core), buffer, size, length);
+  });
+}
+
 JNIEXPORT jint JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeTaskEdit(JNIEnv *, jclass,
                                                  jlong core, jint op,

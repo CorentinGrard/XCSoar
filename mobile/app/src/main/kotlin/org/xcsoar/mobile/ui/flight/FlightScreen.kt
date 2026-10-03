@@ -64,6 +64,7 @@ fun FlightScreen(
     onOpenFlights: () -> Unit = {},
     onOpenTask: () -> Unit = {},
     onOpenUnits: () -> Unit = {},
+    onOpenAnalysis: () -> Unit = {},
 ) {
     val state by viewModel.flightState.collectAsStateWithLifecycle()
     val lastEvent by viewModel.lastEvent.collectAsStateWithLifecycle()
@@ -90,6 +91,7 @@ fun FlightScreen(
             MenuAction("Go to waypoint", enabled = true, onClick = onOpenWaypoints),
             MenuAction("Task", enabled = true, onClick = onOpenTask),
             MenuAction("Flight setup", enabled = true, onClick = onOpenFlightSetup),
+            MenuAction("Analysis", enabled = true, onClick = onOpenAnalysis),
             MenuAction("Flights", enabled = true, onClick = onOpenFlights),
             MenuAction("Units", enabled = true, onClick = onOpenUnits),
             MenuAction("Data files", enabled = true, onClick = onOpenDataFiles),

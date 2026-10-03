@@ -126,6 +126,11 @@ TestNotStarted(xcs_core *core)
   ok1(xcs_set_ballast(core, 0) == XCS_ERROR_STATE);
   ok1(xcs_set_bugs(core, 1) == XCS_ERROR_STATE);
   ok1(xcs_set_qnh(core, 1013) == XCS_ERROR_STATE);
+  {
+    char buffer[16];
+    size_t length;
+    ok1(xcs_get_analysis(core, buffer, sizeof(buffer), &length) == XCS_ERROR_STATE);
+  }
   ok1(xcs_task_edit(core, XCS_TASK_BEGIN, 0, 0) == XCS_ERROR_STATE);
   ok1(xcs_units_set(core, 2, 10) == XCS_ERROR_STATE);
   ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO, 1) == XCS_ERROR_STATE);
@@ -438,6 +443,25 @@ TestStarted(xcs_core *core, Recorder &recorder)
     ok1(baro);
   }
 
+  /* the analysis pages after a whole flight */
+  {
+    size_t length;
+    ok1(xcs_get_analysis(core, nullptr, 0, &length) == XCS_ERROR_INVALID_ARGUMENT);
+
+    char small[16];
+    ok1(xcs_get_analysis(core, small, sizeof(small), &length) == XCS_ERROR_INVALID_ARGUMENT &&
+        length > sizeof(small));
+
+    std::string json(length + 1, '\0');
+    ok1(xcs_get_analysis(core, json.data(), json.size(), &length) == XCS_OK);
+    json.resize(length);
+    ok1(json.find("\"barograph\":{\"altitude\":[[") != std::string::npos);
+    ok1(json.find("\"thermals\":[[") != std::string::npos &&
+        json.find("\"average\":") != std::string::npos);
+    ok1(json.find("\"results\":[{") != std::string::npos &&
+        json.find("\"trace\":[[") != std::string::npos);
+  }
+
   ok1(recorder.HasEvent(XCS_GCE_TAKEOFF));
   ok1(recorder.HasEvent(XCS_GCE_FLIGHTMODE_CLIMB));
   ok1(recorder.HasEvent(XCS_GCE_FLIGHTMODE_CRUISE));
@@ -506,7 +530,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 14 + 6 + 49 + 15 + 35 + 11 + 7);
+  plan_tests(9 + 15 + 6 + 55 + 15 + 35 + 11 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);

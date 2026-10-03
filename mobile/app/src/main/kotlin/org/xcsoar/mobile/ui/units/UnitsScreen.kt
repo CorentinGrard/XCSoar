@@ -115,7 +115,7 @@ fun UnitsContent(
 
 /** One row of choices; the selected one filled. */
 @Composable
-private fun Segments(choices: List<Pair<Int, String>>, selected: Int, onSelect: (Int) -> Unit) {
+internal fun Segments(choices: List<Pair<Int, String>>, selected: Int, onSelect: (Int) -> Unit) {
     val colors = XcsTheme.colors
     Row(Modifier
             .fillMaxWidth()

@@ -14,6 +14,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.xcsoar.mobile.core.AirspaceWarningInfo
+import org.xcsoar.mobile.core.Analysis
 import org.xcsoar.mobile.core.CoreEvent
 import org.xcsoar.mobile.core.CoreEventType
 import org.xcsoar.mobile.core.DataFile
@@ -179,6 +180,12 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
         if (handle == 0L) return@withLock null
         withContext(Dispatchers.IO) { NativeCore.nativeTaskGet(handle, if (edited) 1 else 0) }
             ?.let(TaskInfo::parse)
+    }
+
+    override suspend fun analysis(): Analysis? = lock.withLock {
+        if (handle == 0L) return@withLock null
+        withContext(Dispatchers.IO) { NativeCore.nativeGetAnalysis(handle) }
+            ?.let(Analysis::parse)
     }
 
     override suspend fun editTask(op: TaskOp, index: Int, value: Double) =

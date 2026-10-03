@@ -38,6 +38,7 @@
 #include "CoreEventLoop.hpp"
 #include "CoreReceive.hpp"
 #include "CoreTask.hpp"
+#include "CoreAnalysis.hpp"
 #include "CoreUnits.hpp"
 
 #ifdef ANDROID
@@ -1051,6 +1052,18 @@ xcs_task_save(xcs_core *core, const char *name)
 
   return RunOnMain(*core, [name]{
     return CoreTask::Save(name) ? XCS_OK : XCS_ERROR_FAILED;
+  });
+}
+
+xcs_status
+xcs_get_analysis(xcs_core *core, char *buffer, size_t size,
+                 size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [buffer, size, length_r]{
+    return CopyJson(CoreAnalysis::Describe(), buffer, size, length_r);
   });
 }
 
