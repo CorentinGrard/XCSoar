@@ -15,6 +15,13 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.xcsoar.mobile.core.AirspaceWarningInfo
 import org.xcsoar.mobile.core.Analysis
+import org.xcsoar.mobile.core.Crew
+import org.xcsoar.mobile.core.PlaneEdit
+import org.xcsoar.mobile.core.PlaneList
+import org.xcsoar.mobile.core.WeGlideAircraft
+import org.xcsoar.mobile.core.WeGlideException
+import org.xcsoar.mobile.core.WeGlideFlight
+import org.xcsoar.mobile.core.WeGlideSettings
 import org.xcsoar.mobile.core.CoreEvent
 import org.xcsoar.mobile.core.CoreEventType
 import org.xcsoar.mobile.core.DataFile
@@ -187,6 +194,68 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
         withContext(Dispatchers.IO) { NativeCore.nativeGetAnalysis(handle) }
             ?.let(Analysis::parse)
     }
+
+    /** A JSON getter; null if the core has not started or it failed. */
+    private suspend fun <T> query(get: (Long) -> String?, parse: (String) -> T): T? =
+        lock.withLock {
+            if (handle == 0L) return@withLock null
+            withContext(Dispatchers.IO) { get(handle) }?.let(parse)
+        }
+
+    /** A blocking network call: parse throws WeGlideException for an error. */
+    private suspend fun <T> network(call: (Long) -> String?, parse: (String) -> T): T =
+        lock.withLock {
+            check(handle != 0L) { "core not started" }
+            val answer = withContext(Dispatchers.IO) { call(handle) }
+            parse(answer ?: throw WeGlideException("No answer"))
+        }
+
+    override suspend fun planes() = query(NativeCore::nativePlanesList, PlaneList::parse)
+
+    override suspend fun polars() =
+        query(NativeCore::nativePolarsList, PlaneList::parsePolars).orEmpty()
+
+    override suspend fun savePlane(plane: PlaneEdit): String = lock.withLock {
+        check(handle != 0L) { "core not started" }
+        withContext(Dispatchers.IO) {
+            NativeCore.nativePlaneSave(handle, plane.path, plane.registration,
+                                       plane.competitionId, plane.type, plane.polar,
+                                       plane.weGlideType, plane.doubleSeater)
+        } ?: error("xcs_plane_save failed")
+    }
+
+    override suspend fun activatePlane(path: String) =
+        command { NativeCore.nativePlaneActivate(it, path) }
+
+    override suspend fun deletePlane(path: String) =
+        command { NativeCore.nativePlaneDelete(it, path) }
+
+    override suspend fun crew() = query(NativeCore::nativeCrewGet, Crew::parse)
+
+    override suspend fun setCrew(pilot: String?, copilot: String?) =
+        command { NativeCore.nativeCrewSet(it, pilot, copilot) }
+
+    override suspend fun weGlideSettings() =
+        query(NativeCore::nativeWeGlideGet, WeGlideSettings::parse)
+
+    override suspend fun setWeGlideSettings(settings: WeGlideSettings) =
+        command {
+            NativeCore.nativeWeGlideSet(it, settings.enabled, settings.pilotId,
+                                        settings.birthdate)
+        }
+
+    override suspend fun searchWeGlideAircraft(query: String, max: Int) =
+        query({ NativeCore.nativeWeGlideAircraftSearch(it, query, max) },
+              WeGlideAircraft::parseList).orEmpty()
+
+    override suspend fun updateWeGlideAircraftList() =
+        network(NativeCore::nativeWeGlideAircraftUpdate) { WeGlideException.check(it); Unit }
+
+    override suspend fun weGlideAircraft(id: Int) =
+        network({ NativeCore.nativeWeGlideAircraftGet(it, id) }, WeGlideAircraft::parse)
+
+    override suspend fun uploadToWeGlide(igcPath: String) =
+        network({ NativeCore.nativeWeGlideUpload(it, igcPath) }, WeGlideFlight::parse)
 
     override suspend fun editTask(op: TaskOp, index: Int, value: Double) =
         command { NativeCore.nativeTaskEdit(it, op.code, index, value) }

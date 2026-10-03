@@ -40,6 +40,7 @@ TestReader()
   ok1(equals(plane.max_speed, 41.666));
   ok1(equals(plane.wing_area, 9.8));
   ok1(equals(plane.weglide_glider_type, 261));
+  ok1(!plane.double_seater);
 
   plane = Plane();
   PlaneGlue::ReadFile(plane, Path("test/data/D-4449dry.xcp"));
@@ -69,6 +70,7 @@ TestWriter()
   plane.max_speed = 41.666;
   plane.wing_area = 9.8;
   plane.weglide_glider_type = 160;
+  plane.double_seater = true;
 
   PlaneGlue::WriteFile(plane, Path("output/D-4449.xcp"));
 
@@ -78,7 +80,7 @@ TestWriter()
   bool found1 = false, found2 = false, found3 = false, found4 = false;
   bool found5 = false, found6 = false, found7 = false, found8 = false;
   bool found9 = false, found10 = false, found11 = false, found12 = false;
-  bool found13 = false, found14 = false;
+  bool found13 = false, found14 = false, found15 = false;
 
   char *line;
   while ((line = reader.ReadLine()) != NULL) {
@@ -110,11 +112,13 @@ TestWriter()
       found13 = true;
     if (StringIsEqual(line, "PolarDryMass=\"302.000000\""))
       found14 = true;
+    if (StringIsEqual(line, "DoubleSeater=\"1\""))
+      found15 = true;
 
     count++;
   }
 
-  ok1(count == 14);
+  ok1(count == 15);
   ok1(found1);
   ok1(found2);
   ok1(found3);
@@ -129,11 +133,16 @@ TestWriter()
   ok1(found12);
   ok1(found13);
   ok1(found14);
+  ok1(found15);
+
+  Plane read_back{};
+  ok1(PlaneGlue::ReadFile(read_back, Path("output/D-4449.xcp")) &&
+      read_back.double_seater);
 }
 
 int main()
 try {
-  plan_tests(35);
+  plan_tests(38);
 
   TestReader();
   TestWriter();

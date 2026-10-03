@@ -3,6 +3,7 @@
 
 package org.xcsoar.mobile
 
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Intent
 import android.media.AudioManager
@@ -14,6 +15,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -30,6 +32,12 @@ import org.xcsoar.mobile.ui.data.DownloadScreen
 import org.xcsoar.mobile.ui.data.DownloadViewModel
 import org.xcsoar.mobile.ui.data.DataFilesViewModel
 import org.xcsoar.mobile.ui.analysis.AnalysisScreen
+import org.xcsoar.mobile.ui.crew.CrewScreen
+import org.xcsoar.mobile.ui.crew.CrewViewModel
+import org.xcsoar.mobile.ui.crew.PilotScreen
+import org.xcsoar.mobile.ui.crew.PilotViewModel
+import org.xcsoar.mobile.ui.crew.PlaneEditScreen
+import org.xcsoar.mobile.ui.crew.PlaneEditViewModel
 import org.xcsoar.mobile.ui.analysis.AnalysisViewModel
 import org.xcsoar.mobile.ui.flight.FlightScreen
 import org.xcsoar.mobile.ui.map.MapSettingsScreen
@@ -52,7 +60,8 @@ import org.xcsoar.mobile.ui.theme.XcsTheme
 import java.io.File
 
 private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS,
-                            TASK, TASK_FILES, TASK_ADD_POINT, UNITS, ANALYSIS }
+                            TASK, TASK_FILES, TASK_ADD_POINT, UNITS, ANALYSIS,
+                            CREW, PLANE_EDIT, PILOT }
 
 class MainActivity : ComponentActivity() {
     private val app get() = application as XcsoarApp
@@ -138,7 +147,7 @@ class MainActivity : ComponentActivity() {
                 })
 
                 val flightsViewModel: FlightsViewModel = viewModel(factory = viewModelFactory {
-                    initializer { FlightsViewModel(app::flightLogs) }
+                    initializer { FlightsViewModel(app::flightLogs, app.core) }
                 })
 
                 val taskViewModel: TaskViewModel = viewModel(factory = viewModelFactory {
@@ -158,11 +167,37 @@ class MainActivity : ComponentActivity() {
                     initializer { AnalysisViewModel(app.anyCore) }
                 })
 
+                val crewViewModel: CrewViewModel = viewModel(factory = viewModelFactory {
+                    initializer { CrewViewModel(app.anyCore) }
+                })
+                val planeEditViewModel: PlaneEditViewModel = viewModel(factory = viewModelFactory {
+                    initializer { PlaneEditViewModel(app.anyCore) }
+                })
+                val pilotViewModel: PilotViewModel = viewModel(factory = viewModelFactory {
+                    initializer { PilotViewModel(app.anyCore) }
+                })
+
                 LaunchedEffect(flightViewModel) {
                     flightViewModel.alerts.collect { alerts.play(it) }
                 }
 
-                var screen by rememberSaveable { mutableStateOf(Screen.FLIGHT) }
+                // once per app start: the plane and crew of this flight
+                var screen by rememberSaveable {
+                    mutableStateOf(if (app.crewChosen || app.core == null) Screen.FLIGHT
+                                   else Screen.CREW)
+                }
+                /* the crew screen was opened from the menu (it has Back) */
+                var crewFromMenu by rememberSaveable { mutableStateOf(false) }
+                val crewDone = {
+                    app.crewChosen = true
+                    screen = Screen.FLIGHT
+                }
+                if (screen == Screen.CREW && !crewFromMenu) {
+                    // never hold up a flight: the app restarted in the air
+                    val flying = flightViewModel.flightState.collectAsState().value?.flying
+                    LaunchedEffect(flying) { if (flying == true) crewDone() }
+                }
+
                 when (screen) {
                     Screen.FLIGHT -> FlightScreen(
                         flightViewModel,
@@ -174,7 +209,35 @@ class MainActivity : ComponentActivity() {
                         onOpenTask = { screen = Screen.TASK },
                         onOpenUnits = { screen = Screen.UNITS },
                         onOpenAnalysis = { screen = Screen.ANALYSIS },
+                        onOpenCrew = {
+                            crewFromMenu = true
+                            screen = Screen.CREW
+                        },
+                        onOpenPilot = { screen = Screen.PILOT },
                     )
+                    Screen.CREW -> CrewScreen(
+                        crewViewModel,
+                        onEditPlane = { plane ->
+                            planeEditViewModel.open(plane)
+                            screen = Screen.PLANE_EDIT
+                        },
+                        onDone = crewDone,
+                        onBack = if (crewFromMenu) crewDone else null,
+                    )
+                    Screen.PLANE_EDIT -> PlaneEditScreen(
+                        planeEditViewModel,
+                        onSaved = { path ->
+                            crewViewModel.load(select = path)
+                            screen = Screen.CREW
+                        },
+                        onDeleted = {
+                            crewViewModel.load()
+                            screen = Screen.CREW
+                        },
+                        onBack = { screen = Screen.CREW },
+                    )
+                    Screen.PILOT -> PilotScreen(
+                        pilotViewModel, onBack = { screen = Screen.FLIGHT })
                     Screen.DATA_FILES -> DataFilesScreen(
                         dataViewModel,
                         onChoose = { kind ->
@@ -211,9 +274,19 @@ class MainActivity : ComponentActivity() {
                         pickViewModel, onDone = { screen = Screen.TASK },
                         title = "Add point", onPick = taskViewModel::add)
                     Screen.FLIGHTS -> FlightsScreen(
-                        flightsViewModel, onShare = ::share, onBack = { screen = Screen.FLIGHT })
+                        flightsViewModel, onShare = ::share, onOpenUrl = ::openUrl,
+                        onBack = { screen = Screen.FLIGHT })
                 }
             }
+        }
+    }
+
+    /** A web page, e.g. the flight on WeGlide, in the browser. */
+    private fun openUrl(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: ActivityNotFoundException) {
+            // no browser
         }
     }
 

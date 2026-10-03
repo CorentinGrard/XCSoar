@@ -41,6 +41,12 @@ struct Plane
   unsigned weglide_glider_type;
 
   /**
+   * Two seats: the pilot may fly with a co-pilot.  From WeGlide's
+   * aircraft data ("double_seater") when the type is chosen there.
+   */
+  bool double_seater;
+
+  /**
    * Is a plane profile file active (not the default plane)?
    * This is set when a plane profile file is loaded from Profile::GetPath("PlanePath").
    */

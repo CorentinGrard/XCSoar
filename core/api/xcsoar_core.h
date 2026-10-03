@@ -603,6 +603,94 @@ XCS_EXPORT xcs_status
 xcs_get_analysis(xcs_core *core, char *buffer, size_t size,
                  size_t *length_r);
 
+/*
+ * Planes and crew (core/host/CorePlanes.hpp has the JSON formats).
+ * Buffer rules as for xcs_get_data_status().
+ */
+
+/** The plane files, the active one and the one of the last take-off. */
+XCS_EXPORT xcs_status
+xcs_planes_list(xcs_core *core, char *buffer, size_t size,
+                size_t *length_r);
+
+/** XCSoar's built-in polars: a JSON array of names, by index. */
+XCS_EXPORT xcs_status
+xcs_polars_list(xcs_core *core, char *buffer, size_t size,
+                size_t *length_r);
+
+/**
+ * Create (empty @p path) or change a plane file and write its path
+ * (null-terminated) into @p buffer.  @p polar is an index into
+ * xcs_polars_list(), or -1 to keep the polar; a new plane needs one.
+ * The active plane is flown with the new values at once.
+ */
+XCS_EXPORT xcs_status
+xcs_plane_save(xcs_core *core, const char *path, const char *registration,
+               const char *competition_id, const char *type, int32_t polar,
+               uint32_t weglide_type, int double_seater,
+               char *buffer, size_t size, size_t *length_r);
+
+/** Fly this plane from now on (saved in the profile). */
+XCS_EXPORT xcs_status
+xcs_plane_activate(xcs_core *core, const char *path);
+
+/** Delete a plane file (not the active plane). */
+XCS_EXPORT xcs_status
+xcs_plane_delete(xcs_core *core, const char *path);
+
+/** The pilot, co-pilot and recent co-pilots. */
+XCS_EXPORT xcs_status
+xcs_crew_get(xcs_core *core, char *buffer, size_t size, size_t *length_r);
+
+/** Set the crew for the next IGC files; "" co-pilot: solo; NULL: keep. */
+XCS_EXPORT xcs_status
+xcs_crew_set(xcs_core *core, const char *pilot, const char *copilot);
+
+/*
+ * WeGlide (core/host/CoreWeGlide.hpp has the JSON formats).
+ *
+ * The functions marked "blocks" use the network: call them from a
+ * worker thread (XCS_ERROR_STATE on the core main thread).  When they
+ * fail with XCS_ERROR_FAILED, @p buffer holds {"error": "..."} with
+ * WeGlide's message, if it fits.
+ */
+
+/** {"enabled": …, "pilot_id": …, "birthdate": "YYYY-MM-DD"} */
+XCS_EXPORT xcs_status
+xcs_weglide_get(xcs_core *core, char *buffer, size_t size,
+                size_t *length_r);
+
+/** @p birthdate "YYYY-MM-DD" or ""; XCS_ERROR_INVALID_ARGUMENT if it
+    is not a date. */
+XCS_EXPORT xcs_status
+xcs_weglide_set(xcs_core *core, int enabled, uint32_t pilot_id,
+                const char *birthdate);
+
+/** Aircraft types from the downloaded list, matching @p query. */
+XCS_EXPORT xcs_status
+xcs_weglide_aircraft_search(xcs_core *core, const char *query, uint32_t max,
+                            char *buffer, size_t size, size_t *length_r);
+
+/** Download WeGlide's aircraft list.  Blocks. */
+XCS_EXPORT xcs_status
+xcs_weglide_aircraft_update(xcs_core *core, char *buffer, size_t size,
+                            size_t *length_r);
+
+/** One aircraft type, with "double_seater".  Blocks. */
+XCS_EXPORT xcs_status
+xcs_weglide_aircraft_get(xcs_core *core, uint32_t id, char *buffer,
+                         size_t size, size_t *length_r);
+
+/**
+ * Upload an IGC file to WeGlide with the pilot's settings and the
+ * plane that flew it.  XCS_ERROR_FAILED if WeGlide is not set up (see
+ * the error).  Blocks.  Never retry it for a small buffer: the result
+ * is small, and a second call uploads again.
+ */
+XCS_EXPORT xcs_status
+xcs_weglide_upload(xcs_core *core, const char *igc_path, char *buffer,
+                   size_t size, size_t *length_r);
+
 /**
  * Describe the configured data files and what was loaded from them, as
  * a JSON object (UTF-8, null-terminated):

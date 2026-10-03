@@ -15,6 +15,7 @@
 #include "Polar/PolarStore.hpp"
 #include "Polar/PolarFileGlue.hpp"
 #include "Plane/Plane.hpp"
+#include "Plane/PlaneGlue.hpp"
 #include "system/Path.hpp"
 #include "Language/Language.hpp"
 #include "UIGlobals.hpp"
@@ -153,24 +154,7 @@ PlanePolarWidget::ListClicked() noexcept
   if (result < 0)
     return;
 
-  const PolarStore::Item &item = internal_polars[list[result].int_value];
-
-  plane.polar_shape.reference_mass = item.reference_mass;
-  plane.empty_mass = item.empty_mass;
-  plane.max_ballast = item.max_ballast;
-
-  if (item.wing_area > 0.0)
-    plane.wing_area = item.wing_area;
-
-  if (item.v_no > 0.0)
-    plane.max_speed = item.v_no;
-
-  plane.polar_shape = item.ToPolarShape();
-
-  plane.polar_name = item.name;
-
-  if (item.contest_handicap > 0)
-    plane.handicap = item.contest_handicap;
+  PlaneGlue::ApplyPolar(plane, internal_polars[list[result].int_value]);
 
   Update();
 }

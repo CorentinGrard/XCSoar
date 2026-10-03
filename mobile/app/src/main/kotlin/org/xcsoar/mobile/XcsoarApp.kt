@@ -54,6 +54,9 @@ class XcsoarApp : Application() {
     /** The core every screen shares: the native one, else the fake one. */
     val anyCore: XcsoarCore by lazy { core ?: FakeXcsoarCore(appScope) }
 
+    /** The pilot chose the plane and crew since the app started. */
+    var crewChosen = false
+
     /**
      * Copy a file the user picked into XCSoarData, into the folder
      * XCSoar uses for its kind (GetFileTypeDefaultDir() in

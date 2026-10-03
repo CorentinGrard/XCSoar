@@ -66,6 +66,7 @@ PlaneGlue::Read(Plane &plane, KeyValueFileReader &reader)
   bool has_dump_time = false;
   bool has_max_speed = false;
   bool has_wing_area = false;
+  bool has_double_seater = false;
 
   KeyValuePair pair;
   while (reader.Read(pair)) {
@@ -102,6 +103,11 @@ PlaneGlue::Read(Plane &plane, KeyValueFileReader &reader)
       has_max_speed = ReadDouble(pair.value, plane.max_speed);
     } else if (!has_wing_area && StringIsEqual(pair.key, "WingArea")) {
       has_wing_area = ReadDouble(pair.value, plane.wing_area);
+    } else if (!has_double_seater &&
+               StringIsEqual(pair.key, "DoubleSeater")) {
+      unsigned value;
+      has_double_seater = ReadUnsigned(pair.value, value);
+      plane.double_seater = has_double_seater && value != 0;
     }
   }
 
@@ -134,6 +140,8 @@ PlaneGlue::Read(Plane &plane, KeyValueFileReader &reader)
     plane.max_speed = 55.555;
   if (!has_wing_area)
     plane.wing_area = 0;
+  if (!has_double_seater)
+    plane.double_seater = false;
 
   return true;
 }
@@ -189,6 +197,7 @@ PlaneGlue::Write(const Plane &plane, KeyValueFileWriter &writer)
   writer.Write("WingArea", tmp);
   tmp.Format("%u", (unsigned)plane.weglide_glider_type);
   writer.Write("WeGlideAircraftType", tmp);
+  writer.Write("DoubleSeater", plane.double_seater ? "1" : "0");
 }
 
 void

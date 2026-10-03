@@ -113,6 +113,8 @@ val upstreamJava = tasks.register<CopyIntoGenerated>("upstreamJava") {
         "SensorListener", "AndroidSensor", "PermissionManager", "SafeDestruct",
         // the map's text and textures
         "TextUtil", "BitmapUtil",
+        // system CA certificates for curl (WeGlide)
+        "CertificateUtil",
     ).map { xcsoarRoot.file("android/src/$it.java") })
     subDirectory.set("org/xcsoar")
 }

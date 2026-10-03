@@ -59,6 +59,7 @@
 #include "Logger/GlueFlightLogger.hpp"
 #include "Replay/Replay.hpp"
 #include "Plane/PlaneGlue.hpp"
+#include "CorePlanes.hpp"
 #include "FLARM/Glue.hpp"
 #include "NMEA/Aircraft.hpp"
 #include "Storage/StorageManager.hpp"
@@ -365,6 +366,10 @@ CoreProcessGlideComputerEvent(unsigned gce) noexcept
 {
   if (gce != GCE_TAKEOFF && gce != GCE_LANDING)
     return;
+
+  /* the picker suggests this plane next time */
+  if (gce == GCE_TAKEOFF && !is_simulator())
+    CorePlanes::RecordTakeoff();
 
   if (is_simulator() || backend_components == nullptr ||
       backend_components->igc_logger == nullptr)

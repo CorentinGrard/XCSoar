@@ -16,6 +16,7 @@
 #include "Android/Context.hpp"
 #include "Android/Environment.hpp"
 #include "Android/InternalSensors.hpp"
+#include "Android/CertificateUtil.hpp"
 #include "Android/NativeSensorListener.hpp"
 #include "java/Global.hxx"
 #include "java/Object.hxx"
@@ -132,6 +133,31 @@ GetJson(JNIEnv *env, F &&get) noexcept
   return status == XCS_OK ? env->NewStringUTF(buffer.c_str()) : nullptr;
 }
 
+/**
+ * A blocking network call's JSON: the answer, or {"error": ...} when
+ * it failed; never called twice (an upload would happen again).
+ */
+template<typename F>
+static jstring
+GetNetworkJson(JNIEnv *env, F &&get) noexcept
+{
+  std::string buffer(16384, '\0');
+  size_t length = 0;
+  const xcs_status status = get(buffer.data(), buffer.size(), &length);
+  if ((status == XCS_OK || status == XCS_ERROR_FAILED) &&
+      length < buffer.size())
+    return env->NewStringUTF(buffer.c_str());
+  return nullptr;
+}
+
+/** A string argument that may be null. */
+static Java::StringUTFChars
+OptionalUTFChars(JNIEnv *env, jstring s) noexcept
+{
+  return s != nullptr ? Java::String::GetUTFChars(env, s)
+                      : Java::StringUTFChars{nullptr};
+}
+
 extern "C" {
 
 JNIEXPORT jint JNICALL
@@ -151,6 +177,9 @@ JNI_OnLoad(JavaVM *vm, [[maybe_unused]] void *reserved)
   Environment::Initialise(env);
   NativeSensorListener::Initialise(env);
   InternalSensors::Initialise(env);
+
+  /* the system CA certificates for curl (Curl::Setup()), e.g. WeGlide */
+  CertificateUtil::Initialise(env);
 
   /* text and images of the map */
   AndroidBitmap::Initialise(env);
@@ -509,6 +538,149 @@ Java_org_xcsoar_mobile_NativeCore_nativeGetAnalysis(JNIEnv *env, jclass,
 {
   return GetJson(env, [core](char *buffer, size_t size, size_t *length){
     return xcs_get_analysis(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativePlanesList(JNIEnv *env, jclass,
+                                                   jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_planes_list(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativePolarsList(JNIEnv *env, jclass,
+                                                   jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_polars_list(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativePlaneSave(JNIEnv *env, jclass,
+                                                  jlong core, jstring path,
+                                                  jstring registration,
+                                                  jstring competition_id,
+                                                  jstring type, jint polar,
+                                                  jint weglide_type,
+                                                  jboolean double_seater)
+{
+  const auto p = Java::String::GetUTFChars(env, path);
+  const auto r = Java::String::GetUTFChars(env, registration);
+  const auto c = Java::String::GetUTFChars(env, competition_id);
+  const auto t = Java::String::GetUTFChars(env, type);
+  return GetJson(env, [&](char *buffer, size_t size, size_t *length){
+    return xcs_plane_save(ToCore(core), p.c_str(), r.c_str(), c.c_str(),
+                          t.c_str(), polar, weglide_type, double_seater,
+                          buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativePlaneActivate(JNIEnv *env, jclass,
+                                                      jlong core,
+                                                      jstring path)
+{
+  const auto p = Java::String::GetUTFChars(env, path);
+  return xcs_plane_activate(ToCore(core), p.c_str());
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativePlaneDelete(JNIEnv *env, jclass,
+                                                    jlong core, jstring path)
+{
+  const auto p = Java::String::GetUTFChars(env, path);
+  return xcs_plane_delete(ToCore(core), p.c_str());
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeCrewGet(JNIEnv *env, jclass,
+                                                jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_crew_get(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeCrewSet(JNIEnv *env, jclass,
+                                                jlong core, jstring pilot,
+                                                jstring copilot)
+{
+  const auto p = OptionalUTFChars(env, pilot);
+  const auto c = OptionalUTFChars(env, copilot);
+  return xcs_crew_set(ToCore(core), p.c_str(), c.c_str());
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWeGlideGet(JNIEnv *env, jclass,
+                                                   jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_weglide_get(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWeGlideSet(JNIEnv *env, jclass,
+                                                   jlong core,
+                                                   jboolean enabled,
+                                                   jint pilot_id,
+                                                   jstring birthdate)
+{
+  const auto b = Java::String::GetUTFChars(env, birthdate);
+  return xcs_weglide_set(ToCore(core), enabled, pilot_id, b.c_str());
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWeGlideAircraftSearch(JNIEnv *env,
+                                                              jclass,
+                                                              jlong core,
+                                                              jstring query,
+                                                              jint max)
+{
+  const auto q = Java::String::GetUTFChars(env, query);
+  return GetJson(env, [&](char *buffer, size_t size, size_t *length){
+    return xcs_weglide_aircraft_search(ToCore(core), q.c_str(), max,
+                                       buffer, size, length);
+  });
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWeGlideAircraftUpdate(JNIEnv *env,
+                                                              jclass,
+                                                              jlong core)
+{
+  return GetNetworkJson(env, [core](char *buffer, size_t size,
+                                    size_t *length){
+    return xcs_weglide_aircraft_update(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWeGlideAircraftGet(JNIEnv *env,
+                                                           jclass,
+                                                           jlong core,
+                                                           jint id)
+{
+  return GetNetworkJson(env, [core, id](char *buffer, size_t size,
+                                        size_t *length){
+    return xcs_weglide_aircraft_get(ToCore(core), id, buffer, size, length);
+  });
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWeGlideUpload(JNIEnv *env, jclass,
+                                                      jlong core,
+                                                      jstring igc_path)
+{
+  const auto p = Java::String::GetUTFChars(env, igc_path);
+  return GetNetworkJson(env, [&](char *buffer, size_t size, size_t *length){
+    return xcs_weglide_upload(ToCore(core), p.c_str(), buffer, size,
+                              length);
   });
 }
 

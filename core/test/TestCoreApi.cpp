@@ -127,6 +127,12 @@ TestNotStarted(xcs_core *core)
   ok1(xcs_set_bugs(core, 1) == XCS_ERROR_STATE);
   ok1(xcs_set_qnh(core, 1013) == XCS_ERROR_STATE);
   {
+    char buffer[64];
+    size_t length;
+    ok1(xcs_planes_list(core, buffer, sizeof(buffer), &length) == XCS_ERROR_STATE);
+    ok1(xcs_weglide_upload(core, FLIGHT, buffer, sizeof(buffer), &length) == XCS_ERROR_STATE);
+  }
+  {
     char buffer[16];
     size_t length;
     ok1(xcs_get_analysis(core, buffer, sizeof(buffer), &length) == XCS_ERROR_STATE);
@@ -331,6 +337,96 @@ UnitsJson(xcs_core *core)
   return buffer;
 }
 
+/** A JSON getter's answer, or "" if it failed. */
+template<typename F>
+static std::string
+GetJson(F &&get)
+{
+  static char buffer[65536];
+  size_t length = 0;
+  if (get(buffer, sizeof(buffer), &length) != XCS_OK)
+    return {};
+  return buffer;
+}
+
+static bool
+Contains(const std::string &json, const std::string &part)
+{
+  return json.find(part) != std::string::npos;
+}
+
+static void
+TestPlanesAndCrew(xcs_core *core)
+{
+  auto planes = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_planes_list(core, b, s, l);
+    });
+  };
+
+  ok1(Contains(planes(), "\"planes\":["));
+  ok1(GetJson([core](char *b, size_t s, size_t *l){
+    return xcs_polars_list(core, b, s, l);
+  }).starts_with("[\""));
+
+  char path[1024];
+  size_t length;
+  /* a new plane needs a polar */
+  ok1(xcs_plane_save(core, "", "D-TEST", "TT", "LS 4", -1, 0, 0,
+                     path, sizeof(path), &length) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_plane_save(core, "", "", "TT", "LS 4", 0, 0, 0,
+                     path, sizeof(path), &length) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_plane_save(core, "", "D-TEST", "TT", "LS 4", 0, 160, 0,
+                     path, sizeof(path), &length) == XCS_OK &&
+      Contains(path, "planes/D-TEST"));
+  ok1(Contains(planes(), "\"registration\":\"D-TEST\",\"competition_id\":\"TT\""));
+
+  ok1(xcs_plane_activate(core, "does/not/exist.xcp") == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_plane_activate(core, path) == XCS_OK);
+  ok1(Contains(planes(), std::string{"\"active\":\""} + path + "\""));
+
+  /* edit: two seats; the active plane keeps flying */
+  char saved[1024];
+  ok1(xcs_plane_save(core, path, "D-TEST", "TT", "Duo", -1, 160, 1,
+                     saved, sizeof(saved), &length) == XCS_OK &&
+      std::string{saved} == path);
+  ok1(Contains(planes(), "\"type\":\"Duo\"") &&
+      Contains(planes(), "\"double_seater\":true"));
+  ok1(xcs_plane_delete(core, path) == XCS_ERROR_INVALID_ARGUMENT);
+
+  auto crew = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_crew_get(core, b, s, l);
+    });
+  };
+  ok1(xcs_crew_set(core, "Jane Doe", "John Roe") == XCS_OK);
+  ok1(xcs_crew_set(core, nullptr, "Ann|Smith") == XCS_OK);
+  ok1(Contains(crew(), "\"pilot\":\"Jane Doe\",\"copilot\":\"Ann Smith\"") &&
+      Contains(crew(), "\"copilots\":[\"Ann Smith\",\"John Roe\""));
+  /* solo: no co-pilot, the recent ones stay */
+  ok1(xcs_crew_set(core, nullptr, "") == XCS_OK);
+  ok1(Contains(crew(), "\"copilot\":\"\"") &&
+      Contains(crew(), "\"copilots\":[\"Ann Smith\""));
+
+  auto weglide = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_weglide_get(core, b, s, l);
+    });
+  };
+  ok1(xcs_weglide_set(core, 1, 1234, "1980-02-30") == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_weglide_set(core, 1, 1234, "1980-05-31") == XCS_OK);
+  ok1(Contains(weglide(), "\"enabled\":true,\"pilot_id\":1234,\"birthdate\":\"1980-05-31\""));
+  ok1(!GetJson([core](char *b, size_t s, size_t *l){
+    return xcs_weglide_aircraft_search(core, "ls", 5, b, s, l);
+  }).empty());
+
+  /* not set up: fails before using the network */
+  ok1(xcs_weglide_set(core, 0, 1234, "1980-05-31") == XCS_OK);
+  char answer[512];
+  ok1(xcs_weglide_upload(core, FLIGHT, answer, sizeof(answer), &length) == XCS_ERROR_FAILED &&
+      Contains(answer, "\"error\":"));
+}
+
 static void
 TestUnits(xcs_core *core)
 {
@@ -530,7 +626,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 15 + 6 + 55 + 15 + 35 + 11 + 7);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -550,6 +646,7 @@ main()
   TestDataFiles(core);
   TestTask(core);
   TestUnits(core);
+  TestPlanesAndCrew(core);
   ok1(xcs_stop(core) == XCS_OK);
 
   /* the same core can be started again */

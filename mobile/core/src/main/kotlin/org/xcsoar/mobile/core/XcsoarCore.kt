@@ -105,6 +105,43 @@ interface XcsoarCore {
     /** XCSoar's analysis pages; null if the core has not started. */
     suspend fun analysis(): Analysis? = null
 
+    /** The plane files; null if the core has not started. */
+    suspend fun planes(): PlaneList? = null
+
+    /** XCSoar's built-in polars, by index. */
+    suspend fun polars(): List<String> = emptyList()
+
+    /** Create or change a plane; @return its path. */
+    suspend fun savePlane(plane: PlaneEdit): String = error("no planes")
+
+    /** Fly this plane from now on. */
+    suspend fun activatePlane(path: String) {}
+
+    suspend fun deletePlane(path: String) {}
+
+    /** The pilot and co-pilot for the IGC file; null if not started. */
+    suspend fun crew(): Crew? = null
+
+    /** Null keeps a name; an empty [copilot] means flying solo. */
+    suspend fun setCrew(pilot: String?, copilot: String?) {}
+
+    suspend fun weGlideSettings(): WeGlideSettings? = null
+
+    suspend fun setWeGlideSettings(settings: WeGlideSettings) {}
+
+    /** WeGlide aircraft types from the downloaded list. */
+    suspend fun searchWeGlideAircraft(query: String, max: Int = 50): List<WeGlideAircraft> =
+        emptyList()
+
+    /** Download WeGlide's aircraft list.  @throws WeGlideException */
+    suspend fun updateWeGlideAircraftList() {}
+
+    /** One type, with its number of seats.  @throws WeGlideException */
+    suspend fun weGlideAircraft(id: Int): WeGlideAircraft = error("no WeGlide")
+
+    /** Upload an IGC file.  @throws WeGlideException */
+    suspend fun uploadToWeGlide(igcPath: String): WeGlideFlight = error("no WeGlide")
+
     /**
      * Change the task (`xcs_task_edit`); most operations need
      * [TaskOp.BEGIN] first.

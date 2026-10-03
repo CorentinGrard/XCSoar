@@ -71,6 +71,24 @@ internal object NativeCore {
     /** @param which 0 active, 1 edited; @return JSON or null */
     @JvmStatic external fun nativeTaskGet(core: Long, which: Int): String?
     @JvmStatic external fun nativeGetAnalysis(core: Long): String?
+    @JvmStatic external fun nativePlanesList(core: Long): String?
+    @JvmStatic external fun nativePolarsList(core: Long): String?
+    /** @return the plane's path, or null on error */
+    @JvmStatic external fun nativePlaneSave(core: Long, path: String, registration: String,
+                                            competitionId: String, type: String, polar: Int,
+                                            weGlideType: Int, doubleSeater: Boolean): String?
+    @JvmStatic external fun nativePlaneActivate(core: Long, path: String): Int
+    @JvmStatic external fun nativePlaneDelete(core: Long, path: String): Int
+    @JvmStatic external fun nativeCrewGet(core: Long): String?
+    @JvmStatic external fun nativeCrewSet(core: Long, pilot: String?, copilot: String?): Int
+    @JvmStatic external fun nativeWeGlideGet(core: Long): String?
+    @JvmStatic external fun nativeWeGlideSet(core: Long, enabled: Boolean, pilotId: Int,
+                                             birthdate: String): Int
+    @JvmStatic external fun nativeWeGlideAircraftSearch(core: Long, query: String, max: Int): String?
+    /** Network calls: the answer or {"error": ...}; null if not started.  Block. */
+    @JvmStatic external fun nativeWeGlideAircraftUpdate(core: Long): String?
+    @JvmStatic external fun nativeWeGlideAircraftGet(core: Long, id: Int): String?
+    @JvmStatic external fun nativeWeGlideUpload(core: Long, igcPath: String): String?
     @JvmStatic external fun nativeTaskEdit(core: Long, op: Int, index: Int, value: Double): Int
     @JvmStatic external fun nativeTaskListFiles(core: Long): String?
     @JvmStatic external fun nativeTaskLoad(core: Long, path: String, index: Int): Int

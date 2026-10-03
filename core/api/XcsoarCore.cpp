@@ -39,6 +39,9 @@
 #include "CoreReceive.hpp"
 #include "CoreTask.hpp"
 #include "CoreAnalysis.hpp"
+#include "CorePlanes.hpp"
+#include "CoreWeGlide.hpp"
+#include "util/Exception.hxx"
 #include "CoreUnits.hpp"
 
 #ifdef ANDROID
@@ -1064,6 +1067,205 @@ xcs_get_analysis(xcs_core *core, char *buffer, size_t size,
 
   return RunOnMain(*core, [buffer, size, length_r]{
     return CopyJson(CoreAnalysis::Describe(), buffer, size, length_r);
+  });
+}
+
+/** A JSON getter on the core main thread. */
+template<typename F>
+static xcs_status
+GetJsonOnMain(xcs_core *core, char *buffer, size_t size, size_t *length_r,
+              F &&describe) noexcept
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [&]{
+    return CopyJson(describe(), buffer, size, length_r);
+  });
+}
+
+xcs_status
+xcs_planes_list(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r, CorePlanes::List);
+}
+
+xcs_status
+xcs_polars_list(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r,
+                       CorePlanes::ListPolars);
+}
+
+xcs_status
+xcs_plane_save(xcs_core *core, const char *path, const char *registration,
+               const char *competition_id, const char *type, int32_t polar,
+               uint32_t weglide_type, int double_seater,
+               char *buffer, size_t size, size_t *length_r)
+{
+  if (core == nullptr || path == nullptr || registration == nullptr ||
+      competition_id == nullptr || type == nullptr || buffer == nullptr ||
+      length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [&]{
+    const auto saved = CorePlanes::Save(path, registration, competition_id,
+                                        type, polar, weglide_type,
+                                        double_seater != 0);
+    if (saved.empty())
+      return XCS_ERROR_INVALID_ARGUMENT;
+    return CopyJson(saved, buffer, size, length_r);
+  });
+}
+
+xcs_status
+xcs_plane_activate(xcs_core *core, const char *path)
+{
+  if (core == nullptr || path == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [path]{
+    return CorePlanes::Activate(path) ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_plane_delete(xcs_core *core, const char *path)
+{
+  if (core == nullptr || path == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [path]{
+    return CorePlanes::Delete(path) ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_crew_get(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r,
+                       CorePlanes::DescribeCrew);
+}
+
+xcs_status
+xcs_crew_set(xcs_core *core, const char *pilot, const char *copilot)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [pilot, copilot]{
+    return CorePlanes::SetCrew(pilot, copilot)
+      ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_weglide_get(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r,
+                       CoreWeGlide::DescribeSettings);
+}
+
+xcs_status
+xcs_weglide_set(xcs_core *core, int enabled, uint32_t pilot_id,
+                const char *birthdate)
+{
+  if (core == nullptr || birthdate == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [enabled, pilot_id, birthdate]{
+    return CoreWeGlide::SetSettings(enabled != 0, pilot_id, birthdate)
+      ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_weglide_aircraft_search(xcs_core *core, const char *query, uint32_t max,
+                            char *buffer, size_t size, size_t *length_r)
+{
+  if (query == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return GetJsonOnMain(core, buffer, size, length_r, [query, max]{
+    return CoreWeGlide::SearchAircraft(query, max);
+  });
+}
+
+/**
+ * A blocking network call, on the caller's (worker) thread.  On error,
+ * the buffer gets {"error": message}.
+ */
+template<typename F>
+static xcs_status
+RunNetwork(xcs_core *core, char *buffer, size_t size, size_t *length_r,
+           F &&f) noexcept
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  if (!core->started || core->IsMainThread())
+    return XCS_ERROR_STATE;
+
+  try {
+    return CopyJson(f(), buffer, size, length_r);
+  } catch (...) {
+    const auto message = GetFullMessage(std::current_exception());
+    LogFmt("WeGlide: {}", message);
+    StringOutputStream os;
+    Json::Serialize(os, boost::json::object{{"error", message}});
+    CopyJson(os.GetValue(), buffer, size, length_r);
+    return XCS_ERROR_FAILED;
+  }
+}
+
+xcs_status
+xcs_weglide_aircraft_update(xcs_core *core, char *buffer, size_t size,
+                            size_t *length_r)
+{
+  return RunNetwork(core, buffer, size, length_r, []{
+    CoreWeGlide::UpdateAircraftList();
+    return std::string{"{}"};
+  });
+}
+
+xcs_status
+xcs_weglide_aircraft_get(xcs_core *core, uint32_t id, char *buffer,
+                         size_t size, size_t *length_r)
+{
+  if (id == 0)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunNetwork(core, buffer, size, length_r, [id]{
+    return CoreWeGlide::DescribeAircraft(id);
+  });
+}
+
+xcs_status
+xcs_weglide_upload(xcs_core *core, const char *igc_path, char *buffer,
+                   size_t size, size_t *length_r)
+{
+  if (igc_path == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  CoreWeGlide::UploadRequest request;
+  bool configured = false;
+  if (core != nullptr && !core->IsMainThread()) {
+    const auto status = RunOnMain(*core, [&]{
+      configured = CoreWeGlide::PrepareUpload(igc_path, request);
+      return XCS_OK;
+    });
+    if (status != XCS_OK)
+      return status;
+  }
+
+  return RunNetwork(core, buffer, size, length_r, [&]{
+    if (!configured)
+      throw std::runtime_error("Set your WeGlide pilot ID and date of "
+                               "birth first");
+    if (request.aircraft_id == 0)
+      throw std::runtime_error("Choose the WeGlide aircraft type of "
+                               "this plane first");
+    return CoreWeGlide::Upload(igc_path, request);
   });
 }
 

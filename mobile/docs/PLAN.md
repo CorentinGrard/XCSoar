@@ -378,11 +378,44 @@ the core already links but that has never run in this app:
   the fields, never seen with real data
 
 ## M6 — Settings & data
+- [x] Aircraft & crew: when the app opens (not when it restarts in the
+      air), the pilot picks the plane, the last one flown first, and for
+      a two-seater the co-pilot (solo, a recent one or a new one); also
+      Menu → Aircraft & crew.  Planes are XCSoar's .xcp files (profiles/
+      planes): registration, competition ID, type, built-in polar,
+      WeGlide type and a new "DoubleSeater" key, set from WeGlide's
+      `double_seater` when the type is picked.  The co-pilot goes to the
+      IGC header (HFCM2CREW2); the profile keeps the recent ones
+      ("MobileCoPilots") and the plane of the last take-off
+      ("MobileLastFlownPlane").  C API `xcs_planes_*`, `xcs_plane_*`,
+      `xcs_crew_*` (`core/host/CorePlanes.cpp`).  Checked on a Pixel 7
+- [~] WeGlide: Menu → Pilot & WeGlide (pilot name, pilot ID, date of
+      birth, XCSoar's own profile keys); aircraft types downloaded from
+      WeGlide; Flights → "Upload to WeGlide" with upstream's UploadFlight,
+      the aircraft found from the IGC file's registration.  `xcs_weglide_*`
+      (`core/host/CoreWeGlide.cpp`), network calls on a worker thread.
+      Aircraft list and type lookup checked on a Pixel 7; **no real upload
+      yet** (needs the pilot's own account and flight)
 - [ ] Settings screens backed by `xcs_settings_*` JSON sections: units, polar /
       plane, safety heights, airspace filters, audio, map, InfoBox pages
 - [ ] Profiles: list, switch, import existing `.prf`
 - [ ] File manager: download waypoints, airspace, maps from the XCSoar repository
 - [ ] Translations: convert `po/*.po` → Android `strings.xml` at build time
+
+### Not done: aircraft, crew and WeGlide
+
+- Co-pilot on WeGlide: the upload form has no co-pilot; WeGlide's
+  `PATCH /v1/flightdetail/{id}` (`co_user_id`, `co_user_name`) needs a
+  logged-in WeGlide account (OAuth), which XCSoar does not have.  The
+  co-pilot is only in the IGC header
+- Automatic upload after landing (upstream's "WeGlideAutomaticUpload" is
+  for flights downloaded from loggers)
+- Remembering which flights were uploaded (the list forgets on restart;
+  WeGlide refuses a second upload of the same file)
+- "Last flown" is recorded at take-off: not yet seen on a real take-off
+- Plane editor: no custom polar, masses, ballast, handicap or speed
+  editing yet (upstream's PlanePolarDialog import / custom polar)
+- WeGlide tasks (upstream's WeGlideTasksPanel / DownloadTask)
 
 ## M7 — Polish & beta
 - [ ] Cockpit UX pass: touch targets ≥ 56 dp, sunlight contrast audit,
@@ -401,6 +434,14 @@ the core already links but that has never run in this app:
 
 ## Log
 Newest first. One line per session: what was done and what's next.
+
+- 2026-10-03 — Aircraft & crew picker at app start (last plane flown,
+  co-pilot for two-seaters), plane editor with built-in polars and
+  WeGlide types, Pilot & WeGlide settings, upload to WeGlide from the
+  flight list.  Fixed: curl crashed on Android (CertificateUtil was not
+  initialised).  TestCoreApi 178 checks, TestPlanes 38.  Checked on a
+  Pixel 7 with a test plane (removed again).  Next: a real WeGlide
+  upload by the pilot, field test.
 
 - 2026-10-03 — CI: the Gradle cache key is computed before the build
   (its post step failed and skipped saving every cache).  Barometer: the
