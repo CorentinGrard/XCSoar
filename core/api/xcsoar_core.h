@@ -756,6 +756,55 @@ xcs_plane_save(xcs_core *core, const char *path, const char *registration,
                uint32_t weglide_type, int double_seater,
                char *buffer, size_t size, size_t *length_r);
 
+/**
+ * One of XCSoar's built-in polars (an index into xcs_polars_list()) with
+ * the plane values it brings, as a JSON object:
+ *
+ *   {"name": "LS-4", "reference_mass": 361.0, "empty_mass": 220.0,
+ *    "max_ballast": 120.0, "wing_area": 10.5, "max_speed": 0.0,
+ *    "handicap": 104}
+ *
+ * kg, litres, m², m/s; 0 where the polar does not say.
+ */
+XCS_EXPORT xcs_status
+xcs_polar_get(xcs_core *core, uint32_t index, char *buffer, size_t size,
+              size_t *length_r);
+
+/** A plane's masses, ballast and limits (XCSoar's plane dialogs). */
+typedef struct xcs_plane_details {
+  /** sizeof(xcs_plane_details) */
+  uint32_t struct_size;
+  /** s, 10..300: time to dump full ballast */
+  uint32_t dump_time;
+  /** %, 50..150 */
+  uint32_t handicap;
+  uint32_t reserved;
+  /** kg, 0..1000: the rigged glider */
+  double empty_mass;
+  /** kg, 1..1000: the polar's reference mass */
+  double reference_mass;
+  /** litres, 0..500 */
+  double max_ballast;
+  /** m/s, 0..160: limit for speed to fly; 0 none */
+  double max_speed;
+  /** m², 0..40 */
+  double wing_area;
+} xcs_plane_details;
+
+/** Change a plane file's details; the active plane is flown with them at
+    once.  XCS_ERROR_INVALID_ARGUMENT for a value out of range. */
+XCS_EXPORT xcs_status
+xcs_plane_set_details(xcs_core *core, const char *path,
+                      const xcs_plane_details *details);
+
+/** kg, 0..300: all on board but the empty glider and the water, for this
+    flight; also the default for the next start [CrewWeightTemplate]. */
+XCS_EXPORT xcs_status
+xcs_set_crew_mass(xcs_core *core, double kg);
+
+XCS_EXPORT xcs_status
+xcs_get_crew_mass(xcs_core *core, double *kg_r);
+
 /** Fly this plane from now on (saved in the profile). */
 XCS_EXPORT xcs_status
 xcs_plane_activate(xcs_core *core, const char *path);

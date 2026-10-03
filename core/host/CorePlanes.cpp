@@ -92,6 +92,13 @@ CorePlanes::List() noexcept
       {"polar_name", plane.polar_name.c_str()},
       {"weglide_type", plane.weglide_glider_type},
       {"double_seater", plane.double_seater},
+      {"empty_mass", plane.empty_mass},
+      {"reference_mass", plane.polar_shape.reference_mass},
+      {"max_ballast", plane.max_ballast},
+      {"dump_time", plane.dump_time},
+      {"max_speed", plane.max_speed},
+      {"wing_area", plane.wing_area},
+      {"handicap", plane.handicap},
     });
 
   return Serialize(boost::json::object{
@@ -108,6 +115,60 @@ CorePlanes::ListPolars() noexcept
   for (const auto &item : PolarStore::GetAll())
     a.emplace_back(item.name);
   return Serialize(a);
+}
+
+std::string
+CorePlanes::DescribePolar(unsigned index) noexcept
+{
+  const auto polars = PolarStore::GetAll();
+  if (index >= polars.size())
+    return {};
+
+  const auto &item = polars[index];
+  return Serialize(boost::json::object{
+    {"name", item.name},
+    {"reference_mass", item.reference_mass},
+    {"empty_mass", double(item.empty_mass)},
+    {"max_ballast", item.max_ballast},
+    {"wing_area", item.wing_area},
+    {"max_speed", item.v_no},
+    {"handicap", item.contest_handicap},
+  });
+}
+
+bool
+CorePlanes::SetDetails(const char *path, const Details &d) noexcept
+try {
+  /* the ranges of PlaneDetailsDialog and PlanePolarDialog */
+  if (path == nullptr ||
+      !(d.empty_mass >= 0 && d.empty_mass <= 1000) ||
+      !(d.reference_mass >= 1 && d.reference_mass <= 1000) ||
+      !(d.max_ballast >= 0 && d.max_ballast <= 500) ||
+      !(d.max_speed >= 0 && d.max_speed <= 160) ||
+      !(d.wing_area >= 0 && d.wing_area <= 40) ||
+      d.dump_time < 10 || d.dump_time > 300 ||
+      d.handicap < 50 || d.handicap > 150)
+    return false;
+
+  Plane plane;
+  if (!PlaneGlue::ReadFile(plane, Path{path}))
+    return false;
+
+  plane.empty_mass = d.empty_mass;
+  plane.polar_shape.reference_mass = d.reference_mass;
+  plane.max_ballast = d.max_ballast;
+  plane.max_speed = d.max_speed;
+  plane.wing_area = d.wing_area;
+  plane.dump_time = d.dump_time;
+  plane.handicap = d.handicap;
+  PlaneGlue::WriteFile(plane, Path{path});
+
+  if (Profile::GetPathIsEqual(PLANE_PATH, Path{path}))
+    Activate(path);
+  return true;
+} catch (...) {
+  LogError(std::current_exception(), "Failed to save the plane");
+  return false;
 }
 
 /** Only letters, digits, '-' and '_', like PlaneGlue::CreateFromPolar(). */

@@ -90,6 +90,24 @@ object Format {
         return unit.toSi(user)
     }
 
+    /** Masses: whole units ("90 kg", "198 lb"). */
+    fun mass(kg: Double?): Value {
+        val unit = unit(UnitGroup.MASS)
+        return Value(kg?.let { formatter.mass(it, unit) } ?: INVALID, unit.name)
+    }
+
+    /** One mass step (5 kg or 5 lb) from [kg] in [direction] (±1), in kg. */
+    fun stepMass(kg: Double, direction: Int) = step(UnitGroup.MASS, kg, 5.0, direction)
+
+    /** One aircraft speed step (5 units) from [ms] in [direction] (±1), in m/s. */
+    fun stepSpeed(ms: Double, direction: Int) =
+        step(UnitGroup.HORIZONTAL_SPEED, ms, 5.0, direction)
+
+    private fun step(group: UnitGroup, si: Double, step: Double, direction: Int): Double {
+        val unit = unit(group)
+        return unit.toSi(round(unit.toUser(si) / step + direction) * step)
+    }
+
     /** Aircraft speeds, whole units. */
     fun speed(ms: Double?) = speed(ms, UnitGroup.HORIZONTAL_SPEED)
 

@@ -500,6 +500,62 @@ Java_org_xcsoar_mobile_NativeCore_nativeSafetyGetOption(JNIEnv *, jclass,
     : std::numeric_limits<double>::quiet_NaN();
 }
 
+/** @return the JSON of xcs_polar_get(), or null */
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativePolarGet(JNIEnv *env, jclass,
+                                                 jlong core, jint index)
+{
+  char buffer[1024];
+  size_t length;
+  return xcs_polar_get(ToCore(core), index, buffer, sizeof(buffer), &length)
+    == XCS_OK
+    ? env->NewStringUTF(buffer)
+    : nullptr;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativePlaneSetDetails(JNIEnv *env, jclass,
+                                                        jlong core,
+                                                        jstring path,
+                                                        jdouble empty_mass,
+                                                        jdouble reference_mass,
+                                                        jdouble max_ballast,
+                                                        jint dump_time,
+                                                        jdouble max_speed,
+                                                        jdouble wing_area,
+                                                        jint handicap)
+{
+  xcs_plane_details details{};
+  details.struct_size = sizeof(details);
+  details.empty_mass = empty_mass;
+  details.reference_mass = reference_mass;
+  details.max_ballast = max_ballast;
+  details.dump_time = dump_time;
+  details.max_speed = max_speed;
+  details.wing_area = wing_area;
+  details.handicap = handicap;
+  const auto p = Java::String::GetUTFChars(env, path);
+  return xcs_plane_set_details(ToCore(core), p.c_str(), &details);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeSetCrewMass(JNIEnv *, jclass,
+                                                    jlong core, jdouble kg)
+{
+  return xcs_set_crew_mass(ToCore(core), kg);
+}
+
+/** @return kg, or NaN on error */
+JNIEXPORT jdouble JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeGetCrewMass(JNIEnv *, jclass,
+                                                    jlong core)
+{
+  double kg;
+  return xcs_get_crew_mass(ToCore(core), &kg) == XCS_OK
+    ? kg
+    : std::numeric_limits<double>::quiet_NaN();
+}
+
 JNIEXPORT jint JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeSoundSetOption(JNIEnv *, jclass,
                                                        jlong core, jint option,

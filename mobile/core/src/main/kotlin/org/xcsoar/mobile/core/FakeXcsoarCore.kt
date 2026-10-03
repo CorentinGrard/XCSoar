@@ -134,6 +134,14 @@ class FakeXcsoarCore(
         safety[option] = value
     }
 
+    private var crew = 90.0
+
+    override suspend fun crewMass(): Double = crew
+
+    override suspend fun setCrewMass(kg: Double) {
+        crew = kg
+    }
+
     override suspend fun airspaceClasses(): List<AirspaceClassInfo> = classes
 
     override suspend fun setAirspaceClass(code: Int, display: Boolean, warning: Boolean) {

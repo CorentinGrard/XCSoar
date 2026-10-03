@@ -24,7 +24,49 @@ data class PlaneInfo(
     /** WeGlide's aircraft type; 0 if not chosen. */
     @SerialName("weglide_type") val weGlideType: Int = 0,
     @SerialName("double_seater") val doubleSeater: Boolean = false,
+    @SerialName("empty_mass") val emptyMass: Double = 0.0,
+    @SerialName("reference_mass") val referenceMass: Double = 0.0,
+    /** litres */
+    @SerialName("max_ballast") val maxBallast: Double = 0.0,
+    /** s to dump full ballast */
+    @SerialName("dump_time") val dumpTime: Int = 120,
+    /** m/s, the limit of speed to fly; 0 none */
+    @SerialName("max_speed") val maxSpeed: Double = 0.0,
+    /** m² */
+    @SerialName("wing_area") val wingArea: Double = 0.0,
+    /** % */
+    val handicap: Int = 100,
+) {
+    val details get() = PlaneDetails(emptyMass, referenceMass, maxBallast, dumpTime, maxSpeed,
+                                     wingArea, handicap)
+}
+
+/** A plane's masses, ballast and limits (`xcs_plane_details`), SI units. */
+data class PlaneDetails(
+    val emptyMass: Double,
+    val referenceMass: Double,
+    val maxBallast: Double,
+    val dumpTime: Int,
+    val maxSpeed: Double,
+    val wingArea: Double,
+    val handicap: Int,
 )
+
+/** One built-in polar and the plane values it brings (`xcs_polar_get`). */
+@Serializable
+data class PolarInfo(
+    val name: String,
+    @SerialName("reference_mass") val referenceMass: Double,
+    @SerialName("empty_mass") val emptyMass: Double = 0.0,
+    @SerialName("max_ballast") val maxBallast: Double = 0.0,
+    @SerialName("wing_area") val wingArea: Double = 0.0,
+    @SerialName("max_speed") val maxSpeed: Double = 0.0,
+    val handicap: Int = 0,
+) {
+    companion object {
+        fun parse(text: String): PolarInfo = json.decodeFromString(serializer(), text)
+    }
+}
 
 /** The planes, the active one and the one of the last take-off. */
 @Serializable

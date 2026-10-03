@@ -394,6 +394,33 @@ TestPlanesAndCrew(xcs_core *core)
       std::string{saved} == path);
   ok1(Contains(planes(), "\"type\":\"Duo\"") &&
       Contains(planes(), "\"double_seater\":true"));
+  /* the active plane's details, and the polar values they start from */
+  ok1(GetJson([core](char *b, size_t s, size_t *l){
+    return xcs_polar_get(core, 0, b, s, l);
+  }).find("\"reference_mass\":") != std::string::npos);
+  {
+    char buffer[64];
+    ok1(xcs_polar_get(core, 9999, buffer, sizeof(buffer), &length) == XCS_ERROR_INVALID_ARGUMENT);
+  }
+  xcs_plane_details details{};
+  details.struct_size = sizeof(details);
+  details.empty_mass = 230;
+  details.reference_mass = 350;
+  details.max_ballast = 100;
+  details.dump_time = 9;
+  details.handicap = 107;
+  ok1(xcs_plane_set_details(core, path, &details) == XCS_ERROR_INVALID_ARGUMENT);
+  details.dump_time = 120;
+  ok1(xcs_plane_set_details(core, path, &details) == XCS_OK);
+  ok1(Contains(planes(), "\"empty_mass\":2.3E2,\"reference_mass\":3.5E2,"
+                         "\"max_ballast\":1E2,\"dump_time\":120"));
+
+  double crew_mass = -1;
+  ok1(xcs_set_crew_mass(core, 301) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_crew_mass(core, 85) == XCS_OK);
+  ok1(xcs_get_crew_mass(core, &crew_mass) == XCS_OK && crew_mass == 85);
+  ok1(xcs_set_crew_mass(core, 90) == XCS_OK);
+
   ok1(xcs_plane_delete(core, path) == XCS_ERROR_INVALID_ARGUMENT);
 
   auto crew = [core]{
@@ -746,7 +773,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9);
 
   Recorder recorder;
   TestCreateArguments(recorder);

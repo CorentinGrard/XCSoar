@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.xcsoar.mobile.core.PlaneDetails
 import org.xcsoar.mobile.core.PlaneEdit
 import org.xcsoar.mobile.core.PlaneInfo
 import org.xcsoar.mobile.core.XcsoarCore
@@ -28,6 +29,8 @@ data class PlaneEditState(
     val weGlideType: Int = 0,
     val weGlideName: String = "",
     val doubleSeater: Boolean = false,
+    /** Masses, ballast and limits; null until the plane has a polar. */
+    val details: PlaneDetails? = null,
     val polars: List<String> = emptyList(),
     /** WeGlide's types and XCSoar's polars ([aircraftModels]). */
     val models: List<AircraftModel> = emptyList(),
@@ -56,7 +59,8 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
             type = plane?.type.orEmpty(),
             polarName = plane?.polarName.orEmpty(),
             weGlideType = plane?.weGlideType ?: 0,
-            doubleSeater = plane?.doubleSeater ?: false)
+            doubleSeater = plane?.doubleSeater ?: false,
+            details = plane?.details)
         viewModelScope.launch {
             val polars = core.polars()
             val all = core.searchWeGlideAircraft("", Int.MAX_VALUE)
@@ -78,9 +82,43 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
     fun setDoubleSeater(value: Boolean) = stateFlow.update { it.copy(doubleSeater = value) }
 
     /** One of the built-in polars, when the model has none (or another). */
-    fun pickPolar(index: Int) = stateFlow.update {
-        val name = it.polars[index]
-        it.copy(polar = index, polarName = name, type = it.type.ifBlank { name })
+    fun pickPolar(index: Int) {
+        stateFlow.update {
+            val name = it.polars[index]
+            it.copy(polar = index, polarName = name, type = it.type.ifBlank { name })
+        }
+        loadPolarDetails(index)
+    }
+
+    /** A detail changed by the pilot. */
+    fun setDetails(change: (PlaneDetails) -> PlaneDetails) =
+        stateFlow.update { s -> s.copy(details = s.details?.let(change)) }
+
+    /**
+     * The values a new polar brings, like XCSoar's PlaneGlue::ApplyPolar():
+     * the plane keeps its dump time, and its speed, area and handicap
+     * where the polar has none.
+     */
+    private fun loadPolarDetails(index: Int) {
+        viewModelScope.launch {
+            val info = try {
+                core.polar(index)
+            } catch (_: Exception) {
+                null
+            } ?: return@launch
+            stateFlow.update { s ->
+                if (s.polar != index) return@update s
+                val old = s.details
+                s.copy(details = PlaneDetails(
+                    emptyMass = info.emptyMass,
+                    referenceMass = info.referenceMass,
+                    maxBallast = info.maxBallast,
+                    dumpTime = old?.dumpTime ?: 120,
+                    maxSpeed = info.maxSpeed.takeIf { it > 0 } ?: old?.maxSpeed ?: 0.0,
+                    wingArea = info.wingArea.takeIf { it > 0 } ?: old?.wingArea ?: 0.0,
+                    handicap = info.handicap.takeIf { it > 0 } ?: old?.handicap ?: 100))
+            }
+        }
     }
 
     fun searchModels(query: String) =
@@ -117,6 +155,7 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
                     weGlideType = weGlide?.id ?: 0, weGlideName = weGlide?.name.orEmpty(),
                     busy = weGlide != null, error = null)
         }
+        model.polar?.let(::loadPolarDetails)
         if (weGlide == null) return
         viewModelScope.launch {
             try {
@@ -141,6 +180,7 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
                 val path = core.savePlane(PlaneEdit(
                     s.path, s.registration.trim(), s.competitionId.trim(), s.type.trim(),
                     s.polar, s.weGlideType, s.doubleSeater))
+                s.details?.let { core.setPlaneDetails(path, it) }
                 stateFlow.update { it.copy(busy = false) }
                 onSaved(path)
             } catch (e: Exception) {

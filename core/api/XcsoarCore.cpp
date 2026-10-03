@@ -1221,6 +1221,71 @@ xcs_polars_list(xcs_core *core, char *buffer, size_t size, size_t *length_r)
 }
 
 xcs_status
+xcs_polar_get(xcs_core *core, uint32_t index, char *buffer, size_t size,
+              size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [index, buffer, size, length_r]{
+    const auto json = CorePlanes::DescribePolar(index);
+    if (json.empty())
+      return XCS_ERROR_INVALID_ARGUMENT;
+    return CopyJson(json, buffer, size, length_r);
+  });
+}
+
+xcs_status
+xcs_plane_set_details(xcs_core *core, const char *path,
+                      const xcs_plane_details *details)
+{
+  if (core == nullptr || path == nullptr || details == nullptr ||
+      details->struct_size < sizeof(xcs_plane_details))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  const CorePlanes::Details d{
+    details->empty_mass, details->reference_mass, details->max_ballast,
+    details->max_speed, details->wing_area,
+    details->dump_time, details->handicap,
+  };
+  return RunOnMain(*core, [path, d]{
+    return CorePlanes::SetDetails(path, d)
+      ? XCS_OK
+      : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_set_crew_mass(xcs_core *core, double kg)
+{
+  if (core == nullptr || !(kg >= 0 && kg <= 300))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  /* like the crew row of dlgBasicSettings, and kept as the default
+     for the next start (LoggerConfigPanel's "Crew weight default") */
+  return RunOnMain(*core, [kg]{
+    ActionInterface::SetCrewMass(kg, true);
+    CommonInterface::SetComputerSettings().logger.crew_mass_template = kg;
+    Profile::Set(ProfileKeys::CrewWeightTemplate, kg);
+    Profile::Save();
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_get_crew_mass(xcs_core *core, double *kg_r)
+{
+  if (core == nullptr || kg_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [kg_r]{
+    *kg_r = CommonInterface::GetComputerSettings().polar.glide_polar_task
+      .GetCrewMass();
+    return XCS_OK;
+  });
+}
+
+xcs_status
 xcs_plane_save(xcs_core *core, const char *path, const char *registration,
                const char *competition_id, const char *type, int32_t polar,
                uint32_t weglide_type, int double_seater,

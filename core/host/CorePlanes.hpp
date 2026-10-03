@@ -20,7 +20,11 @@ namespace CorePlanes {
  *    "planes": [{"path": "/…/planes/D-1234.xcp",
  *                "registration": "D-1234", "competition_id": "XY",
  *                "type": "LS 4", "polar_name": "LS-4",
- *                "weglide_type": 160, "double_seater": false}, ...]}
+ *                "weglide_type": 160, "double_seater": false,
+ *                "empty_mass": 220.0, "reference_mass": 361.0,
+ *                "max_ballast": 120.0, "dump_time": 90,
+ *                "max_speed": 0.0, "wing_area": 10.5, "handicap": 104},
+ *               ...]}
  *
  * "active" and "last_flown" are empty when there is none (or the file
  * is gone).
@@ -31,6 +35,29 @@ List() noexcept;
 /** XCSoar's built-in polars, by index: ["206 Hornet", ...]. */
 std::string
 ListPolars() noexcept;
+
+/**
+ * One built-in polar with the plane values it brings (kg, litres, m²,
+ * m/s; 0 where it does not say), as xcs_polar_get() documents; empty
+ * for an index out of range.
+ */
+std::string
+DescribePolar(unsigned index) noexcept;
+
+/** A plane's masses, ballast and limits, SI units. */
+struct Details {
+  double empty_mass, reference_mass, max_ballast, max_speed, wing_area;
+  unsigned dump_time, handicap;
+};
+
+/**
+ * Change a plane file's details (ranges of XCSoar's plane dialogs); the
+ * active plane is flown with them at once.
+ *
+ * @return false for a value out of range or an I/O error
+ */
+bool
+SetDetails(const char *path, const Details &details) noexcept;
 
 /**
  * Create a plane (empty @p path) or change one.  @p polar is an index

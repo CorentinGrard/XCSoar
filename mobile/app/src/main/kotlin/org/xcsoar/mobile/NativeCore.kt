@@ -110,6 +110,15 @@ internal object NativeCore {
     @JvmStatic external fun nativeSafetySetOption(core: Long, option: Int, value: Double): Int
     /** @return the value, or NaN on error */
     @JvmStatic external fun nativeSafetyGetOption(core: Long, option: Int): Double
+    /** @return JSON or null */
+    @JvmStatic external fun nativePolarGet(core: Long, index: Int): String?
+    @JvmStatic external fun nativePlaneSetDetails(core: Long, path: String, emptyMass: Double,
+                                                  referenceMass: Double, maxBallast: Double,
+                                                  dumpTime: Int, maxSpeed: Double,
+                                                  wingArea: Double, handicap: Int): Int
+    @JvmStatic external fun nativeSetCrewMass(core: Long, kg: Double): Int
+    /** @return kg, or NaN on error */
+    @JvmStatic external fun nativeGetCrewMass(core: Long): Double
     @JvmStatic external fun nativeSoundSetOption(core: Long, option: Int, value: Int): Int
     /** @return the value, or Int.MIN_VALUE on error */
     @JvmStatic external fun nativeSoundGetOption(core: Long, option: Int): Int

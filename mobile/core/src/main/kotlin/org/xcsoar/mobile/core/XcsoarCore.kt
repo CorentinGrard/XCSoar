@@ -141,8 +141,20 @@ interface XcsoarCore {
     /** XCSoar's built-in polars, by index. */
     suspend fun polars(): List<String> = emptyList()
 
+    /** One built-in polar and the plane values it brings. */
+    suspend fun polar(index: Int): PolarInfo? = null
+
     /** Create or change a plane; @return its path. */
     suspend fun savePlane(plane: PlaneEdit): String = error("no planes")
+
+    /** Change a plane's masses, ballast and limits. */
+    suspend fun setPlaneDetails(path: String, details: PlaneDetails) {}
+
+    /** All on board but the empty glider and water, kg; null if unknown. */
+    suspend fun crewMass(): Double? = null
+
+    /** Set the crew mass for this flight (and the next start). */
+    suspend fun setCrewMass(kg: Double) {}
 
     /** Fly this plane from now on. */
     suspend fun activatePlane(path: String) {}

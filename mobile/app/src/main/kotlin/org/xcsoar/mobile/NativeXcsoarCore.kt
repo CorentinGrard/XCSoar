@@ -36,6 +36,8 @@ import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.AirspaceClassInfo
 import org.xcsoar.mobile.core.AirspaceOption
 import org.xcsoar.mobile.core.MapOption
+import org.xcsoar.mobile.core.PlaneDetails
+import org.xcsoar.mobile.core.PolarInfo
 import org.xcsoar.mobile.core.SafetyOption
 import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.WaypointFilter
@@ -263,6 +265,27 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun polars() =
         query(NativeCore::nativePolarsList, PlaneList::parsePolars).orEmpty()
+
+    override suspend fun polar(index: Int): PolarInfo? = lock.withLock {
+        if (handle == 0L) return@withLock null
+        withContext(Dispatchers.IO) { NativeCore.nativePolarGet(handle, index) }
+            ?.let(PolarInfo::parse)
+    }
+
+    override suspend fun setPlaneDetails(path: String, details: PlaneDetails) = command {
+        NativeCore.nativePlaneSetDetails(it, path, details.emptyMass, details.referenceMass,
+                                         details.maxBallast, details.dumpTime,
+                                         details.maxSpeed, details.wingArea, details.handicap)
+    }
+
+    override suspend fun crewMass(): Double? = lock.withLock {
+        if (handle == 0L) return@withLock null
+        withContext(Dispatchers.IO) { NativeCore.nativeGetCrewMass(handle) }
+            .takeIf { !it.isNaN() }
+    }
+
+    override suspend fun setCrewMass(kg: Double) =
+        command { NativeCore.nativeSetCrewMass(it, kg) }
 
     override suspend fun savePlane(plane: PlaneEdit): String = lock.withLock {
         check(handle != 0L) { "core not started" }
