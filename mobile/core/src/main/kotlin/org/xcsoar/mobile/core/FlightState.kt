@@ -76,7 +76,23 @@ data class FlightState(
     val bugs: Double = 1.0,
     /** kg/m², null if the plane's wing area is unknown. */
     val wingLoading: Double? = null,
-)
+
+    /**
+     * QNH, hPa; null until the pilot, a device or XCSoar's automatic QNH
+     * (on the ground) sets it.  Until then [baroAltitude] is null.
+     */
+    val qnh: Double? = null,
+    /** Static pressure, hPa; null without a barometer. */
+    val staticPressure: Double? = null,
+) {
+    companion object {
+        /** The QNH range of XCSoar's flight setup, hPa. */
+        const val MIN_QNH = 850.0
+        const val MAX_QNH = 1300.0
+        /** QNH of the standard atmosphere, hPa. */
+        const val STANDARD_QNH = 1013.25
+    }
+}
 
 /** One climb: average lift (m/s), height gained (m), time (s). */
 data class Thermal(val lift: Double, val gain: Double, val duration: Double)

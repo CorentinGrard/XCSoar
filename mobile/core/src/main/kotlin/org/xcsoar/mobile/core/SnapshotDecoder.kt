@@ -14,7 +14,7 @@ import java.nio.ByteOrder
  */
 object SnapshotDecoder {
     const val API_VERSION = 1
-    const val SIZE = 400
+    const val SIZE = 416
 
     // xcs_flight_snapshot field offsets
     private const val STRUCT_SIZE = 0
@@ -63,6 +63,8 @@ object SnapshotDecoder {
     private const val MAX_BALLAST = 376
     private const val BUGS = 384
     private const val WING_LOADING = 392
+    private const val QNH = 400
+    private const val STATIC_PRESSURE = 408
 
     // XCS_VALID_* bits
     const val VALID_TIME = 1 shl 0
@@ -87,6 +89,8 @@ object SnapshotDecoder {
     const val VALID_TASK_SPEED = 1 shl 19
     const val VALID_CURRENT_THERMAL = 1 shl 20
     const val VALID_LAST_THERMAL = 1 shl 21
+    const val VALID_QNH = 1 shl 22
+    const val VALID_STATIC_PRESSURE = 1 shl 23
 
     // XCS_FLAG_* bits
     const val FLAG_GPS_REAL = 1 shl 0
@@ -164,6 +168,8 @@ object SnapshotDecoder {
             maxBallast = d(MAX_BALLAST),
             bugs = d(BUGS),
             wingLoading = d(WING_LOADING).takeIf { it > 0 },
+            qnh = ifValid(VALID_QNH, QNH),
+            staticPressure = ifValid(VALID_STATIC_PRESSURE, STATIC_PRESSURE),
             gpsReal = flags and FLAG_GPS_REAL != 0,
             flying = flags and FLAG_FLYING != 0,
             circling = flags and FLAG_CIRCLING != 0,

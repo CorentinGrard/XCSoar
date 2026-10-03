@@ -235,6 +235,13 @@ Java_org_xcsoar_mobile_NativeCore_nativeSetBugs(JNIEnv *, jclass,
 }
 
 JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeSetQnh(JNIEnv *, jclass,
+                                               jlong core, jdouble hpa)
+{
+  return xcs_set_qnh(ToCore(core), hpa);
+}
+
+JNIEXPORT jint JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeReplayStart(JNIEnv *env, jclass,
                                                     jlong core, jstring path,
                                                     jdouble time_scale)

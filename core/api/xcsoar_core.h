@@ -86,6 +86,8 @@ enum {
   XCS_VALID_TASK_SPEED = 1u << 19,
   XCS_VALID_CURRENT_THERMAL = 1u << 20,
   XCS_VALID_LAST_THERMAL = 1u << 21,
+  XCS_VALID_QNH = 1u << 22,
+  XCS_VALID_STATIC_PRESSURE = 1u << 23,
 };
 
 /** Bits of xcs_flight_snapshot.flags. */
@@ -202,6 +204,16 @@ typedef struct xcs_flight_snapshot {
   double bugs;
   /** Wing loading, kg/m²; 0 if the plane's wing area is unknown. */
   double wing_loading;
+
+  /* appended in API version 1 (struct_size 416) */
+
+  /** QNH, hPa (XCS_VALID_QNH: set by the pilot, a device or XCSoar's
+      automatic QNH on the ground).  Without it, the standard
+      atmosphere, and baro_altitude is not valid. */
+  double qnh;
+  /** Static pressure, hPa (XCS_VALID_STATIC_PRESSURE): from a
+      barometer, the phone's or a device's. */
+  double static_pressure;
 } xcs_flight_snapshot;
 
 /*
@@ -332,6 +344,11 @@ xcs_set_ballast(xcs_core *core, double litres);
     to the devices. */
 XCS_EXPORT xcs_status
 xcs_set_bugs(xcs_core *core, double bugs);
+
+/** Set the QNH (hPa, 850..1300, the range of XCSoar's flight setup)
+    and send it to the devices. */
+XCS_EXPORT xcs_status
+xcs_set_qnh(xcs_core *core, double hpa);
 
 /**
  * XCSoar's units and the pilot's choice, for the app to format values

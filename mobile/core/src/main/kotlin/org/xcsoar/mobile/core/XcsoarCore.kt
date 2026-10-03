@@ -33,6 +33,9 @@ interface XcsoarCore {
     /** Bugs, 0.5..1 (1 = clean), as in [FlightState.bugs]. */
     suspend fun setBugs(bugs: Double)
 
+    /** QNH, hPa ([FlightState.MIN_QNH]..[FlightState.MAX_QNH]). */
+    suspend fun setQnh(hpa: Double)
+
     /**
      * Use [path] for [kind] (null removes it), save the profile and load
      * the data again.  Suspends while the core loads.

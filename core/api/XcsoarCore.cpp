@@ -70,6 +70,8 @@
 #include "Language/LanguageGlue.hpp"
 #include "Operation/Operation.hpp"
 #include "Operation/PopupOperationEnvironment.hpp"
+#include "Operation/MessageOperationEnvironment.hpp"
+#include "Device/MultipleDevices.hpp"
 #include "ui/event/Globals.hpp"
 #include "ui/event/Queue.hpp"
 #include "ui/event/Notify.hpp"
@@ -107,7 +109,8 @@ static_assert(offsetof(xcs_flight_snapshot, next_name) == 216);
 static_assert(offsetof(xcs_flight_snapshot, speed_to_fly) == 280);
 static_assert(offsetof(xcs_flight_snapshot, last_thermal_duration) == 360);
 static_assert(offsetof(xcs_flight_snapshot, ballast) == 368);
-static_assert(sizeof(xcs_flight_snapshot) == 400);
+static_assert(offsetof(xcs_flight_snapshot, qnh) == 400);
+static_assert(sizeof(xcs_flight_snapshot) == 416);
 
 #ifdef ANDROID
 /* xcs_map_orientation is XCSoar's MapOrientation */
@@ -314,6 +317,15 @@ FillSnapshot(xcs_flight_snapshot &s) noexcept
   s.max_ballast = polar.IsBallastable() ? polar.GetMaxBallast() : 0;
   s.bugs = settings.polar.bugs;
   s.wing_loading = polar.GetWingLoading();
+
+  s.qnh = settings.pressure.GetHectoPascal();
+  if (settings.pressure_available)
+    valid |= XCS_VALID_QNH;
+
+  if (basic.static_pressure_available) {
+    valid |= XCS_VALID_STATIC_PRESSURE;
+    s.static_pressure = basic.static_pressure.GetHectoPascal();
+  }
 
   /* the conditions of the matching InfoBoxes (src/InfoBoxes/Content) */
   if (const auto stf = GetSTFSpeed(basic, calculated)) {
@@ -682,6 +694,29 @@ xcs_set_bugs(xcs_core *core, double bugs)
 
   return RunOnMain(*core, [bugs]{
     ActionInterface::SetBugs(bugs, true);
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_set_qnh(xcs_core *core, double hpa)
+{
+  if (core == nullptr || !(hpa >= 850 && hpa <= 1300))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  /* ActionInterface::SetQNH() without its MainWindow and InfoBox
+     calls; the calculation thread gets the settings on the next
+     timer tick */
+  return RunOnMain(*core, [hpa]{
+    const auto qnh = AtmosphericPressure::HectoPascal(hpa);
+    auto &settings = CommonInterface::SetComputerSettings();
+    settings.pressure = qnh;
+    settings.pressure_available.Update(CommonInterface::Basic().clock);
+
+    if (backend_components && backend_components->devices) {
+      MessageOperationEnvironment env;
+      backend_components->devices->PutQNH(qnh, env);
+    }
     return XCS_OK;
   });
 }

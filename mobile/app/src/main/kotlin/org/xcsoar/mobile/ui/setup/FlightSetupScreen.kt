@@ -36,6 +36,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.xcsoar.mobile.core.FlightState
+import org.xcsoar.mobile.core.UnitGroup
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.flight.Caption
 import org.xcsoar.mobile.ui.flight.Stepper
@@ -49,16 +51,17 @@ fun FlightSetupScreen(viewModel: FlightSetupViewModel, onBack: () -> Unit) {
     val setup by viewModel.setup.collectAsStateWithLifecycle()
     BackHandler(onBack = onBack)
     FlightSetupContent(setup, viewModel::changeBallast, viewModel::setBallast,
-                       viewModel::changeBugs, onBack)
+                       viewModel::changeBugs, viewModel::changeQnh, onBack)
 }
 
-/** Water ballast, bugs and the resulting wing loading. */
+/** Water ballast, bugs, the resulting wing loading, and QNH. */
 @Composable
 fun FlightSetupContent(
     setup: FlightSetup?,
     onChangeBallast: (Double) -> Unit,
     onSetBallast: (Double) -> Unit,
     onChangeBugs: (Int) -> Unit,
+    onChangeQnh: (Int) -> Unit,
     onBack: () -> Unit,
 ) {
     val colors = XcsTheme.colors
@@ -114,20 +117,53 @@ fun FlightSetupContent(
              color = colors.textSecondary, fontSize = 15.sp,
              modifier = Modifier.padding(horizontal = 4.dp))
 
-        setup?.wingLoading?.let {
-            val value = Format.wingLoading(it)
-            Row(Modifier
-                    .fillMaxWidth()
-                    .background(colors.panel, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 14.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Text("Wing loading", color = colors.text, fontSize = 17.sp,
-                     fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Text("${value.text} ${value.unit}", color = colors.text,
-                     style = XcsTheme.numberStyle, fontSize = 20.sp,
-                     fontWeight = FontWeight.Bold)
+        setup?.wingLoading?.let { ValueRow("Wing loading", Format.wingLoading(it)) }
+
+        Caption("Altimeter", Modifier.padding(start = 4.dp))
+        val qnh = setup?.let { Format.pressure(it.qnh ?: FlightState.STANDARD_QNH) }
+        val qnhText = qnh?.text ?: Format.INVALID
+        val unit = Format.unit(UnitGroup.PRESSURE).name
+        Stepper("qnh", "QNH · $unit", qnhText, "QNH $qnhText $unit",
+                canDecrease = setup != null &&
+                    (setup.qnh ?: FlightState.STANDARD_QNH) > FlightState.MIN_QNH,
+                canIncrease = setup != null &&
+                    (setup.qnh ?: FlightState.STANDARD_QNH) < FlightState.MAX_QNH,
+                onDecrease = { onChangeQnh(-1) },
+                onIncrease = { onChangeQnh(+1) },
+                modifier = Modifier.fillMaxWidth())
+        if (setup != null) {
+            val hint = when {
+                setup.staticPressure == null ->
+                    "No barometer: XCSoar uses the GPS altitude. QNH still converts " +
+                        "flight levels for airspace."
+                setup.qnh == null ->
+                    "Not set yet: XCSoar sets it after a while on the ground at an " +
+                        "airfield, or set it here. Until then it uses the GPS altitude."
+                else -> null
             }
+            hint?.let {
+                Text(it, color = colors.textSecondary, fontSize = 15.sp,
+                     modifier = Modifier.padding(horizontal = 4.dp))
+            }
+            setup.baroAltitude?.let { ValueRow("Barometric altitude", Format.altitude(it)) }
         }
+    }
+}
+
+/** A read-only value, like the wing loading. */
+@Composable
+private fun ValueRow(label: String, value: Format.Value) {
+    val colors = XcsTheme.colors
+    Row(Modifier
+            .fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(12.dp))
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = colors.text, fontSize = 17.sp,
+             fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        Text("${value.text} ${value.unit}", color = colors.text,
+             style = XcsTheme.numberStyle, fontSize = 20.sp,
+             fontWeight = FontWeight.Bold)
     }
 }
 
@@ -162,6 +198,6 @@ private fun TextButton(
 private fun FlightSetupPreview() {
     XcsTheme(dark = false) {
         FlightSetupContent(FlightSetup(ballast = 80.0, maxBallast = 150.0, bugs = 0.9,
-                                       wingLoading = 38.2), {}, {}, {}, {})
+                                       wingLoading = 38.2), {}, {}, {}, {}, {})
     }
 }

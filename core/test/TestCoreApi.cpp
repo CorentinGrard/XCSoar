@@ -125,6 +125,7 @@ TestNotStarted(xcs_core *core)
   ok1(xcs_set_mac_cready(core, 1) == XCS_ERROR_STATE);
   ok1(xcs_set_ballast(core, 0) == XCS_ERROR_STATE);
   ok1(xcs_set_bugs(core, 1) == XCS_ERROR_STATE);
+  ok1(xcs_set_qnh(core, 1013) == XCS_ERROR_STATE);
   ok1(xcs_task_edit(core, XCS_TASK_BEGIN, 0, 0) == XCS_ERROR_STATE);
   ok1(xcs_units_set(core, 2, 10) == XCS_ERROR_STATE);
   ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO, 1) == XCS_ERROR_STATE);
@@ -380,6 +381,11 @@ TestStarted(xcs_core *core, Recorder &recorder)
   ok1(xcs_set_bugs(core, std::numeric_limits<double>::quiet_NaN()) == XCS_ERROR_INVALID_ARGUMENT);
   ok1(xcs_set_bugs(core, 0.8) == XCS_OK);
 
+  ok1(xcs_set_qnh(core, 849) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_qnh(core, 1301) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_qnh(core, std::numeric_limits<double>::quiet_NaN()) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_set_qnh(core, 1020) == XCS_OK);
+
   /* the host build always has a (possibly silent) vario sound */
   int32_t value = -1;
   ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO, 2) == XCS_ERROR_INVALID_ARGUMENT);
@@ -407,7 +413,7 @@ TestStarted(xcs_core *core, Recorder &recorder)
     ok1(recorder.replay_finished == 1);
 
     bool increasing = true, flew = false, located = false,
-      mc_kept = true, polar_kept = true;
+      mc_kept = true, polar_kept = true, qnh_kept = true, baro = false;
     uint64_t last = 0;
     for (const auto &snapshot : recorder.snapshots) {
       increasing = increasing && snapshot.sequence > last;
@@ -417,12 +423,19 @@ TestStarted(xcs_core *core, Recorder &recorder)
       mc_kept = mc_kept && equals(snapshot.mac_cready, 1.5);
       polar_kept = polar_kept && equals(snapshot.ballast, ballast) &&
         equals(snapshot.bugs, 0.8) && snapshot.wing_loading >= 0;
+      qnh_kept = qnh_kept && (snapshot.valid & XCS_VALID_QNH) &&
+        equals(snapshot.qnh, 1020);
+      /* the IGC file's pressure altitude, with the QNH set above */
+      baro = baro || ((snapshot.valid & XCS_VALID_STATIC_PRESSURE) &&
+                      (snapshot.valid & XCS_VALID_BARO_ALTITUDE));
     }
     ok1(increasing);
     ok1(flew);
     ok1(located);
     ok1(mc_kept);
     ok1(polar_kept);
+    ok1(qnh_kept);
+    ok1(baro);
   }
 
   ok1(recorder.HasEvent(XCS_GCE_TAKEOFF));
@@ -493,7 +506,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 13 + 6 + 43 + 15 + 35 + 11 + 7);
+  plan_tests(9 + 14 + 6 + 49 + 15 + 35 + 11 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);

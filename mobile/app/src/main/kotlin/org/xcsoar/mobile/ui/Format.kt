@@ -118,6 +118,23 @@ object Format {
         return Value(kgm2?.let { formatter.wingLoading(it, unit) } ?: INVALID, unit.name)
     }
 
+    /** Pressure like XCSoar's FormatPressure(): "1013" hPa, "29.92" inHg. */
+    fun pressure(hpa: Double?): Value {
+        val unit = unit(UnitGroup.PRESSURE)
+        return Value(hpa?.let { formatter.pressure(it, unit) } ?: INVALID, unit.name)
+    }
+
+    /**
+     * One QNH step from [hpa] in [direction] (±1; 0 only snaps to the
+     * grid), in hPa: XCSoar's GetPressureStep() (0.01 inHg, else 1).
+     */
+    fun stepPressure(hpa: Double, direction: Int): Double {
+        val unit = unit(UnitGroup.PRESSURE)
+        val step = if (unit.unit == UnitInfo.INCH_MERCURY) 0.01 else 1.0
+        val user = round(unit.toUser(hpa) / step + direction) * step
+        return unit.toSi(user)
+    }
+
     /** Hours and minutes, "2:05"; for flight time. */
     fun duration(s: Double?) = Value(
         s?.takeIf { it >= 0 }?.let {

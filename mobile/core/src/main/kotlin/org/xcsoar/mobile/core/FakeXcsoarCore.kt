@@ -36,6 +36,7 @@ class FakeXcsoarCore(
     private var macCready = 1.0
     private var ballast = 0.0
     private var bugs = 1.0
+    private var qnh: Double? = null
 
     override suspend fun start() {
         if (job != null) return
@@ -43,7 +44,7 @@ class FakeXcsoarCore(
             var second = 0
             var wasCircling = false
             while (true) {
-                val s = syntheticState(second, macCready).copy(ballast = ballast, bugs = bugs)
+                val s = syntheticState(second, macCready).copy(ballast = ballast, bugs = bugs, qnh = qnh)
                 state.value = s
                 if (s.circling != wasCircling) {
                     eventFlow.emit(CoreEvent.GlideComputer(
@@ -78,6 +79,12 @@ class FakeXcsoarCore(
         require(bugs in 0.5..1.0) { "bugs $bugs" }
         this.bugs = bugs
         state.value = state.value?.copy(bugs = bugs)
+    }
+
+    override suspend fun setQnh(hpa: Double) {
+        require(hpa in FlightState.MIN_QNH..FlightState.MAX_QNH) { "QNH $hpa" }
+        qnh = hpa
+        state.value = state.value?.copy(qnh = hpa)
     }
 
     private val mapOptions = mutableMapOf(
@@ -170,6 +177,7 @@ class FakeXcsoarCore(
                 lastThermal = Thermal(2.1, 420.0, 204.0),
                 maxBallast = FAKE_MAX_BALLAST,
                 wingLoading = 32.5,
+                staticPressure = 870.0,
             )
         }
     }

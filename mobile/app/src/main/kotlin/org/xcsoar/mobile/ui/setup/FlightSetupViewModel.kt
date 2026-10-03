@@ -11,37 +11,50 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.XcsoarCore
 import org.xcsoar.mobile.ui.Format
 import kotlin.math.abs
 
-/** What the flight setup screen shows; ballast and bugs as in FlightState. */
+/** What the flight setup screen shows; the values as in FlightState. */
 data class FlightSetup(
     val ballast: Double,
     val maxBallast: Double,
     val bugs: Double,
     val wingLoading: Double?,
+    /** null while not set: the standard atmosphere. */
+    val qnh: Double? = null,
+    /** null without a barometer. */
+    val staticPressure: Double? = null,
+    val baroAltitude: Double? = null,
 )
 
 /**
- * Ballast and bugs, like XCSoar's flight setup dialog.  A value the
+ * Ballast, bugs and QNH, like XCSoar's flight setup dialog.  A value the
  * pilot just set is shown until the core's snapshot has it, so quick
  * taps add up.
  */
 class FlightSetupViewModel(private val core: XcsoarCore) : ViewModel() {
     private val pendingBallast = MutableStateFlow<Double?>(null)
     private val pendingBugs = MutableStateFlow<Double?>(null)
+    private val pendingQnh = MutableStateFlow<Double?>(null)
 
     /** `null` until the core has started. */
     val setup: StateFlow<FlightSetup?> =
-        combine(core.flightState, pendingBallast, pendingBugs) { state, ballast, bugs ->
+        combine(core.flightState, pendingBallast, pendingBugs, pendingQnh) {
+                state, ballast, bugs, qnh ->
             state ?: return@combine null
             if (ballast != null && same(ballast, state.ballast))
                 pendingBallast.value = null
             if (bugs != null && same(bugs, state.bugs))
                 pendingBugs.value = null
+            if (qnh != null && state.qnh?.let { same(qnh, it) } == true)
+                pendingQnh.value = null
             FlightSetup(ballast ?: state.ballast, state.maxBallast,
-                        bugs ?: state.bugs, state.wingLoading)
+                        bugs ?: state.bugs, state.wingLoading,
+                        qnh ?: state.qnh, state.staticPressure,
+                        // computed with the old QNH until the core has the new one
+                        state.baroAltitude.takeIf { qnh == null })
         }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** Ballast ± [BALLAST_STEP] litres, clamped to the plane's maximum. */
@@ -74,6 +87,21 @@ class FlightSetupViewModel(private val core: XcsoarCore) : ViewModel() {
                 core.setBugs(value)
             } catch (_: Exception) {
                 pendingBugs.value = null
+            }
+        }
+    }
+
+    /** QNH one step up or down ([Format.stepPressure]), within XCSoar's range. */
+    fun changeQnh(direction: Int) {
+        val s = setup.value ?: return
+        val value = Format.stepPressure(s.qnh ?: FlightState.STANDARD_QNH, direction)
+            .coerceIn(FlightState.MIN_QNH, FlightState.MAX_QNH)
+        pendingQnh.value = value
+        viewModelScope.launch {
+            try {
+                core.setQnh(value)
+            } catch (_: Exception) {
+                pendingQnh.value = null
             }
         }
     }

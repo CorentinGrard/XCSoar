@@ -18,12 +18,13 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M2 | Android skeleton: replay an IGC, see live InfoBoxes | ◐ demo works on the emulator |
 | M3 | Moving map in the new app | ◐ map, gestures, hold card on the phone |
 | M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ all features in; field test and L5 left |
-| M5 | External devices: Bluetooth / BLE / USB, drivers, declaration | ☐ |
+| M5 | External devices: Bluetooth / BLE / USB, drivers, declaration | ☐ on hold: no hardware ([not done](#not-done-no-external-hardware)) |
 | M6 | Settings, profiles, data management | ☐ |
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** M4 field test (IGC logging on a takeoff), then M5 devices
+**Current focus:** M4 field test (IGC logging on a takeoff), analysis pages.
+M5 is on hold: no external device to test with.
 
 ---
 
@@ -276,7 +277,16 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       granted; removing the app from the recent apps stops it.  The core
       stays in `XcsoarApp`.  Checked on a Pixel 7 (Android 16): GPS fixes
       keep reaching the app with the screen off and another app in front
-- [ ] Internal GPS + barometer → core (reuse `InternalGPS.java`, `NonGPSSensors.java`)
+- [x] Internal GPS + barometer → core: upstream's `InternalGPS.java` and
+      `NonGPSSensors.java` (pressure through XCSoar's Kalman filter: vario,
+      static pressure).  Menu → Flight setup → QNH (850–1300 hPa, 1 hPa /
+      0.01 inHg steps, like XCSoar's dialog) and the barometric altitude;
+      snapshot `qnh` / `static_pressure` (struct_size 416),
+      `xcs_set_qnh`.  The baro altitude is only valid once QNH is known,
+      so until then XCSoar uses the GPS altitude.  Checked on a Pixel 7
+      (ICP20100 sensor): live vario indoors, XCSoar's automatic QNH set
+      1026 hPa about 25 s after start, flight screen on the baro altitude.
+      Not in the screen yet: XCSoar's forecast temperature
 - [x] MC / ballast / bugs: MC −/+ on the flight screen; Menu → Flight
       setup for water ballast (5 l steps, Empty / Full, up to the plane's
       maximum), bugs (5 % steps, 0–50 % like XCSoar) and the wing loading.
@@ -335,6 +345,30 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 - [ ] Task declaration to loggers (LX, FLARM, Volkslogger, …)
 - [ ] Test with real hardware you own (list it here): …
 
+### Not done: no external hardware
+
+On hold (2026-10-03): the pilot owns no external device, so nothing in M5
+gets built or tested until one is available.  Upstream XCSoar code that
+the core already links but that has never run in this app:
+
+- Ports: Bluetooth classic, BLE (Nordic UART, HM-10, BLE sensors), USB
+  serial, IOIO, TCP/UDP, and their Java classes (`BluetoothHelper`,
+  `UsbSerialHelper`, …) with their `Initialise()` calls
+- Device configuration: the profile's `DeviceA`..`DeviceF`, driver and
+  baud rate; a device list and setup screen; reconnect
+- Drivers sending settings out: `xcs_set_mac_cready`, `xcs_set_ballast`,
+  `xcs_set_bugs` and `xcs_set_qnh` call `PutMacCready` / `PutBallast` /
+  `PutBugs` / `PutQNH` on the devices, and XCSoar's automatic QNH calls
+  `PutQNH` / `PutElevation`, but no device has ever received them
+- Settings coming in from devices (QNH, MC, ballast, bugs from a vario
+  via `ApplyExternalSettings`): untested
+- FLARM: traffic on the map, radar screen, collision alarm banner and
+  sound (needs snapshot or event API for traffic)
+- Task declaration to loggers (LX, FLARM, Volkslogger, …) and IGC
+  download from loggers
+- Airspeed, TE vario and netto from an external vario: the snapshot has
+  the fields, never seen with real data
+
 ## M6 — Settings & data
 - [ ] Settings screens backed by `xcs_settings_*` JSON sections: units, polar /
       plane, safety heights, airspace filters, audio, map, InfoBox pages
@@ -359,6 +393,14 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 
 ## Log
 Newest first. One line per session: what was done and what's next.
+
+- 2026-10-03 — CI: the Gradle cache key is computed before the build
+  (its post step failed and skipped saving every cache).  Barometer: the
+  phone's pressure sensor already reached the core through upstream's
+  code; QNH added to the C API and Flight setup, checked on a Pixel 7
+  with XCSoar's automatic QNH.  TestCoreApi 146 checks pass.  M5 on hold
+  (no hardware); what is not done is listed under M5.  Next: analysis
+  pages, field test.
 
 - 2026-10-02 — `FlightService`: the flight computer keeps running with the
   screen off or another app in front (location foreground service, wake

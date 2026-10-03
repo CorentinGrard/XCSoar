@@ -74,6 +74,34 @@ class FormatTest {
     }
 
     @Test
+    fun pressure() {
+        assertEquals(Format.Value("1013", "hPa"), Format.pressure(1013.25))
+        assertEquals(Format.Value(Format.INVALID, "hPa"), Format.pressure(null))
+        // from the standard atmosphere, the first step lands on the grid
+        assertEquals(1014.0, Format.stepPressure(1013.25, +1), 1e-9)
+        assertEquals(1012.0, Format.stepPressure(1013.25, -1), 1e-9)
+    }
+
+    @Test
+    fun pressureInInchesOfMercury() {
+        val metric = Format.units
+        val inHg = org.xcsoar.mobile.core.UnitInfo(
+            org.xcsoar.mobile.core.UnitInfo.INCH_MERCURY, "inHg", 0.0295287441401431)
+        try {
+            Format.units = metric.copy(
+                units = metric.units + inHg,
+                groups = metric.groups.map {
+                    if (it.group == org.xcsoar.mobile.core.UnitGroup.PRESSURE.code)
+                        it.copy(unit = inHg.unit) else it
+                })
+            assertEquals(Format.Value("29.92", "inHg"), Format.pressure(1013.25))
+            assertEquals(29.93, inHg.toUser(Format.stepPressure(1013.25, +1)), 1e-9)
+        } finally {
+            Format.units = metric
+        }
+    }
+
+    @Test
     fun distanceLikeXcsoar() {
         assertEquals(Format.Value("7.30", "km"), Format.distance(7300.0))
         assertEquals(Format.Value("23.4", "km"), Format.distance(23_400.0))

@@ -88,6 +88,9 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
     override suspend fun setBugs(bugs: Double) =
         command { NativeCore.nativeSetBugs(it, bugs) }
 
+    override suspend fun setQnh(hpa: Double) =
+        command { NativeCore.nativeSetQnh(it, hpa) }
+
     override suspend fun startReplay(path: String, timeScale: Double) =
         command { NativeCore.nativeReplayStart(it, path, timeScale) }
 
