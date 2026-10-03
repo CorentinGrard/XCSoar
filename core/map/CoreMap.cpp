@@ -178,6 +178,15 @@ bool follow = true;
 /* for the circling zoom: the flight mode of the last frame */
 bool was_circling = false;
 
+/* what the last frame showed, so new data redraws only when it
+   changes the map (sensors publish many times per second) */
+Validity drawn_fix;
+Angle drawn_angle = Angle::Zero();
+std::chrono::steady_clock::time_point drawn_time;
+
+/* clock-driven things (the trail fading, warnings) stay current */
+constexpr auto IDLE_REDRAW_INTERVAL = std::chrono::seconds{5};
+
 /**
  * The screen angle, like GlueMapWindow::UpdateScreenAngle() without
  * its pages and two-finger twist.
@@ -565,10 +574,34 @@ CoreMap::GetOption(unsigned option, int &value) noexcept
   return false;
 }
 
+/** The map's rotation for this data, as Render() sets it. */
+static Angle
+CurrentScreenAngle() noexcept
+{
+  const auto &calculated = CommonInterface::Calculated();
+  const auto &settings = CommonInterface::GetMapSettings();
+  return ScreenAngle(calculated.circling
+                     ? settings.circling_orientation
+                     : settings.cruise_orientation,
+                     CommonInterface::Basic(), calculated);
+}
+
 void
 CoreMap::Invalidate() noexcept
 {
-  if (IsAttached())
+  if (!IsAttached())
+    return;
+
+  /* a new GPS fix, a turn of the map or a flight mode change; else
+     only every few seconds */
+  const auto &basic = CommonInterface::Basic();
+  const bool changed =
+    basic.location_available.Modified(drawn_fix) ||
+    CommonInterface::Calculated().circling != was_circling ||
+    (CurrentScreenAngle() - drawn_angle).AsDelta().Absolute() >= Angle::Degrees(1) ||
+    std::chrono::steady_clock::now() - drawn_time >= IDLE_REDRAW_INTERVAL;
+
+  if (changed)
     graphics->redraw_timer.SchedulePreserve(Graphics::REDRAW_INTERVAL);
 }
 
@@ -621,6 +654,9 @@ CoreMap::Render() noexcept
     ? settings.circling_orientation
     : settings.cruise_orientation;
   projection.SetScreenAngle(ScreenAngle(orientation, basic, calculated));
+  drawn_angle = projection.GetScreenAngle();
+  drawn_fix = basic.location_available;
+  drawn_time = std::chrono::steady_clock::now();
 
   /* looking ahead in cruise when the map turns with the glider: the
      aircraft sits glider_screen_position percent above the bottom of

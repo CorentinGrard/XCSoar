@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.xcsoar.mobile.core.AirspaceWarningInfo
@@ -44,13 +46,20 @@ class FlightViewModel(
     private val demoFlight: () -> String,
 ) : ViewModel() {
     /**
-     * The latest state, at most [UI_INTERVAL_MS] apart: the core
-     * publishes on every sensor update (about ten per second), more than
-     * the screen needs and costly to recompose each time.
+     * The latest state, at most [UI_INTERVAL_MS] apart: what the screen
+     * shows besides the vario changes with the GPS (once a second), and
+     * recomposing the whole screen more often costs battery.
      */
     val flightState: StateFlow<FlightState?> = core.flightState  // conflated
         .transform { emit(it); delay(UI_INTERVAL_MS) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, core.flightState.value)
+
+    /** The vario, faster ([VARIO_INTERVAL_MS]): only its panel follows it. */
+    val vario: StateFlow<VarioValues?> = core.flightState
+        .map { s -> s?.let { VarioValues(it.vario, it.averageVario, it.nettoVario) } }
+        .distinctUntilChanged()
+        .transform { emit(it); delay(VARIO_INTERVAL_MS) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val lastEventFlow = MutableStateFlow<String?>(null)
     /** A short text for the latest glide computer event, for the status line. */
@@ -68,12 +77,21 @@ class FlightViewModel(
     /* bumped when the pilot changes a tile */
     private val tilesChanged = MutableStateFlow(0)
 
+    /* once per second, like XCSoar's InfoBoxes (the GPS rate) */
+    private val tilesTicker = flow {
+        while (true) {
+            emit(Unit)
+            delay(TILES_INTERVAL_MS)
+        }
+    }
+
     /**
      * The tiles of the layout shown, XCSoar's InfoBoxes computed by the
-     * core, with every new state; null without the core's InfoBoxes.
+     * core, every second and when the layout changes; null without the
+     * core's InfoBoxes.
      */
     val tiles: StateFlow<List<TileValue>?> =
-        combine(flightState, showCircling, tilesChanged) { _, circling, _ -> circling }
+        combine(tilesTicker, showCircling, tilesChanged) { _, circling, _ -> circling }
             .conflate()
             .map { circling ->
                 try {
@@ -82,7 +100,8 @@ class FlightViewModel(
                     null
                 }
             }
-            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+            // only while the flight screen shows them
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Read the tiles again now (after the pilot changed one). */
     fun refreshTiles() {
@@ -384,7 +403,9 @@ class FlightViewModel(
 }
 
 /** 5 screen updates per second: smooth enough for the vario. */
-private const val UI_INTERVAL_MS = 200L
+private const val UI_INTERVAL_MS = 1000L
+private const val VARIO_INTERVAL_MS = 200L
+private const val TILES_INTERVAL_MS = 1000L
 
 private const val WARNING_POLL_MS = 1000L
 
@@ -394,3 +415,6 @@ private val AIRSPACE_EVENTS = setOf(
 
 /** How urgent an alert is (doc/architecture.rst colours: red, orange). */
 enum class Alert { WARNING, CAUTION }
+
+/** Total energy vario, its 30 s average and netto (m/s), as the snapshot has them. */
+data class VarioValues(val vario: Double?, val average: Double?, val netto: Double?)

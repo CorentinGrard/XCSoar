@@ -430,6 +430,21 @@ the core already links but that has never run in this app:
 - WeGlide tasks (upstream's WeGlideTasksPanel / DownloadTask)
 
 ## M7 — Polish & beta
+- [~] Performance (2026-10-03, Pixel 7, CPU of one core, idle on the
+      ground with the flight screen): debug APK 31 %; release build
+      (`assembleRelease`: Kotlin not debuggable, core DEBUG=n, profileable,
+      signed with the debug key until there is a release key) 23.5 %;
+      after the changes below 16-21 % (varies with the GPS); replay in
+      flight 27.6 %.  Done: the map redraws on a new GPS fix, a turn or a
+      mode change (else every 5 s) instead of on every sensor merge;
+      snapshots at most 10 per second (were up to ~30, sensors at 5 Hz
+      each); tiles once per second; the screen once per second, the vario
+      panel alone at 5 Hz in its own layer.  Ideas left: upstream's
+      NonGPSSensors delivers sensor events on the main thread (~1 % CPU);
+      the Mali driver allocates memory for every map frame (XCSoar draws
+      from client arrays); R8 for the release build (needs JNI keep rules);
+      the archive `core-candidates.a` gets `core.mk` as a member (harmless
+      warning, from its dependency on build/core.mk)
 - [ ] Cockpit UX pass: touch targets ≥ 56 dp, sunlight contrast audit,
       one-handed quick actions, landscape + portrait, tablet layouts
 - [ ] Screen always on, orientation lock, brightness shortcut
@@ -446,6 +461,13 @@ the core already links but that has never run in this app:
 
 ## Log
 Newest first. One line per session: what was done and what's next.
+
+- 2026-10-03 — Performance: release build type (and its fix: the reused
+  I/O classes' JNI functions are linked directly, else release builds
+  dropped them and the app crashed on the first sensor event); map
+  redraws only on change, snapshots throttled to 10/s, tiles 1/s, screen
+  1/s with the vario at 5/s.  Idle CPU 31 % → 16-21 %.  Next: field
+  test, WeGlide upload.
 
 - 2026-10-03 — Tiles are XCSoar's InfoBoxes (any text type per tile,
   long press to change), computed by upstream's InfoBox code in the core.

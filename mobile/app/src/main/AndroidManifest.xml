@@ -21,6 +21,9 @@
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:supportsRtl="true">
 
+        <!-- release builds can be measured (simpleperf, Perfetto) -->
+        <profileable android:shell="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
@@ -73,6 +74,8 @@ fun FlightScreen(
     onEditTile: (TileLayout, Int) -> Unit = { _, _ -> },
 ) {
     val state by viewModel.flightState.collectAsStateWithLifecycle()
+    // read where it is shown, so only the vario panel recomposes with it
+    val vario = viewModel.vario.collectAsStateWithLifecycle()
     val lastEvent by viewModel.lastEvent.collectAsStateWithLifecycle()
     val circling by viewModel.showCircling.collectAsStateWithLifecycle()
     val mapFollows by viewModel.mapFollows.collectAsStateWithLifecycle()
@@ -87,6 +90,7 @@ fun FlightScreen(
         lastEvent = lastEvent,
         circling = circling,
         tiles = tiles,
+        vario = { vario.value },
         onEditTile = { tile ->
             onEditTile(if (circling) TileLayout.CIRCLING else TileLayout.CRUISE, tile)
         },
@@ -187,12 +191,14 @@ fun FlightContent(
     onVarioSound: (Boolean) -> Unit = {},
     tiles: List<TileValue>? = null,
     onEditTile: (Int) -> Unit = {},
+    /** Faster than [state]; from [state] when null (previews). */
+    vario: (() -> VarioValues?)? = null,
 ) {
     val colors = XcsTheme.colors
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
         val instruments = @Composable {
-            Instruments(state, circling, tiles, onEditTile, onMacCreadyChange, onSetMacCready,
-                        onSelectMode, menu)
+            Instruments(state, vario, circling, tiles, onEditTile, onMacCreadyChange,
+                        onSetMacCready, onSelectMode, menu)
         }
 
         if (maxWidth > maxHeight && maxWidth >= 600.dp) {
@@ -376,6 +382,7 @@ private fun mapAngle(orientation: MapOrientation, s: FlightState?): Double? = wh
 @Composable
 private fun Instruments(
     state: FlightState?,
+    vario: (() -> VarioValues?)?,
     circling: Boolean,
     tiles: List<TileValue>?,
     onEditTile: (Int) -> Unit,
@@ -384,7 +391,7 @@ private fun Instruments(
     onSelectMode: (circling: Boolean) -> Unit,
     menu: List<MenuAction>,
 ) {
-    VarioPanel(state?.vario, state?.averageVario, state?.nettoVario, Modifier.fillMaxWidth())
+    VarioSlot(vario, state)
 
     // XCSoar's InfoBoxes from the core; a long press picks another
     val colors = XcsTheme.colors
@@ -419,6 +426,18 @@ private fun Instruments(
         FlightModeSwitch(circling, onSelectMode, Modifier.weight(1f))
         FlightMenuButton(menu)
     }
+}
+
+/**
+ * The vario panel, reading [vario] in its own scope: it changes five
+ * times a second, the rest of the screen once.  Its own layer, too, so
+ * redrawing it leaves the rest alone.
+ */
+@Composable
+private fun VarioSlot(vario: (() -> VarioValues?)?, state: FlightState?) {
+    val v = vario?.invoke()
+        ?: state?.let { VarioValues(it.vario, it.averageVario, it.nettoVario) }
+    VarioPanel(v?.vario, v?.average, v?.netto, Modifier.fillMaxWidth().graphicsLayer())
 }
 
 private class InfoBoxValue(val title: String, val value: Format.Value,

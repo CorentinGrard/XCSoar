@@ -195,6 +195,14 @@ struct xcs_core final : CoreListener {
 
   std::unique_ptr<UI::Timer> replay_watch;
 
+  /* sensors merge many times per second (the phone's barometer,
+     accelerometer and gyroscope each), and every merge updates GPS and
+     calculated data: snapshots go out at most this often, the latest
+     one at the end of each interval */
+  static constexpr auto SNAPSHOT_INTERVAL = std::chrono::milliseconds{100};
+  std::chrono::steady_clock::time_point last_snapshot;
+  std::unique_ptr<UI::Timer> snapshot_timer;
+
   explicit xcs_core(const xcs_config &config) noexcept
     :data_path(config.data_path),
      profile(config.profile != nullptr ? config.profile : ""),
@@ -216,12 +224,28 @@ struct xcs_core final : CoreListener {
   /* virtual methods from CoreListener */
   void OnGPSUpdate() noexcept override {
     if (!replay_run_active)
-      PublishSnapshot();
+      SchedulePublish();
   }
 
   void OnCalculatedUpdate() noexcept override {
     if (!replay_run_active)
+      SchedulePublish();
+  }
+
+  /** New data: publish now, or at the end of this interval. */
+  void SchedulePublish() noexcept {
+    /* stopping: nobody reads them any more */
+    if (!snapshot_timer)
+      return;
+
+    const auto elapsed = std::chrono::steady_clock::now() - last_snapshot;
+    if (elapsed >= SNAPSHOT_INTERVAL) {
+      snapshot_timer->Cancel();
       PublishSnapshot();
+    } else if (!snapshot_timer->IsPending())
+      snapshot_timer->Schedule(
+        std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+          SNAPSHOT_INTERVAL - elapsed));
   }
 
   void OnGlideComputerEvent(unsigned gce) noexcept override {
@@ -428,6 +452,8 @@ FillSnapshot(xcs_flight_snapshot &s) noexcept
 void
 xcs_core::PublishSnapshot() noexcept
 {
+  last_snapshot = std::chrono::steady_clock::now();
+
   xcs_flight_snapshot s{};
   s.struct_size = sizeof(s);
   s.api_version = XCS_API_VERSION;
@@ -523,6 +549,7 @@ xcs_core::Run(std::promise<xcs_status> &started_promise) noexcept
         Profile::SetFiles(Path{profile.c_str()});
 
       event_notify = std::make_unique<UI::Notify>([this]{ DeliverEvents(); });
+      snapshot_timer = std::make_unique<UI::Timer>([this]{ PublishSnapshot(); });
       SetCoreListener(this);
 
       NullOperationEnvironment operation;
@@ -535,6 +562,7 @@ xcs_core::Run(std::promise<xcs_status> &started_promise) noexcept
         report(XCS_ERROR_FAILED);
 
       replay_watch.reset();
+      snapshot_timer.reset();
 #ifdef ANDROID
       CoreMap::Deinitialise();
 #endif

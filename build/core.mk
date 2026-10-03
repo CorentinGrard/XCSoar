@@ -169,7 +169,14 @@ ifeq ($(TARGET),ANDROID)
 
 # The core as a shared library for the Android app (mobile/).
 # --no-undefined: every unresolved symbol is a seam to fill.
-LIBXCSOAR_CORE_SOURCES = $(CORE_API_SOURCES) $(CORE_SRC_DIR)/jni/CoreJni.cpp
+# The reused I/O classes' JNI functions are linked directly, not from
+# the archive: Java calls them by name, and release builds hide archive
+# symbols (--exclude-libs,ALL) and drop what C++ does not call.
+LIBXCSOAR_CORE_SOURCES = $(CORE_API_SOURCES) $(CORE_SRC_DIR)/jni/CoreJni.cpp \
+	$(SRC)/Android/NativeSensorListener.cpp \
+	$(SRC)/Android/NativeInputListener.cpp \
+	$(SRC)/Android/NativePortListener.cpp \
+	$(SRC)/Android/NativeDetectDeviceListener.cpp
 LIBXCSOAR_CORE_CPPFLAGS = $(CORE_CPPFLAGS)
 LIBXCSOAR_CORE_DEPENDS = $(CORE_DEPENDS)
 LIBXCSOAR_CORE_LDLIBS = $(CORE_LDLIBS) -Wl,--no-undefined \

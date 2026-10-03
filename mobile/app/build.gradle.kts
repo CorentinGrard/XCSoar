@@ -30,6 +30,16 @@ android {
         compose = true
     }
 
+    buildTypes {
+        release {
+            // R8 would need keep rules for the classes JNI uses
+            isMinifyEnabled = false
+            // no release key yet: signed with the debug key, to install
+            // and measure on a phone (never for a store)
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
     testOptions {
         // Robolectric needs the resources (fonts) for screenshot tests
         unitTests.isIncludeAndroidResources = true
@@ -134,6 +144,10 @@ abstract class NativeCoreLibrary : DefaultTask() {
     @get:Input
     abstract val abis: ListProperty<String>
 
+    /** XCSoar's DEBUG=y (assertions, -Og) or DEBUG=n (-Os, NDEBUG). */
+    @get:Input
+    abstract val debug: Property<Boolean>
+
     @get:Internal
     abstract val repoRoot: DirectoryProperty
 
@@ -147,14 +161,16 @@ abstract class NativeCoreLibrary : DefaultTask() {
     fun build() {
         val root = repoRoot.get().asFile
         val targets = mapOf("arm64-v8a" to "ANDROIDAARCH64", "x86_64" to "ANDROIDX64")
+        val (flag, dir) = if (debug.get()) "y" to "dbg" else "n" to "opt"
         for (abi in abis.get()) {
             val target = targets[abi] ?: error("unsupported ABI $abi")
             exec.exec {
                 workingDir = root
                 commandLine("bash", "-c",
-                    "source mobile/tools/env.sh >/dev/null && xmake TARGET=$target core")
+                    "source mobile/tools/env.sh >/dev/null && " +
+                        "xmake TARGET=$target DEBUG=$flag core")
             }
-            val lib = root.resolve("output/ANDROID/$abi/dbg/bin/libxcsoar_core.so")
+            val lib = root.resolve("output/ANDROID/$abi/$dir/bin/libxcsoar_core.so")
             lib.copyTo(outputDir.get().asFile.resolve("$abi/libxcsoar_core.so"), overwrite = true)
         }
     }
@@ -197,19 +213,26 @@ val coreDrawables = tasks.register<CoreDrawables>("coreDrawables") {
     outputs.upToDateWhen { false }
 }
 
-val nativeCore = tasks.register<NativeCoreLibrary>("nativeCore") {
-    // -Pxcsoar.abis=arm64-v8a,x86_64 (arm64 covers phones and Apple
-    // Silicon emulators)
-    abis.set((findProperty("xcsoar.abis") as String? ?: "arm64-v8a").split(","))
-    repoRoot.set(xcsoarRoot)
-    outputs.upToDateWhen { false }
-}
+/** The core for a build type: debug builds keep XCSoar's assertions. */
+fun nativeCore(debugBuild: Boolean) =
+    tasks.register<NativeCoreLibrary>(if (debugBuild) "nativeCoreDebug" else "nativeCoreRelease") {
+        // -Pxcsoar.abis=arm64-v8a,x86_64 (arm64 covers phones and Apple
+        // Silicon emulators)
+        abis.set((findProperty("xcsoar.abis") as String? ?: "arm64-v8a").split(","))
+        debug.set(debugBuild)
+        repoRoot.set(xcsoarRoot)
+        outputs.upToDateWhen { false }
+    }
+
+val nativeCoreDebug = nativeCore(true)
+val nativeCoreRelease = nativeCore(false)
 
 androidComponents {
     onVariants { variant ->
         variant.sources.java?.addGeneratedSourceDirectory(upstreamJava, CopyIntoGenerated::outputDir)
         variant.sources.assets?.addGeneratedSourceDirectory(demoFlight, CopyIntoGenerated::outputDir)
-        variant.sources.jniLibs?.addGeneratedSourceDirectory(nativeCore, NativeCoreLibrary::outputDir)
+        val core = if (variant.buildType == "release") nativeCoreRelease else nativeCoreDebug
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(core, NativeCoreLibrary::outputDir)
         variant.sources.res?.addGeneratedSourceDirectory(coreDrawables, CoreDrawables::outputDir)
     }
 }
