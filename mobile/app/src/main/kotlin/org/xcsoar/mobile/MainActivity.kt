@@ -270,6 +270,8 @@ class MainActivity : ComponentActivity() {
                 /* data files open from the menu and from settings: back to either */
                 var dataFilesBack by rememberSaveable { mutableStateOf(Screen.FLIGHT) }
                 var airspaceAlertsBack by rememberSaveable { mutableStateOf(Screen.FLIGHT) }
+                /* the plane editor opens from the crew screen and from settings */
+                var planeEditBack by rememberSaveable { mutableStateOf(Screen.CREW) }
                 /* the flight menu; it stays open under the pages it opens,
                    so their Back comes back to it */
                 var menuOpen by rememberSaveable { mutableStateOf(false) }
@@ -334,6 +336,7 @@ class MainActivity : ComponentActivity() {
                             Screen.CREW -> CrewScreen(
                                 crewViewModel,
                                 onEditPlane = { plane ->
+                                    planeEditBack = Screen.CREW
                                     planeEditViewModel.open(plane)
                                     screen = Screen.PLANE_EDIT
                                 },
@@ -344,13 +347,13 @@ class MainActivity : ComponentActivity() {
                                 planeEditViewModel,
                                 onSaved = { path ->
                                     crewViewModel.load(select = path)
-                                    screen = Screen.CREW
+                                    screen = planeEditBack
                                 },
                                 onDeleted = {
                                     crewViewModel.load()
-                                    screen = Screen.CREW
+                                    screen = planeEditBack
                                 },
-                                onBack = { screen = Screen.CREW },
+                                onBack = { screen = planeEditBack },
                             )
                             Screen.SETTINGS -> SettingsScreen(
                                 onBack = { screen = Screen.FLIGHT },
@@ -368,6 +371,17 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onSafety = { screen = Screen.SAFETY },
                                 onVarioSound = { screen = Screen.VARIO_SOUND },
+                                onPlane = {
+                                    planeEditViewModel.openActive(
+                                        onOpened = {
+                                            planeEditBack = Screen.SETTINGS
+                                            screen = Screen.PLANE_EDIT
+                                        },
+                                        onNone = {
+                                            crewFromMenu = true
+                                            screen = Screen.CREW
+                                        })
+                                },
                             )
                             Screen.VARIO_SOUND -> VarioSoundScreen(
                                 varioSoundViewModel, onBack = { screen = Screen.SETTINGS })

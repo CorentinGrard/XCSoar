@@ -73,6 +73,23 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
         }
     }
 
+    /**
+     * Edit the plane being flown: [onOpened] once its values are in,
+     * [onNone] if no plane is active.
+     */
+    fun openActive(onOpened: () -> Unit, onNone: () -> Unit) {
+        viewModelScope.launch {
+            val list = try { core.planes() } catch (_: Exception) { null }
+            val plane = list?.planes?.firstOrNull { it.path == list.active }
+            if (plane == null) {
+                onNone()
+            } else {
+                open(plane)
+                onOpened()
+            }
+        }
+    }
+
     fun setRegistration(value: String) =
         stateFlow.update { it.copy(registration = value.uppercase()) }
 

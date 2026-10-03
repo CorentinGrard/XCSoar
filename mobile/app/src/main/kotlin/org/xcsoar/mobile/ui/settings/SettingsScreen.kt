@@ -46,10 +46,11 @@ fun SettingsScreen(
     onAirspaceAlerts: () -> Unit,
     onSafety: () -> Unit,
     onVarioSound: () -> Unit,
+    onPlane: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
     SettingsContent(onBack, onPilot, onUnits, onMap, onDataFiles, onAirspaceAlerts, onSafety,
-                    onVarioSound)
+                    onVarioSound, onPlane)
 }
 
 /**
@@ -67,6 +68,7 @@ fun SettingsContent(
     onAirspaceAlerts: () -> Unit = {},
     onSafety: () -> Unit = {},
     onVarioSound: () -> Unit = {},
+    onPlane: () -> Unit = {},
 ) {
     val colors = XcsTheme.colors
     Column(
@@ -82,14 +84,14 @@ fun SettingsContent(
 
         Section("Pilot and aircraft", listOf(
             Setting("Pilot & WeGlide", "Name, WeGlide ID", onPilot),
-            Setting("Polar and masses")))
+            Setting("Polar and masses", "The aircraft you fly", onPlane)))
         Section("Display", listOf(
             Setting("Units", "Altitude, speed, lift…", onUnits),
             Setting("Map", "Terrain, topography, trail", onMap)))
         Section("Flying", listOf(
             Setting("Safety heights", "Arrival, terrain, safety MC", onSafety),
             Setting("Airspace", "Warnings, classes, sound", onAirspaceAlerts),
-            Setting("Vario sound")))
+            Setting("Vario sound", "Volume, mode, dead band", onVarioSound)))
         Section("Data and devices", listOf(
             Setting("Data files", "Map, airspace, waypoints", onDataFiles),
             Setting("Devices"),
