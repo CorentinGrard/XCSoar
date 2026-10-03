@@ -159,10 +159,17 @@ jobs:
           key: mobile-thirdparty-arm64-${{ hashFiles('build/thirdparty.py', 'build/python/build/*.py', 'build/thirdparty.mk', 'build/targets.mk', 'lib/**/patches/**') }}
           path: ${{ github.workspace }}/output/ANDROID/arm64-v8a/lib
 
+      # The post step evaluates "key" again, after the build has filled
+      # mobile/ with files the runner cannot hash; that failure skipped
+      # saving every cache.  Hash once, before the build.
+      - name: Gradle cache key
+        id: gradle-key
+        run: echo "key=mobile-gradle-${{ hashFiles('mobile/gradle/libs.versions.toml', 'mobile/gradle/wrapper/gradle-wrapper.properties', 'mobile/*.gradle.kts', 'mobile/*/build.gradle.kts') }}" >> "$GITHUB_OUTPUT"
+
       - name: Cache Gradle
         uses: actions/cache@v6
         with:
-          key: mobile-gradle-${{ hashFiles('mobile/gradle/libs.versions.toml', 'mobile/gradle/wrapper/gradle-wrapper.properties', 'mobile/**/*.gradle.kts') }}
+          key: ${{ steps.gradle-key.outputs.key }}
           restore-keys: mobile-gradle-
           path: |
             ~/.gradle/caches
