@@ -94,8 +94,13 @@ fun FlightScreen(
     val tiles by viewModel.tiles.collectAsStateWithLifecycle()
     val hideTimer by viewModel.airspaceHideTimer.collectAsStateWithLifecycle()
     val airspaceAlerts by viewModel.airspaceAlerts.collectAsStateWithLifecycle()
-    // back from a page: the airspace alerts may have changed
-    LaunchedEffect(covered) { if (!covered) viewModel.refreshAirspaceAlerts() }
+    // back from a page: the airspace alerts or the vario sound may have changed
+    LaunchedEffect(covered) {
+        if (!covered) {
+            viewModel.refreshAirspaceAlerts()
+            viewModel.refreshVarioSound()
+        }
+    }
     BackHandler(enabled = menuOpen && !covered) { onMenuOpen(false) }
 
     FlightContent(

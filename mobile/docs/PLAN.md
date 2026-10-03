@@ -422,6 +422,9 @@ the core already links but that has never run in this app:
       clearance, safety MacCready, speed-to-fly risk factor, alternates
       order, turn back marker (`xcs_safety_set_option` / `_get_option`,
       XCSoar's SafetyFactorsConfigPanel keys)
+- [x] Vario sound (Settings → Vario sound): on/off, volume, Vario or Auto
+      (speed to fly in cruise, needs airspeed), dead band and its edges
+      (`xcs_sound_option` 3–6).  Tone frequencies stay XCSoar's defaults
 - [ ] Settings screens backed by `xcs_settings_*` JSON sections: units, polar /
       plane, safety heights, airspace filters, audio, map, InfoBox pages
 - [ ] Profiles: list, switch, import existing `.prf`

@@ -153,6 +153,11 @@ class FlightViewModel(
         }
     }
 
+    /** Read the vario sound again (after the pilot changed its settings). */
+    fun refreshVarioSound() {
+        viewModelScope.launch { varioSoundFlow.value = readVarioSound() }
+    }
+
     private suspend fun readVarioSound(): Boolean? = try {
         core.soundOption(SoundOption.VARIO)?.let { it != 0 }
     } catch (_: Exception) {

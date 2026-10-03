@@ -45,9 +45,11 @@ fun SettingsScreen(
     onDataFiles: () -> Unit,
     onAirspaceAlerts: () -> Unit,
     onSafety: () -> Unit,
+    onVarioSound: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
-    SettingsContent(onBack, onPilot, onUnits, onMap, onDataFiles, onAirspaceAlerts, onSafety)
+    SettingsContent(onBack, onPilot, onUnits, onMap, onDataFiles, onAirspaceAlerts, onSafety,
+                    onVarioSound)
 }
 
 /**
@@ -64,6 +66,7 @@ fun SettingsContent(
     onDataFiles: () -> Unit = {},
     onAirspaceAlerts: () -> Unit = {},
     onSafety: () -> Unit = {},
+    onVarioSound: () -> Unit = {},
 ) {
     val colors = XcsTheme.colors
     Column(

@@ -290,6 +290,14 @@ enum class SoundOption(val code: Int) {
     VARIO(1),
     /** 0..100, under the system media volume */
     VARIO_VOLUME(2),
+    /** 0 the vario, 1 auto: speed to fly in cruise (needs airspeed) */
+    VARIO_SWITCHING(3),
+    /** 0/1: silent while the lift is in the dead band */
+    VARIO_DEAD_BAND(4),
+    /** cm/s, -500..0: the dead band's lower edge */
+    VARIO_DEAD_BAND_MIN(5),
+    /** cm/s, 0..200: the dead band's upper edge */
+    VARIO_DEAD_BAND_MAX(6),
 }
 
 /** Values of `xcs_airspace_option` (core/api/xcsoar_core.h). */

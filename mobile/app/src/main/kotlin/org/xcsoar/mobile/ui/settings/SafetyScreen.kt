@@ -164,8 +164,9 @@ private fun HeightStepper(name: String, caption: String, metres: Double?, max: D
             modifier = Modifier.fillMaxWidth())
 }
 
+/** A line under a setting saying what it does. */
 @Composable
-private fun Explanation(text: String) {
+internal fun Explanation(text: String) {
     Text(text, color = XcsTheme.colors.textSecondary, fontSize = 15.sp,
          modifier = Modifier.padding(horizontal = 4.dp))
 }

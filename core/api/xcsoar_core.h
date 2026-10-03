@@ -387,6 +387,17 @@ typedef enum xcs_sound_option {
   /** 0..100: its level in XCSoar's mixer; the system volume (media
       stream on Android) applies on top [SoundVolume] */
   XCS_SOUND_VARIO_VOLUME = 2,
+  /** 0 manual (the vario), 1 auto: speed to fly in cruise, which needs
+      airspeed and a total energy vario, else the vario
+      [VarioSoundSwitchingMode] */
+  XCS_SOUND_VARIO_SWITCHING = 3,
+  /** 0/1: silent while the lift is in the dead band
+      [VarioDeadBandEnabled] */
+  XCS_SOUND_VARIO_DEAD_BAND = 4,
+  /** cm/s, -500..0: the dead band's lower edge [VarioDeadBandMin] */
+  XCS_SOUND_VARIO_DEAD_BAND_MIN = 5,
+  /** cm/s, 0..200: the dead band's upper edge [VarioDeadBandMax] */
+  XCS_SOUND_VARIO_DEAD_BAND_MAX = 6,
 } xcs_sound_option;
 
 /** Set a sound option; saved in the profile.  XCS_ERROR_INVALID_ARGUMENT

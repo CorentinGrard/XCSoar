@@ -836,6 +836,38 @@ xcs_sound_set_option(xcs_core *core, uint32_t option, int32_t value)
       Profile::Set(ProfileKeys::SoundVolume, unsigned(settings.volume));
       break;
 
+    case XCS_SOUND_VARIO_SWITCHING:
+      if (value != 0 && value != 1)
+        return XCS_ERROR_INVALID_ARGUMENT;
+      settings.switching_mode = value != 0
+        ? VarioSoundSwitchingMode::AUTO
+        : VarioSoundSwitchingMode::MANUAL;
+      Profile::SetEnum(ProfileKeys::VarioSoundSwitchingMode,
+                       settings.switching_mode);
+      break;
+
+    case XCS_SOUND_VARIO_DEAD_BAND:
+      if (value != 0 && value != 1)
+        return XCS_ERROR_INVALID_ARGUMENT;
+      settings.dead_band_enabled = value != 0;
+      Profile::Set(ProfileKeys::VarioDeadBandEnabled,
+                   settings.dead_band_enabled);
+      break;
+
+    case XCS_SOUND_VARIO_DEAD_BAND_MIN:
+      if (value < -500 || value > 0)
+        return XCS_ERROR_INVALID_ARGUMENT;
+      settings.min_dead = value / 100.;
+      Profile::Set(ProfileKeys::VarioDeadBandMin, settings.min_dead);
+      break;
+
+    case XCS_SOUND_VARIO_DEAD_BAND_MAX:
+      if (value < 0 || value > 200)
+        return XCS_ERROR_INVALID_ARGUMENT;
+      settings.max_dead = value / 100.;
+      Profile::Set(ProfileKeys::VarioDeadBandMax, settings.max_dead);
+      break;
+
     default:
       return XCS_ERROR_INVALID_ARGUMENT;
     }
@@ -864,6 +896,22 @@ xcs_sound_get_option(xcs_core *core, uint32_t option, int32_t *value_r)
 
     case XCS_SOUND_VARIO_VOLUME:
       *value_r = settings.volume;
+      return XCS_OK;
+
+    case XCS_SOUND_VARIO_SWITCHING:
+      *value_r = settings.switching_mode == VarioSoundSwitchingMode::AUTO;
+      return XCS_OK;
+
+    case XCS_SOUND_VARIO_DEAD_BAND:
+      *value_r = settings.dead_band_enabled;
+      return XCS_OK;
+
+    case XCS_SOUND_VARIO_DEAD_BAND_MIN:
+      *value_r = iround(settings.min_dead * 100);
+      return XCS_OK;
+
+    case XCS_SOUND_VARIO_DEAD_BAND_MAX:
+      *value_r = iround(settings.max_dead * 100);
       return XCS_OK;
 
     default:

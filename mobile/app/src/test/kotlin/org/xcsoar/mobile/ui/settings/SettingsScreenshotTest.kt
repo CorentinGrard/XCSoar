@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import org.xcsoar.mobile.core.AirspaceAlerts
 import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.SafetyOption
+import org.xcsoar.mobile.core.SoundOption
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 /** L4: the settings screen (mobile/docs/ARCHITECTURE.md §6). */
@@ -51,6 +52,18 @@ class SettingsScreenshotTest {
                 mapOf(SafetyOption.ARRIVAL_HEIGHT to 300.0, SafetyOption.TERRAIN_HEIGHT to 150.0,
                       SafetyOption.MC to 0.5, SafetyOption.RISK_FACTOR to 0.3,
                       SafetyOption.ALTERNATES to 0.0, SafetyOption.TURN_BACK_MARKER to 1.0),
+                { _, _ -> }, {})
+        }
+    }
+
+    @Test
+    fun varioSound() = captureRoboImage("src/test/screenshots/vario_sound.png") {
+        XcsTheme(dark = false) {
+            VarioSoundContent(
+                mapOf(SoundOption.VARIO to 1, SoundOption.VARIO_VOLUME to 80,
+                      SoundOption.VARIO_SWITCHING to 1, SoundOption.VARIO_DEAD_BAND to 1,
+                      SoundOption.VARIO_DEAD_BAND_MIN to -30,
+                      SoundOption.VARIO_DEAD_BAND_MAX to 10),
                 { _, _ -> }, {})
         }
     }

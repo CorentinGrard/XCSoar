@@ -610,6 +610,14 @@ TestStarted(xcs_core *core, Recorder &recorder)
   ok1(xcs_sound_get_option(core, XCS_SOUND_VARIO, &value) == XCS_OK && value == 1);
   ok1(xcs_sound_get_option(core, XCS_SOUND_VARIO_VOLUME, &value) == XCS_OK && value == 60);
   ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO, 0) == XCS_OK);
+  ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO_SWITCHING, 2) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO_DEAD_BAND_MIN, 1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO_DEAD_BAND_MIN, -50) == XCS_OK);
+  ok1(xcs_sound_get_option(core, XCS_SOUND_VARIO_DEAD_BAND_MIN, &value) == XCS_OK && value == -50);
+  ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO_SWITCHING, 1) == XCS_OK);
+  ok1(xcs_sound_get_option(core, XCS_SOUND_VARIO_SWITCHING, &value) == XCS_OK && value == 1);
+  ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO_SWITCHING, 0) == XCS_OK);
+  ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO_DEAD_BAND_MIN, -30) == XCS_OK);
 
   ok1(xcs_replay_run(core, "test/data/does-not-exist.igc", 60, nullptr)
       == XCS_ERROR_FAILED);
@@ -738,7 +746,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8);
 
   Recorder recorder;
   TestCreateArguments(recorder);

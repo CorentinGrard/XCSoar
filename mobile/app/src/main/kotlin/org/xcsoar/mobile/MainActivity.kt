@@ -69,6 +69,8 @@ import org.xcsoar.mobile.ui.settings.AirspaceAlertsViewModel
 import org.xcsoar.mobile.ui.settings.SafetyScreen
 import org.xcsoar.mobile.ui.settings.SafetyViewModel
 import org.xcsoar.mobile.ui.settings.SettingsScreen
+import org.xcsoar.mobile.ui.settings.VarioSoundScreen
+import org.xcsoar.mobile.ui.settings.VarioSoundViewModel
 import org.xcsoar.mobile.ui.setup.FlightSetupScreen
 import org.xcsoar.mobile.ui.task.TaskFilesScreen
 import org.xcsoar.mobile.ui.task.TaskScreen
@@ -84,7 +86,7 @@ import java.io.File
 private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS,
                             TASK, TASK_FILES, TASK_ADD_POINT, UNITS, ANALYSIS,
                             CREW, PLANE_EDIT, PILOT, TILE_PICKER, SETTINGS,
-                            AIRSPACE_ALERTS, SAFETY }
+                            AIRSPACE_ALERTS, SAFETY, VARIO_SOUND }
 
 /** How deep a page is: pages further in slide in from the right. */
 private val Screen.depth: Int
@@ -92,7 +94,8 @@ private val Screen.depth: Int
         Screen.FLIGHT -> 0
         Screen.DOWNLOAD -> 3
         Screen.PLANE_EDIT, Screen.PILOT, Screen.UNITS, Screen.MAP_SETTINGS,
-        Screen.DATA_FILES, Screen.AIRSPACE_ALERTS, Screen.SAFETY, Screen.TASK_FILES,
+        Screen.DATA_FILES, Screen.AIRSPACE_ALERTS, Screen.SAFETY, Screen.VARIO_SOUND,
+        Screen.TASK_FILES,
         Screen.TASK_ADD_POINT -> 2
         else -> 1
     }
@@ -242,6 +245,8 @@ class MainActivity : ComponentActivity() {
                 val pilotViewModel: PilotViewModel = viewModel(factory = viewModelFactory {
                     initializer { PilotViewModel(app.anyCore) }
                 })
+                val varioSoundViewModel: VarioSoundViewModel = viewModel(
+                    factory = viewModelFactory { initializer { VarioSoundViewModel(app.anyCore) } })
                 val safetyViewModel: SafetyViewModel = viewModel(
                     factory = viewModelFactory { initializer { SafetyViewModel(app.anyCore) } })
                 val airspaceAlertsViewModel: AirspaceAlertsViewModel = viewModel(
@@ -362,7 +367,10 @@ class MainActivity : ComponentActivity() {
                                     screen = Screen.AIRSPACE_ALERTS
                                 },
                                 onSafety = { screen = Screen.SAFETY },
+                                onVarioSound = { screen = Screen.VARIO_SOUND },
                             )
+                            Screen.VARIO_SOUND -> VarioSoundScreen(
+                                varioSoundViewModel, onBack = { screen = Screen.SETTINGS })
                             Screen.SAFETY -> SafetyScreen(
                                 safetyViewModel, onBack = { screen = Screen.SETTINGS })
                             Screen.AIRSPACE_ALERTS -> AirspaceAlertsScreen(
