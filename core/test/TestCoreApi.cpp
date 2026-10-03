@@ -9,6 +9,7 @@
  */
 
 #include "xcsoar_core.h"
+#include "InfoBoxes/Content/Type.hpp"
 #include "TestUtil.hpp"
 
 #include <atomic>
@@ -428,6 +429,47 @@ TestPlanesAndCrew(xcs_core *core)
 }
 
 static void
+TestTiles(xcs_core *core)
+{
+  using namespace InfoBoxFactory;
+
+  const auto types = GetJson([core](char *b, size_t s, size_t *l){
+    return xcs_tiles_types(core, b, s, l);
+  });
+  ok1(Contains(types, "{\"id\":" + std::to_string(e_Speed_GPS) + ",\"name\":"));
+  /* graphics only: no text for a tile */
+  ok1(!Contains(types, "{\"id\":" + std::to_string(e_Barogram) + ","));
+
+  auto layouts = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_tiles_layouts(core, b, s, l);
+    });
+  };
+  /* the profile outlives a test run: start from the design's tiles */
+  xcs_tiles_set(core, XCS_TILES_CRUISE, 0, NavAltitude);
+  ok1(Contains(layouts(), "{\"layouts\":[[" + std::to_string(NavAltitude) + "," +
+                          std::to_string(e_HeightAGL) + ","));
+
+  ok1(xcs_tiles_set(core, 2, 0, e_Speed_GPS) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_tiles_set(core, XCS_TILES_CRUISE, 6, e_Speed_GPS) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_tiles_set(core, XCS_TILES_CRUISE, 0, e_Barogram) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_tiles_set(core, XCS_TILES_CRUISE, 0, e_Speed_GPS) == XCS_OK);
+  ok1(Contains(layouts(), "{\"layouts\":[[" + std::to_string(e_Speed_GPS) + "," +
+                          std::to_string(e_HeightAGL) + ","));
+
+  char buffer[64];
+  size_t length;
+  ok1(xcs_tiles_update(core, 2, buffer, sizeof(buffer), &length) == XCS_ERROR_INVALID_ARGUMENT);
+
+  /* after the replay: upstream's InfoBoxes, with their captions */
+  const auto tiles = GetJson([core](char *b, size_t s, size_t *l){
+    return xcs_tiles_update(core, XCS_TILES_CRUISE, b, s, l);
+  });
+  ok1(Contains(tiles, "{\"type\":" + std::to_string(e_Speed_GPS) + ",\"title\":\"V GND\""));
+  ok1(Contains(tiles, "\"title\":\"Vopt\"") && Contains(tiles, "\"unit\":\"km/h\""));
+}
+
+static void
 TestUnits(xcs_core *core)
 {
   auto json = UnitsJson(core);
@@ -626,7 +668,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 7);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -647,6 +689,7 @@ main()
   TestTask(core);
   TestUnits(core);
   TestPlanesAndCrew(core);
+  TestTiles(core);
   ok1(xcs_stop(core) == XCS_OK);
 
   /* the same core can be started again */

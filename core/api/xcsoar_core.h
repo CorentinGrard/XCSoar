@@ -604,6 +604,36 @@ xcs_get_analysis(xcs_core *core, char *buffer, size_t size,
                  size_t *length_r);
 
 /*
+ * The flight screen's tiles: XCSoar's InfoBoxes (JSON formats in
+ * core/host/CoreInfoBoxes.hpp).  Buffer rules as for
+ * xcs_get_data_status().
+ */
+
+/** Layouts of tiles: cruise and circling. */
+enum {
+  XCS_TILES_CRUISE = 0,
+  XCS_TILES_CIRCLING = 1,
+};
+
+/** The InfoBox types a tile can show, with XCSoar's names. */
+XCS_EXPORT xcs_status
+xcs_tiles_types(xcs_core *core, char *buffer, size_t size, size_t *length_r);
+
+/** The types shown in each layout's tiles. */
+XCS_EXPORT xcs_status
+xcs_tiles_layouts(xcs_core *core, char *buffer, size_t size,
+                  size_t *length_r);
+
+/** Show InfoBox @p type in tile @p tile of @p layout (saved). */
+XCS_EXPORT xcs_status
+xcs_tiles_set(xcs_core *core, uint32_t layout, uint32_t tile, uint32_t type);
+
+/** The tiles of @p layout now: title, value, unit, comment, colours. */
+XCS_EXPORT xcs_status
+xcs_tiles_update(xcs_core *core, uint32_t layout, char *buffer, size_t size,
+                 size_t *length_r);
+
+/*
  * Planes and crew (core/host/CorePlanes.hpp has the JSON formats).
  * Buffer rules as for xcs_get_data_status().
  */

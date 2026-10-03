@@ -59,12 +59,22 @@ CORE_KEEP_SOURCES = \
 	$(SRC)/Gauge/TrafficSettings.cpp \
 	$(SRC)/Dialogs/DialogSettings.cpp \
 	$(SRC)/Input/TaskEventObserver.cpp \
-	$(SRC)/Hardware/DisplayDPI.cpp
+	$(SRC)/Hardware/DisplayDPI.cpp \
+	$(SRC)/Gauge/ThermalAssistantRenderer.cpp
+
+# The InfoBoxes' contents (the flight screen's tiles), without their
+# windows and dialogs (core/host/InfoBoxSeams.cpp).
+CORE_INFOBOX_SOURCES = \
+	$(filter $(SRC)/InfoBoxes/Content/%,$(LIBINFOBOX_SOURCES)) \
+	$(SRC)/InfoBoxes/Data.cpp \
+	$(SRC)/InfoBoxes/Format.cpp \
+	$(SRC)/InfoBoxes/Units.cpp
 
 CORE_CANDIDATES_SOURCES = \
 	$(filter-out $(CORE_UI_SOURCES),$(XCSOAR_SOURCES)) \
 	$(filter $(CORE_KEEP_SOURCES),$(XCSOAR_SOURCES)) \
-	$(SRC)/InfoBoxes/InfoBoxSettings.cpp
+	$(SRC)/InfoBoxes/InfoBoxSettings.cpp \
+	$(CORE_INFOBOX_SOURCES)
 
 # No CORE_CANDIDATES_DEPENDS: the objects are shared with the main
 # program, whose rule already sets their compile flags, and a DEPENDS
@@ -124,6 +134,8 @@ CORE_HOST_SOURCES = \
 	$(CORE_SRC_DIR)/host/CoreAnalysis.cpp \
 	$(CORE_SRC_DIR)/host/CorePlanes.cpp \
 	$(CORE_SRC_DIR)/host/CoreWeGlide.cpp \
+	$(CORE_SRC_DIR)/host/CoreInfoBoxes.cpp \
+	$(CORE_SRC_DIR)/host/InfoBoxSeams.cpp \
 	$(CORE_SRC_DIR)/host/CoreUnits.cpp \
 	$(CORE_SRC_DIR)/host/Protection.cpp \
 	$(CORE_SRC_DIR)/host/Seams.cpp \

@@ -51,7 +51,10 @@ import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOrientation
+import org.xcsoar.mobile.core.TileLayout
+import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.ui.Format
+import org.xcsoar.mobile.ui.theme.XcsColors
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 @Composable
@@ -67,6 +70,7 @@ fun FlightScreen(
     onOpenAnalysis: () -> Unit = {},
     onOpenCrew: () -> Unit = {},
     onOpenPilot: () -> Unit = {},
+    onEditTile: (TileLayout, Int) -> Unit = { _, _ -> },
 ) {
     val state by viewModel.flightState.collectAsStateWithLifecycle()
     val lastEvent by viewModel.lastEvent.collectAsStateWithLifecycle()
@@ -76,11 +80,16 @@ fun FlightScreen(
     val mapItems by viewModel.mapItems.collectAsStateWithLifecycle()
     val warnings by viewModel.airspaceWarnings.collectAsStateWithLifecycle()
     val varioSound by viewModel.varioSound.collectAsStateWithLifecycle()
+    val tiles by viewModel.tiles.collectAsStateWithLifecycle()
 
     FlightContent(
         state = state,
         lastEvent = lastEvent,
         circling = circling,
+        tiles = tiles,
+        onEditTile = { tile ->
+            onEditTile(if (circling) TileLayout.CIRCLING else TileLayout.CRUISE, tile)
+        },
         onMacCreadyChange = viewModel::setMacCready,
         onSetMacCready = viewModel::setMacCready,
         onSelectMode = viewModel::selectFlightMode,
@@ -176,11 +185,14 @@ fun FlightContent(
     onNextWaypoint: () -> Unit = {},
     varioSound: Boolean? = null,
     onVarioSound: (Boolean) -> Unit = {},
+    tiles: List<TileValue>? = null,
+    onEditTile: (Int) -> Unit = {},
 ) {
     val colors = XcsTheme.colors
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
         val instruments = @Composable {
-            Instruments(state, circling, onMacCreadyChange, onSetMacCready, onSelectMode, menu)
+            Instruments(state, circling, tiles, onEditTile, onMacCreadyChange, onSetMacCready,
+                        onSelectMode, menu)
         }
 
         if (maxWidth > maxHeight && maxWidth >= 600.dp) {
@@ -365,6 +377,8 @@ private fun mapAngle(orientation: MapOrientation, s: FlightState?): Double? = wh
 private fun Instruments(
     state: FlightState?,
     circling: Boolean,
+    tiles: List<TileValue>?,
+    onEditTile: (Int) -> Unit,
     onMacCreadyChange: (Double) -> Unit,
     onSetMacCready: (Double) -> Unit,
     onSelectMode: (circling: Boolean) -> Unit,
@@ -372,10 +386,16 @@ private fun Instruments(
 ) {
     VarioPanel(state?.vario, state?.averageVario, state?.nettoVario, Modifier.fillMaxWidth())
 
-    infoBoxes(state, circling).chunked(3).forEach { row ->
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            row.forEach { box ->
-                InfoBox(box.title, box.value, Modifier.weight(1f), box.color)
+    // XCSoar's InfoBoxes from the core; a long press picks another
+    val colors = XcsTheme.colors
+    val boxes = tiles?.map { it.toInfoBoxValue(colors) } ?: infoBoxes(state, circling)
+    boxes.chunked(3).forEachIndexed { r, row ->
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            row.forEachIndexed { c, box ->
+                InfoBox(box.title, box.value, Modifier.weight(1f).fillMaxHeight(), box.color,
+                        box.comment, box.commentColor,
+                        onLongClick = if (tiles != null) ({ onEditTile(r * 3 + c) }) else null)
             }
         }
     }
@@ -402,9 +422,27 @@ private fun Instruments(
 }
 
 private class InfoBoxValue(val title: String, val value: Format.Value,
-                           val color: Color? = null)
+                           val color: Color? = null, val comment: String = "",
+                           val commentColor: Color? = null)
 
-/** Six InfoBoxes for the current layout; configurable later (M6). */
+/** InfoBoxLook's colours by function (doc/architecture.rst). */
+private fun tileColor(code: Int, colors: XcsColors): Color? = when (code) {
+    TileValue.COLOR_RED -> colors.warning
+    TileValue.COLOR_BLUE -> colors.neutralSafe
+    TileValue.COLOR_GREEN -> colors.safe
+    TileValue.COLOR_YELLOW -> colors.caution
+    TileValue.COLOR_MAGENTA -> colors.task
+    else -> null
+}
+
+private fun TileValue.toInfoBoxValue(colors: XcsColors) =
+    InfoBoxValue(title, Format.Value(value, unit), tileColor(color, colors), comment,
+                 tileColor(commentColor, colors))
+
+/**
+ * The design's six tiles from the snapshot, for previews and the fake
+ * core; with the native core, the tiles are XCSoar's InfoBoxes.
+ */
 @Composable
 private fun infoBoxes(s: FlightState?, circling: Boolean): List<InfoBoxValue> {
     val colors = XcsTheme.colors

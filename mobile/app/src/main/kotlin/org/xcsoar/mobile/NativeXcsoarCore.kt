@@ -18,6 +18,10 @@ import org.xcsoar.mobile.core.Analysis
 import org.xcsoar.mobile.core.Crew
 import org.xcsoar.mobile.core.PlaneEdit
 import org.xcsoar.mobile.core.PlaneList
+import org.xcsoar.mobile.core.TileLayout
+import org.xcsoar.mobile.core.TileLayouts
+import org.xcsoar.mobile.core.TileType
+import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.core.WeGlideAircraft
 import org.xcsoar.mobile.core.WeGlideException
 import org.xcsoar.mobile.core.WeGlideFlight
@@ -209,6 +213,18 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
             val answer = withContext(Dispatchers.IO) { call(handle) }
             parse(answer ?: throw WeGlideException("No answer"))
         }
+
+    override suspend fun tileTypes() =
+        query(NativeCore::nativeTilesTypes, TileType::parseList).orEmpty()
+
+    override suspend fun tileLayouts() =
+        query(NativeCore::nativeTilesLayouts, TileLayouts::parse)
+
+    override suspend fun setTile(layout: TileLayout, tile: Int, type: Int) =
+        command { NativeCore.nativeTilesSet(it, layout.code, tile, type) }
+
+    override suspend fun tiles(layout: TileLayout) =
+        query({ NativeCore.nativeTilesUpdate(it, layout.code) }, TileValue::parseList)
 
     override suspend fun planes() = query(NativeCore::nativePlanesList, PlaneList::parse)
 

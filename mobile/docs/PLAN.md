@@ -378,6 +378,18 @@ the core already links but that has never run in this app:
   the fields, never seen with real data
 
 ## M6 — Settings & data
+- [x] Tiles: the flight screen's six tiles (cruise and circling layouts)
+      are XCSoar's InfoBoxes, computed by upstream's InfoBox contents in
+      the core (`core/host/CoreInfoBoxes.cpp`, their dialogs and drawing
+      are seams in `InfoBoxSeams.cpp`): title, value, unit, comment and
+      colour, translated.  A long press opens a searchable list of every
+      text type (the 11 graphical ones are left out); the choice is
+      saved in the profile ("MobileTilesCruise" / "MobileTilesCircling").
+      `xcs_tiles_*`.  Checked on a Pixel 7.  Not yet: the graphical
+      InfoBoxes (barogram, sparklines, thermal band, assistant, arrows,
+      horizon), more or fewer tiles, a tap action per tile (upstream's
+      InfoBox dialogs), and the battery InfoBox (the core does not read
+      Android's battery yet: "---")
 - [x] Aircraft & crew: when the app opens (not when it restarts in the
       air), the pilot picks the plane, the last one flown first, and for
       a two-seater the co-pilot (solo, a recent one or a new one); also
@@ -434,6 +446,11 @@ the core already links but that has never run in this app:
 
 ## Log
 Newest first. One line per session: what was done and what's next.
+
+- 2026-10-03 — Tiles are XCSoar's InfoBoxes (any text type per tile,
+  long press to change), computed by upstream's InfoBox code in the core.
+  Fixed: "Map failed: … cancelled" after coming back to the flight
+  screen.  TestCoreApi 189 checks.  Next: field test, WeGlide upload.
 
 - 2026-10-03 — Aircraft & crew picker at app start (last plane flown,
   co-pilot for two-seaters), plane editor with built-in polars and

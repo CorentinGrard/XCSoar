@@ -40,6 +40,8 @@ import org.xcsoar.mobile.ui.crew.PlaneEditScreen
 import org.xcsoar.mobile.ui.crew.PlaneEditViewModel
 import org.xcsoar.mobile.ui.analysis.AnalysisViewModel
 import org.xcsoar.mobile.ui.flight.FlightScreen
+import org.xcsoar.mobile.ui.tiles.TilePickerScreen
+import org.xcsoar.mobile.ui.tiles.TilePickerViewModel
 import org.xcsoar.mobile.ui.map.MapSettingsScreen
 import org.xcsoar.mobile.ui.waypoints.WaypointsScreen
 import org.xcsoar.mobile.ui.waypoints.WaypointsViewModel
@@ -61,7 +63,7 @@ import java.io.File
 
 private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS,
                             TASK, TASK_FILES, TASK_ADD_POINT, UNITS, ANALYSIS,
-                            CREW, PLANE_EDIT, PILOT }
+                            CREW, PLANE_EDIT, PILOT, TILE_PICKER }
 
 class MainActivity : ComponentActivity() {
     private val app get() = application as XcsoarApp
@@ -176,6 +178,8 @@ class MainActivity : ComponentActivity() {
                 val pilotViewModel: PilotViewModel = viewModel(factory = viewModelFactory {
                     initializer { PilotViewModel(app.anyCore) }
                 })
+                val tilePickerViewModel: TilePickerViewModel = viewModel(
+                    factory = viewModelFactory { initializer { TilePickerViewModel(app.anyCore) } })
 
                 LaunchedEffect(flightViewModel) {
                     flightViewModel.alerts.collect { alerts.play(it) }
@@ -214,7 +218,15 @@ class MainActivity : ComponentActivity() {
                             screen = Screen.CREW
                         },
                         onOpenPilot = { screen = Screen.PILOT },
+                        onEditTile = { layout, tile ->
+                            tilePickerViewModel.open(layout, tile)
+                            screen = Screen.TILE_PICKER
+                        },
                     )
+                    Screen.TILE_PICKER -> TilePickerScreen(tilePickerViewModel) {
+                        flightViewModel.refreshTiles()
+                        screen = Screen.FLIGHT
+                    }
                     Screen.CREW -> CrewScreen(
                         crewViewModel,
                         onEditPlane = { plane ->

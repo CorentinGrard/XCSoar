@@ -71,6 +71,10 @@ internal object NativeCore {
     /** @param which 0 active, 1 edited; @return JSON or null */
     @JvmStatic external fun nativeTaskGet(core: Long, which: Int): String?
     @JvmStatic external fun nativeGetAnalysis(core: Long): String?
+    @JvmStatic external fun nativeTilesTypes(core: Long): String?
+    @JvmStatic external fun nativeTilesLayouts(core: Long): String?
+    @JvmStatic external fun nativeTilesSet(core: Long, layout: Int, tile: Int, type: Int): Int
+    @JvmStatic external fun nativeTilesUpdate(core: Long, layout: Int): String?
     @JvmStatic external fun nativePlanesList(core: Long): String?
     @JvmStatic external fun nativePolarsList(core: Long): String?
     /** @return the plane's path, or null on error */

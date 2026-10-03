@@ -3,7 +3,9 @@
 
 package org.xcsoar.mobile.ui.flight
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -18,6 +20,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -32,24 +35,37 @@ import org.xcsoar.mobile.ui.theme.XcsTheme
  * [valueColor] is an optional functional colour (lift/sink, safe/caution);
  * leave it `null` for plain data, which stays monochrome.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun InfoBox(
     title: String,
     value: Format.Value,
     modifier: Modifier = Modifier,
     valueColor: Color? = null,
+    comment: String = "",
+    commentColor: Color? = null,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val colors = XcsTheme.colors
+    val spoken = "$title ${value.text} ${value.unit} $comment".trim()
     Column(
         modifier = modifier
             .background(colors.panel, RoundedCornerShape(12.dp))
+            .then(if (onLongClick != null)
+                      Modifier.combinedClickable(onClickLabel = null, onClick = {},
+                                                 onLongClickLabel = "Change tile",
+                                                 onLongClick = onLongClick)
+                  else Modifier)
             .padding(horizontal = 10.dp, vertical = 8.dp)
-            .clearAndSetSemantics { contentDescription = "$title ${value.text} ${value.unit}" },
+            .clearAndSetSemantics { contentDescription = spoken },
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Caption(title)
         Text(valueWithUnit(value, 28.sp, valueColor ?: colors.text, colors.textSecondary),
              style = XcsTheme.numberStyle, maxLines = 1)
+        if (comment.isNotEmpty())
+            Text(comment, color = commentColor ?: colors.textSecondary, fontSize = 13.sp,
+                 maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

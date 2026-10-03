@@ -542,6 +542,42 @@ Java_org_xcsoar_mobile_NativeCore_nativeGetAnalysis(JNIEnv *env, jclass,
 }
 
 JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTilesTypes(JNIEnv *env, jclass,
+                                                   jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_tiles_types(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTilesLayouts(JNIEnv *env, jclass,
+                                                     jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_tiles_layouts(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTilesSet(JNIEnv *, jclass,
+                                                 jlong core, jint layout,
+                                                 jint tile, jint type)
+{
+  return xcs_tiles_set(ToCore(core), layout, tile, type);
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTilesUpdate(JNIEnv *env, jclass,
+                                                    jlong core, jint layout)
+{
+  return GetJson(env, [core, layout](char *buffer, size_t size,
+                                     size_t *length){
+    return xcs_tiles_update(ToCore(core), layout, buffer, size, length);
+  });
+}
+
+JNIEXPORT jstring JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativePlanesList(JNIEnv *env, jclass,
                                                    jlong core)
 {

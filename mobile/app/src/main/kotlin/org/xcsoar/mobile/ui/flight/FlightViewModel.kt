@@ -5,6 +5,7 @@ package org.xcsoar.mobile.ui.flight
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +18,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.xcsoar.mobile.core.AirspaceWarningInfo
 import org.xcsoar.mobile.core.CoreEvent
@@ -26,6 +29,8 @@ import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SoundOption
 import org.xcsoar.mobile.ui.Format
+import org.xcsoar.mobile.core.TileLayout
+import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.core.XcsoarCore
 
 /**
@@ -59,6 +64,30 @@ class FlightViewModel(
         combine(flightState, modeOverride) { state, override ->
             override ?: (state?.circling == true)
         }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /* bumped when the pilot changes a tile */
+    private val tilesChanged = MutableStateFlow(0)
+
+    /**
+     * The tiles of the layout shown, XCSoar's InfoBoxes computed by the
+     * core, with every new state; null without the core's InfoBoxes.
+     */
+    val tiles: StateFlow<List<TileValue>?> =
+        combine(flightState, showCircling, tilesChanged) { _, circling, _ -> circling }
+            .conflate()
+            .map { circling ->
+                try {
+                    core.tiles(if (circling) TileLayout.CIRCLING else TileLayout.CRUISE)
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Read the tiles again now (after the pilot changed one). */
+    fun refreshTiles() {
+        tilesChanged.value++
+    }
 
     private val warningsFlow = MutableStateFlow<List<AirspaceWarningInfo>>(emptyList())
     /** Active airspace warnings, most severe first. */
@@ -193,6 +222,9 @@ class FlightViewModel(
             try {
                 core.attachMap(surface, width, height, dpi)
                 mapOrientationFlow.value = core.mapOrientation()
+            } catch (e: CancellationException) {
+                // a newer surface replaced this one: not a failure
+                throw e
             } catch (e: Exception) {
                 lastEventFlow.value = "Map failed: ${e.message}"
             }

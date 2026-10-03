@@ -40,6 +40,7 @@
 #include "CoreTask.hpp"
 #include "CoreAnalysis.hpp"
 #include "CorePlanes.hpp"
+#include "CoreInfoBoxes.hpp"
 #include "CoreWeGlide.hpp"
 #include "util/Exception.hxx"
 #include "CoreUnits.hpp"
@@ -1081,6 +1082,46 @@ GetJsonOnMain(xcs_core *core, char *buffer, size_t size, size_t *length_r,
 
   return RunOnMain(*core, [&]{
     return CopyJson(describe(), buffer, size, length_r);
+  });
+}
+
+xcs_status
+xcs_tiles_types(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r,
+                       CoreInfoBoxes::DescribeTypes);
+}
+
+xcs_status
+xcs_tiles_layouts(xcs_core *core, char *buffer, size_t size,
+                  size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r,
+                       CoreInfoBoxes::DescribeLayouts);
+}
+
+xcs_status
+xcs_tiles_set(xcs_core *core, uint32_t layout, uint32_t tile, uint32_t type)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [layout, tile, type]{
+    return CoreInfoBoxes::SetTile(layout, tile, type)
+      ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_tiles_update(xcs_core *core, uint32_t layout, char *buffer, size_t size,
+                 size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr ||
+      layout >= CoreInfoBoxes::LAYOUT_COUNT)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [layout, buffer, size, length_r]{
+    return CopyJson(CoreInfoBoxes::Update(layout), buffer, size, length_r);
   });
 }
 

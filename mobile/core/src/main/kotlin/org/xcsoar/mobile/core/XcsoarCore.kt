@@ -105,6 +105,18 @@ interface XcsoarCore {
     /** XCSoar's analysis pages; null if the core has not started. */
     suspend fun analysis(): Analysis? = null
 
+    /** The InfoBox types a tile can show, by name. */
+    suspend fun tileTypes(): List<TileType> = emptyList()
+
+    /** The types in each layout's tiles; null if the core has not started. */
+    suspend fun tileLayouts(): TileLayouts? = null
+
+    /** Show InfoBox [type] in [tile] of [layout] (saved in the profile). */
+    suspend fun setTile(layout: TileLayout, tile: Int, type: Int) {}
+
+    /** The tiles of [layout] now; null if the core has not started. */
+    suspend fun tiles(layout: TileLayout): List<TileValue>? = null
+
     /** The plane files; null if the core has not started. */
     suspend fun planes(): PlaneList? = null
 
