@@ -25,6 +25,8 @@ import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.core.WeGlideAircraft
 import org.xcsoar.mobile.core.WeGlideException
 import org.xcsoar.mobile.core.WeGlideFlight
+import org.xcsoar.mobile.core.NotamList
+import org.xcsoar.mobile.core.NotamSettings
 import org.xcsoar.mobile.core.RaspInfo
 import org.xcsoar.mobile.core.TrackingSettings
 import org.xcsoar.mobile.core.WeGlideSettings
@@ -322,6 +324,20 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun setCrew(pilot: String?, copilot: String?) =
         command { NativeCore.nativeCrewSet(it, pilot, copilot) }
+
+    override suspend fun notamSettings() =
+        query(NativeCore::nativeNotamSettingsGet, NotamSettings::parse)
+
+    override suspend fun setNotamSettings(settings: NotamSettings) =
+        command { NativeCore.nativeNotamSettingsSet(it, settings.toJson()) }
+
+    override suspend fun notams() =
+        query(NativeCore::nativeNotamList, NotamList::parse) ?: NotamList()
+
+    override suspend fun refreshNotams(): Boolean = lock.withLock {
+        check(handle != 0L) { "core not started" }
+        withContext(Dispatchers.IO) { NativeCore.nativeNotamRefresh(handle) } == 0
+    }
 
     override suspend fun raspInfo() =
         query(NativeCore::nativeRaspGet, RaspInfo::parse) ?: RaspInfo()

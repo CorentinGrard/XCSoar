@@ -27,6 +27,37 @@
 static constexpr const char *WSTAR_HELP =
   N_("Average dry thermal updraft strength near mid-BL height. Subtract glider descent rate to get average vario reading for cloudless thermals. Updraft strengths will be stronger than this forecast if convective clouds are present, since cloud condensation adds buoyancy aloft (i.e. this neglects \"cloudsuck\"). W* depends upon both the surface heating and the BL depth.");
 
+/* thermalmap.info's fields (https://www.thermalmap.info) */
+
+static constexpr const char *THERMAL_STRENGTH_HELP =
+  N_("Expected climb rate in thermals, before subtracting the glider's own "
+     "sink rate.");
+
+static constexpr const char *THERMAL_HEIGHT_HELP =
+  N_("Height above sea level that thermals reach (top of the convective "
+     "boundary layer).");
+
+static constexpr const char *CONVERGENCE_HELP =
+  N_("Vertical air motion caused by converging winds. Positive values mark "
+     "convergence lines with better lift, negative values sinking air that "
+     "suppresses thermals.");
+
+static constexpr const char *CLOUD_HELP =
+  N_("Forecast cloud cover in percent.");
+
+static constexpr const char *WIND_HELP =
+  N_("Forecast wind speed at this height above sea level.");
+
+static constexpr const char *WAVE_HELP =
+  N_("Vertical air motion at this height above sea level: lee waves and "
+     "other lift or sink.");
+
+static constexpr const char *XC_SPEED_HELP =
+  N_("Expected cross-country speed of this glider type.");
+
+static constexpr const char *PFD_HELP =
+  N_("Potential flight distance of this glider type over the whole day.");
+
 static constexpr RaspStore::MapInfo WeatherDescriptors[] = {
   {
     "wstar",
@@ -77,6 +108,212 @@ static constexpr RaspStore::MapInfo WeatherDescriptors[] = {
     "blcwbase",
     N_("blcwbase"),
     nullptr,
+  },
+  {
+    "ThermalStrength",
+    N_("Thermal strength"),
+    THERMAL_STRENGTH_HELP,
+  },
+  {
+    "ThermalHeight",
+    N_("Thermal height"),
+    THERMAL_HEIGHT_HELP,
+  },
+  {
+    "Convergence",
+    N_("Convergence"),
+    CONVERGENCE_HELP,
+  },
+  {
+    "Cloudfraction_Low",
+    N_("Low clouds"),
+    CLOUD_HELP,
+  },
+  {
+    "Cloudfraction_Mid",
+    N_("Mid-level clouds"),
+    CLOUD_HELP,
+  },
+  {
+    "Cloudfraction_High",
+    N_("High clouds"),
+    CLOUD_HELP,
+  },
+  {
+    "Cloudfraction_Accumulated",
+    N_("Total clouds"),
+    CLOUD_HELP,
+  },
+  {
+    "Rain",
+    N_("Rain"),
+    N_("Forecast precipitation."),
+  },
+  {
+    "XCSpeed_LS4",
+    N_("XC speed LS4"),
+    XC_SPEED_HELP,
+  },
+  {
+    "XCSpeed_DuoDiscus",
+    N_("XC speed Duo Discus"),
+    XC_SPEED_HELP,
+  },
+  {
+    "XCSpeed_K8",
+    N_("XC speed K8"),
+    XC_SPEED_HELP,
+  },
+  {
+    "PFD_Day_LS4",
+    N_("Flight distance LS4"),
+    PFD_HELP,
+  },
+  {
+    "PFD_Day_DuoDiscus",
+    N_("Flight distance Duo Discus"),
+    PFD_HELP,
+  },
+  {
+    "PFD_Day_K8",
+    N_("Flight distance K8"),
+    PFD_HELP,
+  },
+  {
+    "BL_AverageWindSpeed",
+    N_("BL wind"),
+    N_("Average wind speed in the boundary layer, where thermals are."),
+  },
+  {
+    "VerticalWindShear",
+    N_("Wind shear"),
+    N_("Change of wind with height in the boundary layer. Strong shear "
+       "breaks thermals up."),
+  },
+  {
+    "Temperature2m",
+    N_("Temperature 2 m"),
+    N_("The temperature at a height of 2m above ground level."),
+  },
+  {
+    "SurfaceHeatFlux",
+    N_("Surface heating"),
+    N_("Heat flowing from the ground into the air, which drives thermals."),
+  },
+  {
+    "SeaLevelPressure",
+    N_("Sea level pressure"),
+    nullptr,
+  },
+  {
+    "Windspeed_10m",
+    N_("Wind 10 m"),
+    N_("Forecast wind speed 10m above the ground."),
+  },
+  {
+    "Windspeed_500m",
+    N_("Wind 500 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_1000m",
+    N_("Wind 1000 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_1500m",
+    N_("Wind 1500 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_2000m",
+    N_("Wind 2000 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_2500m",
+    N_("Wind 2500 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_3000m",
+    N_("Wind 3000 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_3500m",
+    N_("Wind 3500 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_4000m",
+    N_("Wind 4000 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_4500m",
+    N_("Wind 4500 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_5000m",
+    N_("Wind 5000 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_5500m",
+    N_("Wind 5500 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_6000m",
+    N_("Wind 6000 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_6500m",
+    N_("Wind 6500 m"),
+    WIND_HELP,
+  },
+  {
+    "Windspeed_7000m",
+    N_("Wind 7000 m"),
+    WIND_HELP,
+  },
+  {
+    "Wave_1000m",
+    N_("Wave 1000 m"),
+    WAVE_HELP,
+  },
+  {
+    "Wave_2000m",
+    N_("Wave 2000 m"),
+    WAVE_HELP,
+  },
+  {
+    "Wave_3000m",
+    N_("Wave 3000 m"),
+    WAVE_HELP,
+  },
+  {
+    "Wave_4000m",
+    N_("Wave 4000 m"),
+    WAVE_HELP,
+  },
+  {
+    "Wave_5000m",
+    N_("Wave 5000 m"),
+    WAVE_HELP,
+  },
+  {
+    "Wave_6000m",
+    N_("Wave 6000 m"),
+    WAVE_HELP,
+  },
+  {
+    "Wave_7000m",
+    N_("Wave 7000 m"),
+    WAVE_HELP,
   },
 };
 

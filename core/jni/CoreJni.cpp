@@ -778,6 +778,40 @@ Java_org_xcsoar_mobile_NativeCore_nativeCrewSet(JNIEnv *env, jclass,
 }
 
 JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeNotamSettingsGet(JNIEnv *env, jclass,
+                                                         jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_notam_settings_get(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeNotamSettingsSet(JNIEnv *env, jclass,
+                                                         jlong core,
+                                                         jstring json)
+{
+  const auto j = Java::String::GetUTFChars(env, json);
+  return xcs_notam_settings_set(ToCore(core), j.c_str());
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeNotamList(JNIEnv *env, jclass,
+                                                  jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_notam_list(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeNotamRefresh(JNIEnv *, jclass,
+                                                     jlong core)
+{
+  return xcs_notam_refresh(ToCore(core));
+}
+
+JNIEXPORT jstring JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeRaspGet(JNIEnv *env, jclass,
                                                 jlong core)
 {

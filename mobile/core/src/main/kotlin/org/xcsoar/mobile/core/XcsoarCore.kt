@@ -156,6 +156,18 @@ interface XcsoarCore {
     /** Set the crew mass for this flight (and the next start). */
     suspend fun setCrewMass(kg: Double) {}
 
+    /** NOTAM settings; null if unknown. */
+    suspend fun notamSettings(): NotamSettings? = null
+
+    /** Change the NOTAM settings (saved; may start a download). */
+    suspend fun setNotamSettings(settings: NotamSettings) {}
+
+    /** The NOTAMs shown, nearest first. */
+    suspend fun notams(): NotamList = NotamList()
+
+    /** Download the NOTAMs around the aircraft; false without a fix or when off. */
+    suspend fun refreshNotams(): Boolean = false
+
     /** The RASP forecast's fields and what the map shows. */
     suspend fun raspInfo(): RaspInfo = RaspInfo()
 

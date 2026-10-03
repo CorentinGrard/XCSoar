@@ -357,9 +357,17 @@ private fun RaspSection(
 
     Row(verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(state.raspFile.substringAfterLast('/'), color = colors.textSecondary,
-             fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-             modifier = Modifier.weight(1f).padding(start = 4.dp))
+        Column(Modifier.weight(1f).padding(start = 4.dp)) {
+            Text(state.raspFile.substringAfterLast('/'), color = colors.textSecondary,
+                 fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(when {
+                     rasp.fileDate == null -> "Not downloaded"
+                     rasp.outOfDate -> "From ${rasp.fileDate}: today's comes on Wi-Fi"
+                     else -> "Today's forecast"
+                 },
+                 color = if (rasp.outOfDate) colors.caution else colors.text,
+                 fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        }
         ActionButton(if (state.raspUpdating) "Downloading…" else "Today's",
                      outlined = true, enabled = !state.raspUpdating, onClick = onUpdate)
     }

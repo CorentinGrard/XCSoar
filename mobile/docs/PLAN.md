@@ -451,7 +451,18 @@ the core already links but that has never run in this app:
       a field and a time (or now), "Today's" downloads the file again.
       `XCS_DATA_RASP`, `xcs_rasp_get` / `_set` (`core/host/CoreRasp.cpp`),
       drawn by upstream's RaspRenderer.  Checked on a Pixel 7 with the
-      France file (33 fields)
+      France file (33 fields).  thermalmap.info's fields have labels
+      and help in upstream's RaspStore (thermals first).  A new file
+      each day: downloaded in the background once the file is older
+      than today, on an unmetered network and not in flight
+      (`WeatherUpdates`); the field shown is kept
+- [x] METAR and TAF refresh every 30 minutes while the app runs
+      (`WeatherUpdates`).  Checked on a Pixel 7
+- [x] NOTAMs (Settings → NOTAMs): NOTAMConfigPanel's settings (radius,
+      refresh, filters, hidden Q-codes) and the list, nearest first, with
+      limits and validity; they become airspace (map and warnings); the
+      cache loads at start.  `xcs_notam_*` (`core/host/CoreNotam.cpp`).
+      Checked on a Pixel 7: settings, download and airspace rebuild
 - [x] File manager: download waypoints, airspace, maps from the XCSoar repository
       (Data files → Download, M2)
 - [ ] Translations: convert `po/*.po` → Android `strings.xml` at build time
@@ -459,15 +470,16 @@ the core already links but that has never run in this app:
 ### Not done: weather and tracking
 
 - RASP: no colour legend on the map (upstream draws none either; its
-  dialog shows the field), no automatic daily download (upstream's
-  RaspDownloadGlue), thermalmap.info's field names are not translated
+  dialog shows the field)
 - SkySight, pc_met, EDL and xctherm overlays (accounts, or OpenGL tile
   stores the core leaves out, D20)
-- NOTAMs: the core fetches them when enabled in the profile, but there
-  is no setting or display yet
+- NOTAMs: a real download with NOTAMs in it not seen yet (the replay's
+  area had none); no NOTAM detail on the map's hold card
 - Online traffic from the cloud and SkyLines reaches the map through
   the FLARM traffic: not yet seen with real data
-- No automatic METAR refresh
+- The labels of thermalmap.info's RASP fields are new msgids: in the
+  translations after the next `make update-po` (po/xcsoar.pot is older
+  than them; regenerating it here rewrapped every .po file)
 
 ### Not done: aircraft, crew and WeGlide
 
@@ -537,6 +549,10 @@ the core already links but that has never run in this app:
 
 ## Log
 Newest first. One line per session: what was done and what's next.
+
+- 2026-10-03 — RASP: readable field names, daily download on Wi-Fi;
+  METAR/TAF refresh every 30 min; NOTAM settings and list.
+  TestCoreApi 288 checks.  Next: a flight with NOTAMs around, RASP legend.
 
 - 2026-10-03 — Live tracking (Cloud, SkyLines, LiveTrack24), METAR/TAF
   stations and the RASP forecast on the map.  Network calls from the

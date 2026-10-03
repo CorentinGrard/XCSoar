@@ -36,12 +36,14 @@ CountFields() noexcept;
 /**
  * {"fields": [{"name": "wstar", "label": "W*", "help": "...",
  *              "times": ["09:00", ..., "18:00"]}, ...],
- *  "field": 0, "time": "13:00"}
+ *  "field": 0, "time": "13:00", "file_date": "2026-10-03",
+ *  "out_of_date": false}
  *
  * "label" and "help" are translated; "help" is left out where XCSoar
  * has none.  Times are local, every quarter hour the file has.
  * "field" is -1 when the map shows none, "time" null when it follows
- * the clock.
+ * the clock.  "file_date" (UTC) and "out_of_date" (written before
+ * today: RASP files are new every day) come with a configured file.
  */
 std::string
 Describe() noexcept;

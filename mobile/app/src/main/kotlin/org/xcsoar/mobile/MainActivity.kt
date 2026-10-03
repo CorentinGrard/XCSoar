@@ -70,6 +70,8 @@ import org.xcsoar.mobile.ui.settings.SafetyScreen
 import org.xcsoar.mobile.ui.settings.SafetyViewModel
 import org.xcsoar.mobile.ui.settings.SettingsScreen
 import org.xcsoar.mobile.ui.settings.VarioSoundScreen
+import org.xcsoar.mobile.ui.settings.NotamScreen
+import org.xcsoar.mobile.ui.settings.NotamViewModel
 import org.xcsoar.mobile.ui.settings.TrackingScreen
 import org.xcsoar.mobile.ui.settings.TrackingViewModel
 import org.xcsoar.mobile.ui.settings.VarioSoundViewModel
@@ -90,7 +92,8 @@ import java.io.File
 private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS,
                             TASK, TASK_FILES, TASK_ADD_POINT, UNITS, ANALYSIS,
                             CREW, PLANE_EDIT, PILOT, TILE_PICKER, SETTINGS,
-                            AIRSPACE_ALERTS, SAFETY, VARIO_SOUND, TRACKING, WEATHER }
+                            AIRSPACE_ALERTS, SAFETY, VARIO_SOUND, TRACKING, WEATHER,
+                            NOTAMS }
 
 /** How deep a page is: pages further in slide in from the right. */
 private val Screen.depth: Int
@@ -99,7 +102,7 @@ private val Screen.depth: Int
         Screen.DOWNLOAD -> 3
         Screen.PLANE_EDIT, Screen.PILOT, Screen.UNITS, Screen.MAP_SETTINGS,
         Screen.DATA_FILES, Screen.AIRSPACE_ALERTS, Screen.SAFETY, Screen.VARIO_SOUND,
-        Screen.TRACKING, Screen.TASK_FILES,
+        Screen.TRACKING, Screen.NOTAMS, Screen.TASK_FILES,
         Screen.TASK_ADD_POINT -> 2
         else -> 1
     }
@@ -253,6 +256,8 @@ class MainActivity : ComponentActivity() {
                     factory = viewModelFactory { initializer { VarioSoundViewModel(app.anyCore) } })
                 val trackingViewModel: TrackingViewModel = viewModel(
                     factory = viewModelFactory { initializer { TrackingViewModel(app.anyCore) } })
+                val notamViewModel: NotamViewModel = viewModel(
+                    factory = viewModelFactory { initializer { NotamViewModel(app.anyCore) } })
                 val weatherViewModel: WeatherViewModel = viewModel(
                     factory = viewModelFactory {
                         initializer {
@@ -389,6 +394,7 @@ class MainActivity : ComponentActivity() {
                                 onSafety = { screen = Screen.SAFETY },
                                 onVarioSound = { screen = Screen.VARIO_SOUND },
                                 onTracking = { screen = Screen.TRACKING },
+                                onNotams = { screen = Screen.NOTAMS },
                                 onPlane = {
                                     planeEditViewModel.openActive(
                                         onOpened = {
@@ -409,6 +415,8 @@ class MainActivity : ComponentActivity() {
                                     screen = Screen.DOWNLOAD
                                 },
                                 onBack = { screen = Screen.FLIGHT })
+                            Screen.NOTAMS -> NotamScreen(
+                                notamViewModel, onBack = { screen = Screen.SETTINGS })
                             Screen.TRACKING -> TrackingScreen(
                                 trackingViewModel, onBack = { screen = Screen.SETTINGS })
                             Screen.VARIO_SOUND -> VarioSoundScreen(

@@ -48,10 +48,11 @@ fun SettingsScreen(
     onVarioSound: () -> Unit,
     onPlane: () -> Unit,
     onTracking: () -> Unit,
+    onNotams: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
     SettingsContent(onBack, onPilot, onUnits, onMap, onDataFiles, onAirspaceAlerts, onSafety,
-                    onVarioSound, onPlane, onTracking)
+                    onVarioSound, onPlane, onTracking, onNotams)
 }
 
 /**
@@ -71,6 +72,7 @@ fun SettingsContent(
     onVarioSound: () -> Unit = {},
     onPlane: () -> Unit = {},
     onTracking: () -> Unit = {},
+    onNotams: () -> Unit = {},
 ) {
     val colors = XcsTheme.colors
     Column(
@@ -93,6 +95,7 @@ fun SettingsContent(
         Section("Flying", listOf(
             Setting("Safety heights", "Arrival, terrain, safety MC", onSafety),
             Setting("Airspace", "Warnings, classes, sound", onAirspaceAlerts),
+            Setting("NOTAMs", "Download, filters, list", onNotams),
             Setting("Vario sound", "Volume, mode, dead band", onVarioSound)))
         Section("Online", listOf(
             Setting("Live tracking", "Cloud, SkyLines, LiveTrack24", onTracking)))

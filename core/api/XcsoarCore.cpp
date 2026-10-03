@@ -45,6 +45,7 @@
 #include "CoreTracking.hpp"
 #include "CoreWeather.hpp"
 #include "CoreRasp.hpp"
+#include "CoreNotam.hpp"
 #include "util/Exception.hxx"
 #include "CoreUnits.hpp"
 
@@ -1396,6 +1397,42 @@ xcs_rasp_set(xcs_core *core, int32_t field, const char *time)
     CoreMap::Render();
 #endif
     return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_notam_settings_get(xcs_core *core, char *buffer, size_t size,
+                       size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r,
+                       CoreNotam::DescribeSettings);
+}
+
+xcs_status
+xcs_notam_settings_set(xcs_core *core, const char *json)
+{
+  if (core == nullptr || json == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [json]{
+    return CoreNotam::SetSettings(json) ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_notam_list(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r, CoreNotam::Describe);
+}
+
+xcs_status
+xcs_notam_refresh(xcs_core *core)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, []{
+    return CoreNotam::Refresh() ? XCS_OK : XCS_ERROR_STATE;
   });
 }
 

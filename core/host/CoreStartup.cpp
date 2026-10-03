@@ -63,6 +63,7 @@
 #include "CorePlanes.hpp"
 #include "CoreWeather.hpp"
 #include "CoreRasp.hpp"
+#include "CoreNotam.hpp"
 #include "FLARM/Glue.hpp"
 #include "NMEA/Aircraft.hpp"
 #include "Storage/StorageManager.hpp"
@@ -304,6 +305,9 @@ CoreStartup(OperationEnvironment &operation, bool open_devices)
 
   backend_components->merge_thread->Start();
   backend_components->calculation_thread->Start();
+
+  /* like AfterStartup(): needs the threads (it suspends them) */
+  CoreNotam::LoadCached();
 
   /* opens the devices, among other things (like ProcessTimer()) */
   CoreStartTimer(open_devices);

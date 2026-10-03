@@ -562,11 +562,45 @@ TestRasp(xcs_core *core)
   ok1(xcs_set_data_file(core, XCS_DATA_RASP, "does/not/exist-rasp.dat") == XCS_OK);
   ok1(Contains(status(), "\"rasp\":{\"files\":[\"") &&
       Contains(status(), "exist-rasp.dat\"],\"count\":0}"));
-  ok1(rasp() == "{\"fields\":[],\"field\":-1,\"time\":null}");
+  /* the file is missing: out of date, download it */
+  ok1(rasp() == "{\"fields\":[],\"field\":-1,\"time\":null,"
+                "\"out_of_date\":true}");
   ok1(xcs_rasp_set(core, 0, nullptr) == XCS_ERROR_INVALID_ARGUMENT);
   ok1(xcs_rasp_set(core, -1, nullptr) == XCS_OK);
   ok1(xcs_set_data_file(core, XCS_DATA_RASP, nullptr) == XCS_OK);
   ok1(Contains(status(), "\"rasp\":{\"files\":[],\"count\":0}"));
+}
+
+/* NOTAMs stay off: the test must not use the network */
+static void
+TestNotam(xcs_core *core)
+{
+  auto settings = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_notam_settings_get(core, b, s, l);
+    });
+  };
+
+  ok1(xcs_notam_settings_set(core, "{\"enabled\":false}") == XCS_OK);
+  ok1(xcs_notam_settings_set(core, "{\"radius_km\":0}") == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_notam_settings_set(core, "{\"radius_km\":186}") == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_notam_settings_set(core, "{\"refresh_interval_min\":241}") ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_notam_settings_set(core, ("{\"hidden_qcodes\":\"" + std::string(256, 'Q') +
+                                    "\"}").c_str()) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_notam_settings_set(core, "{\"enabled\":\"yes\"}") == XCS_ERROR_INVALID_ARGUMENT);
+
+  ok1(xcs_notam_settings_set(core, "{\"radius_km\":100,\"show_ifr\":true,"
+                             "\"hidden_qcodes\":\"QA QK\"}") == XCS_OK);
+  ok1(Contains(settings(), "\"enabled\":false,\"radius_km\":100,") &&
+      Contains(settings(), "\"show_ifr\":true,") &&
+      Contains(settings(), "\"hidden_qcodes\":\"QA QK\"}"));
+
+  ok1(Contains(GetJson([core](char *b, size_t s, size_t *l){
+    return xcs_notam_list(core, b, s, l);
+  }), "\"notams\":[]"));
+  /* switched off: nothing to download */
+  ok1(xcs_notam_refresh(core) == XCS_ERROR_STATE);
 }
 
 static void
@@ -891,7 +925,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -917,6 +951,7 @@ main()
   TestTracking(core);
   TestWeather(core);
   TestRasp(core);
+  TestNotam(core);
   TestTiles(core);
   ok1(xcs_stop(core) == XCS_OK);
 

@@ -55,6 +55,11 @@ class XcsoarApp : Application() {
     /** The core every screen shares: the native one, else the fake one. */
     val anyCore: XcsoarCore by lazy { core ?: FakeXcsoarCore(appScope) }
 
+    override fun onCreate() {
+        super.onCreate()
+        WeatherUpdates(this, appScope)
+    }
+
     /** The pilot chose the plane and crew since the app started. */
     var crewChosen = false
 

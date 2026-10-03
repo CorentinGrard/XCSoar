@@ -138,6 +138,7 @@ CORE_HOST_SOURCES = \
 	$(CORE_SRC_DIR)/host/CoreTracking.cpp \
 	$(CORE_SRC_DIR)/host/CoreWeather.cpp \
 	$(CORE_SRC_DIR)/host/CoreRasp.cpp \
+	$(CORE_SRC_DIR)/host/CoreNotam.cpp \
 	$(CORE_SRC_DIR)/host/CoreInfoBoxes.cpp \
 	$(CORE_SRC_DIR)/host/InfoBoxSeams.cpp \
 	$(CORE_SRC_DIR)/host/CoreUnits.cpp \

@@ -134,6 +134,14 @@ class FakeXcsoarCore(
         safety[option] = value
     }
 
+    private var notamSettings = NotamSettings()
+
+    override suspend fun notamSettings(): NotamSettings = notamSettings
+
+    override suspend fun setNotamSettings(settings: NotamSettings) {
+        notamSettings = settings
+    }
+
     private var rasp = RaspInfo()
 
     override suspend fun raspInfo(): RaspInfo = rasp

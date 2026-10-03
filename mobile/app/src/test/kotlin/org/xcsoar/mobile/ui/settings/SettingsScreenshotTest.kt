@@ -13,6 +13,9 @@ import kotlinx.coroutines.runBlocking
 import org.xcsoar.mobile.core.AirspaceAlerts
 import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.SafetyOption
+import org.xcsoar.mobile.core.NotamInfo
+import org.xcsoar.mobile.core.NotamList
+import org.xcsoar.mobile.core.NotamSettings
 import org.xcsoar.mobile.core.SoundOption
 import org.xcsoar.mobile.core.TrackingSettings
 import org.xcsoar.mobile.ui.theme.XcsTheme
@@ -80,6 +83,34 @@ class SettingsScreenshotTest {
                                                          traffic = true, key = "ABCDEF0123"),
                     cloud = TrackingSettings.Cloud(enabled = true))),
                 {}, {}, {})
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h1500dp-xxhdpi")
+    fun notams() = captureRoboImage("src/test/screenshots/notams.png") {
+        XcsTheme(dark = false) {
+            NotamContent(
+                NotamState(
+                    loaded = true, settings = NotamSettings(enabled = true),
+                    list = NotamList(
+                        updated = "2026-10-03T19:20:00Z", total = 14,
+                        notams = listOf(
+                            NotamInfo("A1234/26", "LFMM",
+                                      "PARACHUTE JUMPING EXERCISE WITHIN 2NM RADIUS OF " +
+                                          "434750N 0035800E (ST MARTIN DE LONDRES)",
+                                      start = "2026-10-03T08:00:00Z",
+                                      end = "2026-10-03T18:00:00Z", active = true,
+                                      lower = "SFC", upper = "FL115", distance = 12_400.0),
+                            NotamInfo("C0512/26", "LFMT",
+                                      "CRANE ERECTED 1.2NM N OF THR 31R, HEIGHT 45M AGL",
+                                      start = "2026-10-01T00:00:00Z", permanent = true,
+                                      active = true, distance = 31_000.0),
+                            NotamInfo("A1301/26", "LFMM", "MILITARY EXERCISE AREA ACTIVE",
+                                      start = "2026-10-05T07:00:00Z",
+                                      end = "2026-10-05T16:00:00Z", lower = "1500FT AGL",
+                                      upper = "FL065", distance = 48_000.0)))),
+                {}, {}, {}, {})
         }
     }
 }

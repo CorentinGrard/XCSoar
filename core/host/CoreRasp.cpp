@@ -8,6 +8,10 @@
 #include "Weather/Rasp/Configured.hpp"
 #include "Profile/Profile.hpp"
 #include "Profile/Keys.hpp"
+#include "Repository/Glue.hpp"
+#include "system/FileUtil.hpp"
+#include "system/Path.hpp"
+#include "time/BrokenDateTime.hpp"
 #include "Language/Language.hpp"
 #include "time/BrokenTime.hpp"
 #include "json/Serialize.hxx"
@@ -17,14 +21,20 @@
 #include <boost/json.hpp>
 
 #include <cstdio>
+#include <string>
 
 static std::shared_ptr<RaspStore> store;
 
 void
 CoreRasp::Load() noexcept
 try {
-  /* a new file has other fields */
-  CommonInterface::SetUIState().weather.map = -1;
+  /* today's file usually has the same fields: keep showing the one
+     shown, by name */
+  auto &state = CommonInterface::SetUIState().weather;
+  std::string shown;
+  if (state.map >= 0 && unsigned(state.map) < CountFields())
+    shown = store->GetItemInfo(state.map).name.c_str();
+  state.map = -1;
 
   store.reset();
   if (Profile::GetPath(ProfileKeys::RaspFile) == nullptr)
@@ -32,6 +42,10 @@ try {
 
   /* no "xcsoar-rasp.dat" fallback: the app always names the file */
   store = LoadConfiguredRasp(false);
+
+  for (unsigned i = 0; !shown.empty() && i < CountFields(); ++i)
+    if (shown == store->GetItemInfo(i).name.c_str())
+      state.map = i;
 } catch (...) {
   LogError(std::current_exception(), "Failed to load RASP");
   store.reset();
@@ -92,12 +106,34 @@ CoreRasp::Describe() noexcept
   if (showing && !state.time_auto_advance && state.time.IsPlausible())
     time = FormatTime(state.time);
 
-  StringOutputStream os;
-  Json::Serialize(os, boost::json::object{
+  boost::json::object o{
     {"fields", std::move(fields)},
     {"field", showing ? state.map : -1},
     {"time", std::move(time)},
-  });
+  };
+
+  /* the file's day, and whether it is older than today, like
+     IsRaspFileOutOfDate() (the system clock: there may be no fix) */
+  if (const auto path = Profile::GetPath(ProfileKeys::RaspFile);
+      path != nullptr) {
+    BrokenDate modified = BrokenDate::Invalid();
+    if (File::Exists(path))
+      modified = BrokenDateTime{File::GetLastModification(path)};
+
+    if (modified.IsPlausible()) {
+      char date[16];
+      snprintf(date, sizeof(date), "%04u-%02u-%02u",
+               modified.year, modified.month, modified.day);
+      o["file_date"] = date;
+    }
+
+    o["out_of_date"] =
+      IsRaspForecastOutOfDate(modified, BrokenDateTime::NowUTC(),
+                              BrokenDate::Invalid());
+  }
+
+  StringOutputStream os;
+  Json::Serialize(os, o);
   return std::move(os).GetValue();
 }
 

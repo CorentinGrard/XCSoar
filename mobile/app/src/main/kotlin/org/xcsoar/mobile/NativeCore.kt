@@ -85,6 +85,10 @@ internal object NativeCore {
     @JvmStatic external fun nativePlaneDelete(core: Long, path: String): Int
     @JvmStatic external fun nativeCrewGet(core: Long): String?
     @JvmStatic external fun nativeCrewSet(core: Long, pilot: String?, copilot: String?): Int
+    @JvmStatic external fun nativeNotamSettingsGet(core: Long): String?
+    @JvmStatic external fun nativeNotamSettingsSet(core: Long, json: String): Int
+    @JvmStatic external fun nativeNotamList(core: Long): String?
+    @JvmStatic external fun nativeNotamRefresh(core: Long): Int
     @JvmStatic external fun nativeRaspGet(core: Long): String?
     @JvmStatic external fun nativeRaspSet(core: Long, field: Int, time: String?): Int
     @JvmStatic external fun nativeWeatherList(core: Long): String?

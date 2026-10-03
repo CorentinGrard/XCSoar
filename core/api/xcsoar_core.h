@@ -870,9 +870,12 @@ xcs_tracking_set(xcs_core *core, const char *json);
  *
  *   {"fields": [{"name": "wstar", "label": "W*", "help": "...",
  *                "times": ["09:00", ..., "18:00"]}, ...],
- *    "field": 0, "time": "13:00"}
+ *    "field": 0, "time": "13:00", "file_date": "2026-10-03",
+ *    "out_of_date": false}
  *
- * Times are local.  "field" is -1 when the map shows none; "time" is
+ * Times are local.  With a configured file, "file_date" is the day it
+ * was written (UTC) and "out_of_date" says it is older than today:
+ * download it again (RASP forecasts are new every day).  "field" is -1 when the map shows none; "time" is
  * null when it follows the clock.  No file: no fields.
  */
 XCS_EXPORT xcs_status
@@ -885,6 +888,33 @@ xcs_rasp_get(xcs_core *core, char *buffer, size_t size, size_t *length_r);
  */
 XCS_EXPORT xcs_status
 xcs_rasp_set(xcs_core *core, int32_t field, const char *time);
+
+/*
+ * NOTAMs (core/host/CoreNotam.hpp has the JSON formats), from XCSoar's
+ * NOTAM server around the aircraft.  They become airspaces: the map
+ * draws them and the warnings include them.
+ */
+
+/** NOTAMConfigPanel's settings as JSON. */
+XCS_EXPORT xcs_status
+xcs_notam_settings_get(xcs_core *core, char *buffer, size_t size,
+                       size_t *length_r);
+
+/** Change the settings (JSON, every value optional).
+    XCS_ERROR_INVALID_ARGUMENT (nothing changed) if malformed or out of
+    range. */
+XCS_EXPORT xcs_status
+xcs_notam_settings_set(xcs_core *core, const char *json);
+
+/** The NOTAMs the settings show, nearest first, and the download
+    state. */
+XCS_EXPORT xcs_status
+xcs_notam_list(xcs_core *core, char *buffer, size_t size, size_t *length_r);
+
+/** Download the NOTAMs around the aircraft now (in the background).
+    XCS_ERROR_STATE without a GPS fix or when switched off. */
+XCS_EXPORT xcs_status
+xcs_notam_refresh(xcs_core *core);
 
 /*
  * Weather: METAR and TAF of the pilot's stations, from NOAA (XCSoar's

@@ -3,6 +3,7 @@
 
 package org.xcsoar.mobile.core
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -16,6 +17,10 @@ data class RaspInfo(
     val field: Int = -1,
     /** "HH:MM" local; null follows the clock. */
     val time: String? = null,
+    /** "YYYY-MM-DD" (UTC) the configured file was written; null if none. */
+    @SerialName("file_date") val fileDate: String? = null,
+    /** The configured file is older than today: download it again. */
+    @SerialName("out_of_date") val outOfDate: Boolean = false,
 ) {
     val selected get() = fields.getOrNull(field)
 

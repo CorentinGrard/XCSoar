@@ -36,7 +36,7 @@ class WeatherScreenshotTest {
             RaspField("blwindspd", "BL Wind spd", times = listOf("12:00")),
             RaspField("hbl", "H bl", times = listOf("12:00")),
             RaspField("blcloudpct", "bl cloud", times = listOf("12:00"))),
-        field = 0, time = "14:00")
+        field = 0, time = "14:00", fileDate = "2026-10-02", outOfDate = true)
 
     /** Tall enough for the forecast and the stations. */
     @Test
