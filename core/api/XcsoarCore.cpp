@@ -94,6 +94,7 @@
 #include "system/Path.hpp"
 #include "thread/Debug.hpp"
 #include "util/UTF8.hpp"
+#include "Math/Util.hpp"
 #include "json/Serialize.hxx"
 #include "io/StringOutputStream.hxx"
 
@@ -1878,6 +1879,117 @@ xcs_airspace_get_option(xcs_core *core, uint32_t option, int32_t *value_r)
     int value = option != XCS_AIRSPACE_AUTO_HIDE;
     Profile::Get(AirspaceAlertKey(option), value);
     *value_r = value;
+    return XCS_OK;
+  });
+}
+
+/** The range of a safety option; false for an unknown option. */
+static constexpr bool
+SafetyRange(uint32_t option, double &min, double &max) noexcept
+{
+  switch (option) {
+  case XCS_SAFETY_ARRIVAL_HEIGHT:
+    min = 0, max = 2000;
+    return true;
+  case XCS_SAFETY_TERRAIN_HEIGHT:
+    min = 0, max = 1000;
+    return true;
+  case XCS_SAFETY_MC:
+    min = 0, max = 10;
+    return true;
+  case XCS_SAFETY_RISK_FACTOR:
+    min = 0, max = 1;
+    return true;
+  case XCS_SAFETY_ALTERNATES:
+    min = 0, max = unsigned(AbortTaskMode::HOME);
+    return true;
+  case XCS_SAFETY_TURN_BACK_MARKER:
+    min = 0, max = 1;
+    return true;
+  default:
+    return false;
+  }
+}
+
+xcs_status
+xcs_safety_set_option(xcs_core *core, uint32_t option, double value)
+{
+  double min = 0, max = 0;
+  if (core == nullptr || !SafetyRange(option, min, max) ||
+      !(value >= min && value <= max))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  /* like SafetyFactorsConfigPanel; TaskComputer hands the settings to
+     the task manager on its next pass */
+  return RunOnMain(*core, [option, value]{
+    auto &task = CommonInterface::SetComputerSettings().task;
+    switch (option) {
+    case XCS_SAFETY_ARRIVAL_HEIGHT:
+      task.safety_height_arrival = value;
+      Profile::Set(ProfileKeys::SafetyAltitudeArrival, value);
+      break;
+
+    case XCS_SAFETY_TERRAIN_HEIGHT:
+      task.route_planner.safety_height_terrain = value;
+      Profile::Set(ProfileKeys::SafetyAltitudeTerrain, value);
+      break;
+
+    case XCS_SAFETY_MC:
+      task.safety_mc = std::round(value * 10) / 10;
+      Profile::Set(ProfileKeys::SafetyMacCready, iround(value * 10));
+      break;
+
+    case XCS_SAFETY_RISK_FACTOR:
+      task.risk_gamma = std::round(value * 10) / 10;
+      Profile::Set(ProfileKeys::RiskGamma, iround(value * 10));
+      break;
+
+    case XCS_SAFETY_ALTERNATES:
+      task.abort_task_mode = AbortTaskMode(iround(value));
+      Profile::SetEnum(ProfileKeys::AbortTaskMode, task.abort_task_mode);
+      break;
+
+    case XCS_SAFETY_TURN_BACK_MARKER:
+      task.turn_back_marker_enabled = value != 0;
+      Profile::Set(ProfileKeys::TurnBackMarkerEnabled,
+                   task.turn_back_marker_enabled);
+      break;
+    }
+
+    Profile::Save();
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_safety_get_option(xcs_core *core, uint32_t option, double *value_r)
+{
+  double min = 0, max = 0;
+  if (core == nullptr || value_r == nullptr || !SafetyRange(option, min, max))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [option, value_r]{
+    const auto &task = CommonInterface::GetComputerSettings().task;
+    switch (option) {
+    case XCS_SAFETY_ARRIVAL_HEIGHT:
+      *value_r = task.safety_height_arrival;
+      break;
+    case XCS_SAFETY_TERRAIN_HEIGHT:
+      *value_r = task.route_planner.safety_height_terrain;
+      break;
+    case XCS_SAFETY_MC:
+      *value_r = task.safety_mc;
+      break;
+    case XCS_SAFETY_RISK_FACTOR:
+      *value_r = task.risk_gamma;
+      break;
+    case XCS_SAFETY_ALTERNATES:
+      *value_r = unsigned(task.abort_task_mode);
+      break;
+    case XCS_SAFETY_TURN_BACK_MARKER:
+      *value_r = task.turn_back_marker_enabled;
+      break;
+    }
     return XCS_OK;
   });
 }

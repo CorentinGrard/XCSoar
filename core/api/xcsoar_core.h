@@ -499,6 +499,39 @@ xcs_airspace_set_option(xcs_core *core, uint32_t option, int32_t value);
 XCS_EXPORT xcs_status
 xcs_airspace_get_option(xcs_core *core, uint32_t option, int32_t *value_r);
 
+/*
+ * Safety: the margins of XCSoar's glide computer (its "Safety factors"
+ * settings).
+ */
+
+typedef enum xcs_safety_option {
+  /** m, 0..2000: height above the field to arrive at
+      [SafetyAltitudeArrival] */
+  XCS_SAFETY_ARRIVAL_HEIGHT = 1,
+  /** m, 0..1000: terrain clearance on final glide
+      [SafetyAltitudeTerrain] */
+  XCS_SAFETY_TERRAIN_HEIGHT = 2,
+  /** m/s, 0..10, in 0.1 steps: MacCready for reach and arrival heights
+      [SafetyMacCready] */
+  XCS_SAFETY_MC = 3,
+  /** 0..1, in 0.1 steps: lowers MacCready for speed to fly when low
+      [RiskGamma] */
+  XCS_SAFETY_RISK_FACTOR = 4,
+  /** How alternates are sorted: 0 nearest, 1 along the task, 2 toward
+      home [AbortTaskMode] */
+  XCS_SAFETY_ALTERNATES = 5,
+  /** 0/1: the turn back marker on the map [TurnBackMarkerEnabled] */
+  XCS_SAFETY_TURN_BACK_MARKER = 6,
+} xcs_safety_option;
+
+/** Set a safety option; saved in the profile.  XCS_ERROR_INVALID_ARGUMENT
+    for an unknown option or a value out of range. */
+XCS_EXPORT xcs_status
+xcs_safety_set_option(xcs_core *core, uint32_t option, double value);
+
+XCS_EXPORT xcs_status
+xcs_safety_get_option(xcs_core *core, uint32_t option, double *value_r);
+
 /**
  * XCSoar's airspace classes, in its numbering, with whether each is
  * drawn on the map and warned of, and how many the loaded airspace

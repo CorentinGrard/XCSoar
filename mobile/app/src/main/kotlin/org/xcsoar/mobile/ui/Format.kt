@@ -79,6 +79,17 @@ object Format {
         return unit.toSi(user)
     }
 
+    /**
+     * One safety height step from [m] in [direction] (±1), in metres:
+     * 10 m or 50 ft, on that unit's grid.
+     */
+    fun stepAltitude(m: Double, direction: Int): Double {
+        val unit = unit(UnitGroup.ALTITUDE)
+        val step = if (unit.unit == UnitInfo.FEET) 50.0 else 10.0
+        val user = round(unit.toUser(m) / step + direction) * step
+        return unit.toSi(user)
+    }
+
     /** Aircraft speeds, whole units. */
     fun speed(ms: Double?) = speed(ms, UnitGroup.HORIZONTAL_SPEED)
 

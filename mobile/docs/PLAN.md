@@ -418,6 +418,10 @@ the core already links but that has never run in this app:
       classes of the loaded files first with their counts (by class, or
       type when a file has none, as the warnings filter them):
       `xcs_airspace_classes`, `xcs_airspace_set_class`, options 5 and 6
+- [x] Safety heights (Settings → Safety heights): arrival height, terrain
+      clearance, safety MacCready, speed-to-fly risk factor, alternates
+      order, turn back marker (`xcs_safety_set_option` / `_get_option`,
+      XCSoar's SafetyFactorsConfigPanel keys)
 - [ ] Settings screens backed by `xcs_settings_*` JSON sections: units, polar /
       plane, safety heights, airspace filters, audio, map, InfoBox pages
 - [ ] Profiles: list, switch, import existing `.prf`

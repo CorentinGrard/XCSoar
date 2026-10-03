@@ -34,6 +34,7 @@
 #include <jni.h>
 
 #include <cassert>
+#include <limits>
 #include <string>
 
 namespace {
@@ -478,6 +479,25 @@ Java_org_xcsoar_mobile_NativeCore_nativeAirspaceSetClass(JNIEnv *, jclass,
 {
   return xcs_airspace_set_class(ToCore(core), airspace_class, display,
                                 warning);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeSafetySetOption(JNIEnv *, jclass,
+                                                        jlong core, jint option,
+                                                        jdouble value)
+{
+  return xcs_safety_set_option(ToCore(core), option, value);
+}
+
+/** @return the value, or NaN on error */
+JNIEXPORT jdouble JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeSafetyGetOption(JNIEnv *, jclass,
+                                                        jlong core, jint option)
+{
+  double value;
+  return xcs_safety_get_option(ToCore(core), option, &value) == XCS_OK
+    ? value
+    : std::numeric_limits<double>::quiet_NaN();
 }
 
 JNIEXPORT jint JNICALL

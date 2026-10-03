@@ -44,9 +44,10 @@ fun SettingsScreen(
     onMap: (() -> Unit)?,
     onDataFiles: () -> Unit,
     onAirspaceAlerts: () -> Unit,
+    onSafety: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
-    SettingsContent(onBack, onPilot, onUnits, onMap, onDataFiles, onAirspaceAlerts)
+    SettingsContent(onBack, onPilot, onUnits, onMap, onDataFiles, onAirspaceAlerts, onSafety)
 }
 
 /**
@@ -62,6 +63,7 @@ fun SettingsContent(
     onMap: (() -> Unit)? = {},
     onDataFiles: () -> Unit = {},
     onAirspaceAlerts: () -> Unit = {},
+    onSafety: () -> Unit = {},
 ) {
     val colors = XcsTheme.colors
     Column(
@@ -82,7 +84,7 @@ fun SettingsContent(
             Setting("Units", "Altitude, speed, lift…", onUnits),
             Setting("Map", "Terrain, topography, trail", onMap)))
         Section("Flying", listOf(
-            Setting("Safety heights"),
+            Setting("Safety heights", "Arrival, terrain, safety MC", onSafety),
             Setting("Airspace", "Warnings, classes, sound", onAirspaceAlerts),
             Setting("Vario sound")))
         Section("Data and devices", listOf(

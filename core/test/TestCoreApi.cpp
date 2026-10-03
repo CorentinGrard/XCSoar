@@ -537,6 +537,33 @@ TestAirspaceOptions(xcs_core *core)
 }
 
 static void
+TestSafety(xcs_core *core)
+{
+  double arrival = -1, mc = -1, alternates = -1, value = -1;
+  ok1(xcs_safety_get_option(core, XCS_SAFETY_ARRIVAL_HEIGHT, &arrival) == XCS_OK);
+  ok1(xcs_safety_get_option(core, XCS_SAFETY_MC, &mc) == XCS_OK);
+  ok1(xcs_safety_get_option(core, XCS_SAFETY_ALTERNATES, &alternates) == XCS_OK);
+
+  ok1(xcs_safety_set_option(core, 99, 1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_ARRIVAL_HEIGHT, -1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_ARRIVAL_HEIGHT, 2001) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_ARRIVAL_HEIGHT,
+                            std::numeric_limits<double>::quiet_NaN()) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_ALTERNATES, 3) == XCS_ERROR_INVALID_ARGUMENT);
+
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_ARRIVAL_HEIGHT, 250) == XCS_OK);
+  ok1(xcs_safety_get_option(core, XCS_SAFETY_ARRIVAL_HEIGHT, &value) == XCS_OK && value == 250);
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_MC, 1.5) == XCS_OK);
+  ok1(xcs_safety_get_option(core, XCS_SAFETY_MC, &value) == XCS_OK && value == 1.5);
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_ALTERNATES, 2) == XCS_OK);
+  ok1(xcs_safety_get_option(core, XCS_SAFETY_ALTERNATES, &value) == XCS_OK && value == 2);
+
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_ARRIVAL_HEIGHT, arrival) == XCS_OK);
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_MC, mc) == XCS_OK);
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_ALTERNATES, alternates) == XCS_OK);
+}
+
+static void
 TestStarted(xcs_core *core, Recorder &recorder)
 {
   ok1(xcs_start(core) == XCS_ERROR_STATE);
@@ -711,7 +738,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -732,6 +759,7 @@ main()
   TestTask(core);
   TestUnits(core);
   TestAirspaceOptions(core);
+  TestSafety(core);
   TestPlanesAndCrew(core);
   TestTiles(core);
   ok1(xcs_stop(core) == XCS_OK);

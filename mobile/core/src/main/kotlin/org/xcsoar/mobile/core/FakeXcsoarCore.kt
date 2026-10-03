@@ -119,6 +119,18 @@ class FakeXcsoarCore(
         AirspaceClassInfo(12, "Class E", display = true, warning = false, count = 3),
         AirspaceClassInfo(15, "Class G", display = false, warning = false))
 
+    /* XCSoar's defaults */
+    private val safety = mutableMapOf(
+        SafetyOption.ARRIVAL_HEIGHT to 300.0, SafetyOption.TERRAIN_HEIGHT to 150.0,
+        SafetyOption.MC to 0.5, SafetyOption.RISK_FACTOR to 0.0,
+        SafetyOption.ALTERNATES to 0.0, SafetyOption.TURN_BACK_MARKER to 1.0)
+
+    override suspend fun safetyOption(option: SafetyOption): Double? = safety[option]
+
+    override suspend fun setSafetyOption(option: SafetyOption, value: Double) {
+        safety[option] = value
+    }
+
     override suspend fun airspaceClasses(): List<AirspaceClassInfo> = classes
 
     override suspend fun setAirspaceClass(code: Int, display: Boolean, warning: Boolean) {

@@ -70,6 +70,12 @@ interface XcsoarCore {
     /** Set an airspace warning option; saved in the profile. */
     suspend fun setAirspaceOption(option: AirspaceOption, value: Int) {}
 
+    /** A safety margin of the glide computer; null if the core has none. */
+    suspend fun safetyOption(option: SafetyOption): Double? = null
+
+    /** Set a safety margin; saved in the profile. */
+    suspend fun setSafetyOption(option: SafetyOption, value: Double) {}
+
     /** XCSoar's airspace classes, drawn and warned of or not. */
     suspend fun airspaceClasses(): List<AirspaceClassInfo> = emptyList()
 
@@ -300,6 +306,22 @@ enum class AirspaceOption(val code: Int) {
     WARNING_TIME(5),
     /** 10..1000: an acknowledged warning stays quiet this many seconds */
     ACK_TIME(6),
+}
+
+/** Values of `xcs_safety_option` (core/api/xcsoar_core.h), SI units. */
+enum class SafetyOption(val code: Int) {
+    /** m, 0..2000: height above the field to arrive at */
+    ARRIVAL_HEIGHT(1),
+    /** m, 0..1000: terrain clearance on final glide */
+    TERRAIN_HEIGHT(2),
+    /** m/s, 0..10: MacCready for reach and arrival heights */
+    MC(3),
+    /** 0..1: lowers MacCready for speed to fly when low */
+    RISK_FACTOR(4),
+    /** 0 nearest, 1 along the task, 2 toward home */
+    ALTERNATES(5),
+    /** 0/1: the turn back marker on the map */
+    TURN_BACK_MARKER(6),
 }
 
 /** Values of `xcs_map_option` (core/api/xcsoar_core.h). */

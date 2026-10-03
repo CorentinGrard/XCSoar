@@ -36,6 +36,7 @@ import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.AirspaceClassInfo
 import org.xcsoar.mobile.core.AirspaceOption
 import org.xcsoar.mobile.core.MapOption
+import org.xcsoar.mobile.core.SafetyOption
 import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.WaypointFilter
 import org.xcsoar.mobile.core.WaypointInfo
@@ -197,6 +198,15 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun setAirspaceOption(option: AirspaceOption, value: Int) =
         command { NativeCore.nativeAirspaceSetOption(it, option.code, value) }
+
+    override suspend fun safetyOption(option: SafetyOption): Double? = lock.withLock {
+        if (handle == 0L) return@withLock null
+        withContext(Dispatchers.IO) { NativeCore.nativeSafetyGetOption(handle, option.code) }
+            .takeIf { !it.isNaN() }
+    }
+
+    override suspend fun setSafetyOption(option: SafetyOption, value: Double) =
+        command { NativeCore.nativeSafetySetOption(it, option.code, value) }
 
     override suspend fun airspaceClasses(): List<AirspaceClassInfo> = lock.withLock {
         if (handle == 0L) return@withLock emptyList()

@@ -107,6 +107,9 @@ internal object NativeCore {
     @JvmStatic external fun nativeAirspaceClasses(core: Long): String?
     @JvmStatic external fun nativeAirspaceSetClass(core: Long, airspaceClass: Int, display: Int,
                                                    warning: Int): Int
+    @JvmStatic external fun nativeSafetySetOption(core: Long, option: Int, value: Double): Int
+    /** @return the value, or NaN on error */
+    @JvmStatic external fun nativeSafetyGetOption(core: Long, option: Int): Double
     @JvmStatic external fun nativeSoundSetOption(core: Long, option: Int, value: Int): Int
     /** @return the value, or Int.MIN_VALUE on error */
     @JvmStatic external fun nativeSoundGetOption(core: Long, option: Int): Int

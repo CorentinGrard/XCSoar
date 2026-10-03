@@ -12,6 +12,7 @@ import org.robolectric.annotation.GraphicsMode
 import kotlinx.coroutines.runBlocking
 import org.xcsoar.mobile.core.AirspaceAlerts
 import org.xcsoar.mobile.core.FakeXcsoarCore
+import org.xcsoar.mobile.core.SafetyOption
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 /** L4: the settings screen (mobile/docs/ARCHITECTURE.md §6). */
@@ -40,6 +41,17 @@ class SettingsScreenshotTest {
     fun airspaceAlertsOff() = captureRoboImage("src/test/screenshots/airspace_alerts_off.png") {
         XcsTheme(dark = false) {
             AirspaceAlertsContent(AirspaceAlerts(warnings = false), { _, _ -> }, {})
+        }
+    }
+
+    @Test
+    fun safety() = captureRoboImage("src/test/screenshots/safety.png") {
+        XcsTheme(dark = false) {
+            SafetyContent(
+                mapOf(SafetyOption.ARRIVAL_HEIGHT to 300.0, SafetyOption.TERRAIN_HEIGHT to 150.0,
+                      SafetyOption.MC to 0.5, SafetyOption.RISK_FACTOR to 0.3,
+                      SafetyOption.ALTERNATES to 0.0, SafetyOption.TURN_BACK_MARKER to 1.0),
+                { _, _ -> }, {})
         }
     }
 }
