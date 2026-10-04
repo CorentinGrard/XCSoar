@@ -21,9 +21,11 @@ import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.xcsoar.mobile.core.AirspaceAlerts
 import org.xcsoar.mobile.core.AirspaceWarningInfo
 import org.xcsoar.mobile.core.airspaceAlerts
@@ -37,6 +39,7 @@ import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.core.TileLayout
 import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.core.XcsoarCore
+import kotlin.math.abs
 
 /**
  * State and actions of the flight screen; knows only [XcsoarCore].
@@ -446,15 +449,35 @@ class FlightViewModel(
         }
     }
 
+    /* the pilot's MacCready until a snapshot has it */
+    private val pendingMacCready = MutableStateFlow<Double?>(null)
+
+    /**
+     * MacCready as the pilot set it, at once; [flightState] only follows
+     * once a second, and steps from its value would get lost.
+     */
+    val macCready: StateFlow<Double?> =
+        combine(core.flightState, pendingMacCready) { state, pending ->
+            pending ?: state?.macCready
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, core.flightState.value?.macCready)
+
     /** Set MacCready to [value] (m/s, already on the user unit's grid). */
     fun setMacCready(value: Double) {
         val mc = value.coerceIn(0.0, 5.0)
+        pendingMacCready.value = mc
         viewModelScope.launch {
             try {
                 core.setMacCready(mc)
+                withTimeoutOrNull(MAC_CREADY_WAIT_MS) {
+                    core.flightState.first { it == null || abs(it.macCready - mc) < 1e-6 }
+                }
+                // speed to fly and the like follow MacCready
+                refreshTiles()
             } catch (e: Exception) {
                 lastEventFlow.value = "MacCready not set: ${e.message}"
             }
+            // unless the pilot stepped again meanwhile
+            pendingMacCready.compareAndSet(mc, null)
         }
     }
 
@@ -477,6 +500,9 @@ private const val VARIO_INTERVAL_MS = 200L
 private const val TILES_INTERVAL_MS = 1000L
 
 private const val WARNING_POLL_MS = 1000L
+
+/** How long a MacCready set waits for a snapshot with it; ~0.1 s on a phone. */
+private const val MAC_CREADY_WAIT_MS = 2000L
 
 private val AIRSPACE_EVENTS = setOf(
     GlideComputerEvent.AIRSPACE_NEAR, GlideComputerEvent.AIRSPACE_ENTER,

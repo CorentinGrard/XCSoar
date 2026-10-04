@@ -103,6 +103,7 @@ fun FlightScreen(
     val mapItems by viewModel.mapItems.collectAsStateWithLifecycle()
     val warnings by viewModel.airspaceWarnings.collectAsStateWithLifecycle()
     val varioSound by viewModel.varioSound.collectAsStateWithLifecycle()
+    val macCready by viewModel.macCready.collectAsStateWithLifecycle()
     val tiles by viewModel.tiles.collectAsStateWithLifecycle()
     val hideTimer by viewModel.airspaceHideTimer.collectAsStateWithLifecycle()
     val airspaceAlerts by viewModel.airspaceAlerts.collectAsStateWithLifecycle()
@@ -121,6 +122,7 @@ fun FlightScreen(
         circling = circling,
         tiles = tiles,
         vario = { vario.value },
+        macCready = macCready,
         onEditTile = { tile ->
             onEditTile(if (circling) TileLayout.CIRCLING else TileLayout.CRUISE, tile)
         },
@@ -234,11 +236,13 @@ fun FlightContent(
     onEditTile: (Int) -> Unit = {},
     /** Faster than [state]; from [state] when null (previews). */
     vario: (() -> VarioValues?)? = null,
+    /** As the pilot set it, before [state] has it. */
+    macCready: Double? = state?.macCready,
 ) {
     val colors = XcsTheme.colors
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
         val instruments = @Composable {
-            Instruments(state, circling, tiles, onEditTile, onMacCreadyChange,
+            Instruments(state, macCready, circling, tiles, onEditTile, onMacCreadyChange,
                         onMenu = { onMenuOpen(true) })
         }
         val mapArea = @Composable { showNext: Boolean, modifier: Modifier,
@@ -463,6 +467,7 @@ private const val TILE_COLUMNS = 3
 @Composable
 private fun Instruments(
     state: FlightState?,
+    macCready: Double?,
     circling: Boolean,
     tiles: List<TileValue>?,
     onEditTile: (Int) -> Unit,
@@ -476,7 +481,7 @@ private fun Instruments(
             InfoBox(box.title, box.value, Modifier, box.color, box.comment, box.commentColor,
                     onLongClick = if (tiles != null) ({ onEditTile(i) }) else null)
         }
-        MacCreadyControl(state?.macCready, onMacCreadyChange)
+        MacCreadyControl(macCready, onMacCreadyChange)
         MenuTile(onMenu)
     }
 }
