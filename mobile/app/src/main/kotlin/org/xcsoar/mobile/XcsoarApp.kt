@@ -19,6 +19,7 @@ import org.xcsoar.mobile.core.REPOSITORY_URI
 import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.XcsoarCore
 import org.xcsoar.mobile.ui.flights.FlightLog
+import org.xcsoar.mobile.ui.theme.ThemeChoice
 import java.io.File
 
 /**
@@ -59,6 +60,15 @@ class XcsoarApp : Application() {
         super.onCreate()
         WeatherUpdates(this, appScope)
     }
+
+    private val uiPreferences by lazy { getSharedPreferences("ui", MODE_PRIVATE) }
+
+    /** The theme the pilot chose; kept on the phone, not in the profile. */
+    var theme: ThemeChoice
+        get() = ThemeChoice.entries.firstOrNull {
+            it.name == uiPreferences.getString("theme", null)
+        } ?: ThemeChoice.SYSTEM
+        set(value) = uiPreferences.edit().putString("theme", value.name).apply()
 
     /** The pilot chose the plane and crew since the app started. */
     var crewChosen = false

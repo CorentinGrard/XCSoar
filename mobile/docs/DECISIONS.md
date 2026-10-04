@@ -268,3 +268,28 @@ In the app, blocking network calls (WeGlide, weather) take their own
 lock instead of the one every command takes, so a slow download never
 holds up a MacCready change; stopping the core waits for both.
 
+
+## D21 — One menu, uniform tiles
+**Status:** Accepted (2026-10-04)
+
+Amends D19 after flying it.
+
+- Every tile has the same height: the InfoBox comment (e.g. the altitude
+  in feet) shares the caption's line instead of adding a third line.
+  A comment with a number is left out when it does not fit, never cut
+  ("178…" for 1784 ft reads as another value); text ends with "…".
+- MacCready is a tile spanning two columns, and the menu is the last
+  tile beside it: one 3-column grid, no row of odd sizes.
+- "Set MC" floats over the bottom left of the map in lift, within reach
+  of the thumb, since the grid has no free cell for it.
+- The vario sound and map orientation buttons leave the map; the menu
+  has a "Quick settings" group with Tiles, Map up (North / Track /
+  Target) and a vario sound switch.  A turned map shows a passive north
+  mark beside the zoom buttons.
+- Quick settings also has the theme: System (the phone's, the default
+  and first), White (sunlight) or Dark (night).  It is the app's own choice, kept in its
+  preferences, not in XCSoar's profile; the status bar icons follow it.
+- The Settings page goes: its entries are a section of the menu, each
+  page listed once (Airspace and Data files were in both).  "Polar and
+  masses" goes too: Aircraft & crew edits the plane.  The "Soon" rows
+  go; they return when they are built.

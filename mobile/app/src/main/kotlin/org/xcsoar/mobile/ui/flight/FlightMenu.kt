@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -54,6 +55,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.xcsoar.mobile.core.MapOrientation
+import org.xcsoar.mobile.ui.SettingsGroup
+import org.xcsoar.mobile.ui.SwitchRow
+import org.xcsoar.mobile.ui.theme.ThemeChoice
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 /** How long the menu takes to slide in or out. */
@@ -72,25 +77,46 @@ data class MenuAction(
     val onClick: () -> Unit,
 )
 
+/** A titled list of the flight menu. */
+class MenuSection(val title: String, val actions: List<MenuAction>)
+
 /**
- * What the flight menu offers.
+ * What the flight menu offers.  It is the app's only menu: the settings
+ * are a section of it, not a page of their own.
  *
  * @param inFlight large buttons for what the pilot does in the air
- * @param ground what is set before or after the flight
+ * @param sections lists for the ground and the settings
  * @param tileLayout the pilot's choice of tiles: null follows the
  * flight mode, else circling (true) or cruise (false) until the next
  * mode change
+ * @param orientation which way the map is up; null hides the choice
+ * (no map, or the core has not answered yet)
+ * @param varioSound the vario sound is on; null hides the switch (no
+ * vario sound on this device)
+ * @param theme white, dark or the phone's
  */
 class FlightMenu(
     val inFlight: List<MenuAction> = emptyList(),
-    val ground: List<MenuAction> = emptyList(),
+    val sections: List<MenuSection> = emptyList(),
     val tileLayout: Boolean? = null,
     val onTileLayout: (circling: Boolean?) -> Unit = {},
+    val orientation: MapOrientation? = null,
+    val onOrientation: (MapOrientation) -> Unit = {},
+    val varioSound: Boolean? = null,
+    val onVarioSound: (Boolean) -> Unit = {},
+    val theme: ThemeChoice = ThemeChoice.SYSTEM,
+    val onTheme: (ThemeChoice) -> Unit = {},
 )
+
+/** The orientations the menu offers, in its order. */
+private val ORIENTATIONS = listOf(MapOrientation.NORTH_UP to "North",
+                                  MapOrientation.TRACK_UP to "Track",
+                                  MapOrientation.TARGET_UP to "Target")
 
 /**
  * The menu as a sheet over the flight screen: in-flight actions first,
- * within reach of the thumb, then the tiles, then the ground list.
+ * within reach of the thumb, then what the flight screen shows (tiles,
+ * map orientation, theme, vario sound), then the lists.
  * It slides up over the dimmed map when [visible]; a tap on the map
  * closes it.
  */
@@ -145,21 +171,46 @@ fun FlightMenuSheet(visible: Boolean, menu: FlightMenu, onClose: () -> Unit,
                     }
                 }
 
-                Caption("Tiles", Modifier.padding(start = 4.dp, top = 12.dp, bottom = 8.dp))
-                Segmented(listOf("Auto", "Cruise", "Circling"),
-                          selected = when (menu.tileLayout) {
-                              null -> 0
-                              false -> 1
-                              true -> 2
-                          },
-                          onSelect = { menu.onTileLayout(if (it == 0) null else it == 2) },
-                          modifier = Modifier.fillMaxWidth())
+                Caption("Quick settings",
+                        Modifier.padding(start = 4.dp, top = 12.dp, bottom = 8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LabelledSegmented("Tiles", listOf("Auto", "Cruise", "Circling"),
+                                      selected = when (menu.tileLayout) {
+                                          null -> 0
+                                          false -> 1
+                                          true -> 2
+                                      },
+                                      onSelect = {
+                                          menu.onTileLayout(if (it == 0) null else it == 2)
+                                      })
+                    menu.orientation?.let { orientation ->
+                        // heading and wind up (set elsewhere) select none
+                        LabelledSegmented("Map up", ORIENTATIONS.map { it.second },
+                                          selected = ORIENTATIONS.indexOfFirst {
+                                              it.first == orientation
+                                          },
+                                          onSelect = {
+                                              menu.onOrientation(ORIENTATIONS[it].first)
+                                          })
+                    }
+                    LabelledSegmented("Theme", ThemeChoice.entries.map { it.label },
+                                      selected = menu.theme.ordinal,
+                                      onSelect = { menu.onTheme(ThemeChoice.entries[it]) })
+                    menu.varioSound?.let { on ->
+                        SettingsGroup {
+                            SwitchRow("Vario sound", if (on) "On" else "Muted", on,
+                                      onChange = menu.onVarioSound)
+                        }
+                    }
+                }
 
-                Caption("Before and after the flight",
-                        Modifier.padding(start = 4.dp, top = 20.dp, bottom = 4.dp))
-                menu.ground.forEachIndexed { index, action ->
-                    if (index > 0) HorizontalDivider(color = colors.panelBorder)
-                    GroundAction(action, onClose)
+                menu.sections.forEach { section ->
+                    Caption(section.title,
+                            Modifier.padding(start = 4.dp, top = 20.dp, bottom = 4.dp))
+                    section.actions.forEachIndexed { index, action ->
+                        if (index > 0) HorizontalDivider(color = colors.panelBorder)
+                        GroundAction(action, onClose)
+                    }
                 }
             }
         }
@@ -184,6 +235,19 @@ private fun CloseButton(onClose: () -> Unit) {
             drawLine(colors.text, Offset(size.width, 0f), Offset(0f, size.height), stroke,
                      StrokeCap.Round)
         }
+    }
+}
+
+/** A choice of the flight screen: its name, then the segments. */
+@Composable
+private fun LabelledSegmented(label: String, options: List<String>, selected: Int,
+                              onSelect: (Int) -> Unit) {
+    val colors = XcsTheme.colors
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(label, color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+             maxLines = 1, modifier = Modifier.width(72.dp).padding(start = 4.dp))
+        Segmented(options, selected, onSelect, Modifier.weight(1f))
     }
 }
 

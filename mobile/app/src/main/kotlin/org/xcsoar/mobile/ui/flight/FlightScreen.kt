@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -43,8 +42,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -58,6 +59,7 @@ import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.TileLayout
 import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.ui.Format
+import org.xcsoar.mobile.ui.theme.ThemeChoice
 import org.xcsoar.mobile.ui.theme.XcsColors
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
@@ -71,9 +73,18 @@ fun FlightScreen(
     onOpenTask: () -> Unit = {},
     onOpenAnalysis: () -> Unit = {},
     onOpenCrew: () -> Unit = {},
-    onOpenSettings: () -> Unit = {},
     onOpenAirspaceAlerts: () -> Unit = {},
     onOpenWeather: () -> Unit = {},
+    onOpenNotams: () -> Unit = {},
+    onOpenPilot: () -> Unit = {},
+    onOpenUnits: () -> Unit = {},
+    /** null when the core draws no map */
+    onOpenMapSettings: (() -> Unit)? = null,
+    onOpenSafety: () -> Unit = {},
+    onOpenVarioSound: () -> Unit = {},
+    onOpenTracking: () -> Unit = {},
+    theme: ThemeChoice = ThemeChoice.SYSTEM,
+    onTheme: (ThemeChoice) -> Unit = {},
     onEditTile: (TileLayout, Int) -> Unit = { _, _ -> },
     /** the menu is open (kept under the pages it opens) */
     menuOpen: Boolean = false,
@@ -120,14 +131,19 @@ fun FlightScreen(
         airspaceAlertsOff = !airspaceAlerts.warnings,
         onAcknowledge = viewModel::acknowledgeAirspace,
         onNextWaypoint = onOpenWaypoints,
-        varioSound = varioSound,
-        onVarioSound = viewModel::setVarioSound,
         menuOpen = menuOpen,
         onMenuOpen = onMenuOpen,
         menu = flightMenu(
             onOpenWaypoints, onOpenTask, onOpenFlightSetup, onOpenAnalysis, onOpenCrew,
-            onOpenFlights, onOpenDataFiles, onOpenSettings, onOpenAirspaceAlerts,
+            onOpenFlights, onOpenDataFiles, onOpenAirspaceAlerts,
             onOpenWeather = onOpenWeather,
+            onOpenNotams = onOpenNotams,
+            onOpenPilot = onOpenPilot,
+            onOpenUnits = onOpenUnits,
+            onOpenMapSettings = onOpenMapSettings,
+            onOpenSafety = onOpenSafety,
+            onOpenVarioSound = onOpenVarioSound,
+            onOpenTracking = onOpenTracking,
             airspaceAlerts = airspaceAlerts,
             replay = state?.replay == true,
             // on the ground only: a demo, not something to press in flight
@@ -136,6 +152,12 @@ fun FlightScreen(
             onStopReplay = viewModel::stopReplay,
             tileLayout = tileLayout,
             onTileLayout = viewModel::selectFlightMode,
+            orientation = mapOrientation.takeIf { viewModel.hasMap },
+            onOrientation = viewModel::setMapOrientation,
+            varioSound = varioSound,
+            onVarioSound = viewModel::setVarioSound,
+            theme = theme,
+            onTheme = onTheme,
         ),
         map = if (viewModel.hasMap) MapSlot(
             content = { modifier ->
@@ -147,7 +169,6 @@ fun FlightScreen(
             follows = mapFollows,
             onFollow = viewModel::followMap,
             orientation = mapOrientation,
-            onOrientation = viewModel::cycleMapOrientation,
             onHold = viewModel::showMapItems,
             items = mapItems,
             onCloseItems = viewModel::hideMapItems,
@@ -165,8 +186,7 @@ fun FlightScreen(
  * @param onGesture finger pan in pixels and pinch factor (> 1 = in)
  * @param follows whether the map follows the aircraft
  * @param onFollow centre on the aircraft again
- * @param orientation which way is up; null hides the button
- * @param onOrientation switch to the next orientation
+ * @param orientation which way is up, for the north mark; null hides it
  * @param onHold the pilot held this point (pixels): show what is there
  * @param items what is at the held point; null when not shown
  * @param onGoto fly directly to a waypoint of [items]
@@ -179,7 +199,6 @@ class MapSlot(
     val follows: Boolean = true,
     val onFollow: () -> Unit = {},
     val orientation: MapOrientation? = null,
-    val onOrientation: () -> Unit = {},
     val onHold: (x: Int, y: Int) -> Unit = { _, _ -> },
     val items: List<MapItemInfo>? = null,
     val onCloseItems: () -> Unit = {},
@@ -188,8 +207,8 @@ class MapSlot(
 
 /**
  * The flight screen, map first: the map with the vario and final glide
- * bars on its edges, and the tiles with MacCready and the menu button
- * below it (portrait) or beside it (landscape, with the next waypoint).
+ * bars on its edges, and the tiles with MacCready and the menu below it
+ * (portrait) or beside it (landscape, with the next waypoint).
  * Without [map] (no native core) the map area only shows the glider
  * symbol.
  */
@@ -211,8 +230,6 @@ fun FlightContent(
     airspaceAlertsOff: Boolean = false,
     onAcknowledge: (AirspaceWarningInfo, day: Boolean) -> Unit = { _, _ -> },
     onNextWaypoint: () -> Unit = {},
-    varioSound: Boolean? = null,
-    onVarioSound: (Boolean) -> Unit = {},
     tiles: List<TileValue>? = null,
     onEditTile: (Int) -> Unit = {},
     /** Faster than [state]; from [state] when null (previews). */
@@ -222,13 +239,13 @@ fun FlightContent(
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
         val instruments = @Composable {
             Instruments(state, circling, tiles, onEditTile, onMacCreadyChange,
-                        onSetMacCready, onMenu = { onMenuOpen(true) })
+                        onMenu = { onMenuOpen(true) })
         }
         val mapArea = @Composable { showNext: Boolean, modifier: Modifier,
                                     insets: WindowInsets ->
-            MapArea(state, lastEvent, map, warnings, airspaceHideTimer, airspaceAlertsOff,
-                    onAcknowledge, onNextWaypoint, showNext, varioSound, onVarioSound, vario,
-                    modifier, insets)
+            MapArea(state, lastEvent, circling, map, warnings, airspaceHideTimer,
+                    airspaceAlertsOff, onAcknowledge, onNextWaypoint, onSetMacCready, showNext,
+                    vario, modifier, insets)
         }
 
         if (maxWidth > maxHeight && maxWidth >= 600.dp) {
@@ -286,17 +303,16 @@ fun FlightContent(
 private fun MapArea(
     state: FlightState?,
     lastEvent: String?,
+    circling: Boolean,
     map: MapSlot?,
     warnings: List<AirspaceWarningInfo>,
     hideTimer: HideTimer?,
     alertsOff: Boolean,
     onAcknowledge: (AirspaceWarningInfo, day: Boolean) -> Unit,
     onNextWaypoint: () -> Unit,
+    onSetMacCready: (Double) -> Unit,
     /** false in landscape, where the side panel shows it */
     showNext: Boolean,
-    /** null: no vario sound on this device, no button */
-    varioSound: Boolean?,
-    onVarioSound: (Boolean) -> Unit,
     vario: (() -> VarioValues?)?,
     modifier: Modifier,
     insets: WindowInsets,
@@ -373,7 +389,8 @@ private fun MapArea(
         }
 
         // below the cards: the vario on the left edge, final glide on the
-        // right, the map buttons along the bottom
+        // right, the map buttons along the bottom, "Set MC" on the left
+        // in lift
         val cardsHeight = with(LocalDensity.current) { cardsBottom.toDp() }
         BoxWithConstraints(
             Modifier
@@ -398,15 +415,21 @@ private fun MapArea(
                     .padding(bottom = 64.dp))
             }
 
+            val thermal = state?.currentThermal
+            if (circling && thermal != null && thermal.lift > 0)
+                SetMacCreadyButton(thermal.lift,
+                                   { onSetMacCready(Format.stepVerticalSpeed(thermal.lift, 0)) },
+                                   Modifier.align(Alignment.BottomStart))
+
             Row(
                 Modifier.align(Alignment.BottomEnd),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                varioSound?.let { VarioSoundButton(it, onVarioSound) }
                 if (map != null) {
-                    map.orientation?.let {
-                        OrientationButton(it, mapAngle(it, state), map.onOrientation)
-                    }
+                    // a turned map shows where north is
+                    map.orientation?.takeIf { it != MapOrientation.NORTH_UP }
+                        ?.let { mapAngle(it, state) }
+                        ?.let { NorthMark(it) }
                     if (!map.follows)
                         CentreButton(map.onFollow)
                     ZoomButtons(map.onZoom)
@@ -417,8 +440,8 @@ private fun MapArea(
 }
 
 /**
- * The direction at the top of the map, for the orientation button's
- * north mark: the same references the core turns the map with
+ * The direction at the top of the map, for the north mark: the same
+ * references the core turns the map with
  * (core/map/CoreMap.cpp ScreenAngle()); null when the core has none.
  */
 private fun mapAngle(orientation: MapOrientation, s: FlightState?): Double? = when (orientation) {
@@ -429,6 +452,14 @@ private fun mapAngle(orientation: MapOrientation, s: FlightState?): Double? = wh
     MapOrientation.HEADING_UP -> null
 }
 
+/** The tiles' columns; MacCready spans two of them. */
+private const val TILE_COLUMNS = 3
+
+/**
+ * XCSoar's InfoBoxes from the core (a long press picks another), then
+ * MacCready over two columns and the menu: one grid, every cell as
+ * high as the others.
+ */
 @Composable
 private fun Instruments(
     state: FlightState?,
@@ -436,34 +467,54 @@ private fun Instruments(
     tiles: List<TileValue>?,
     onEditTile: (Int) -> Unit,
     onMacCreadyChange: (Double) -> Unit,
-    onSetMacCready: (Double) -> Unit,
     onMenu: () -> Unit,
 ) {
-    // XCSoar's InfoBoxes from the core; a long press picks another
     val colors = XcsTheme.colors
     val boxes = tiles?.map { it.toInfoBoxValue(colors) } ?: infoBoxes(state, circling)
-    boxes.chunked(3).forEachIndexed { r, row ->
-        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            row.forEachIndexed { c, box ->
-                InfoBox(box.title, box.value, Modifier.weight(1f).fillMaxHeight(), box.color,
-                        box.comment, box.commentColor,
-                        onLongClick = if (tiles != null) ({ onEditTile(r * 3 + c) }) else null)
+    TileGrid(boxes.map { 1 } + listOf(2, 1), Modifier.fillMaxWidth()) {
+        boxes.forEachIndexed { i, box ->
+            InfoBox(box.title, box.value, Modifier, box.color, box.comment, box.commentColor,
+                    onLongClick = if (tiles != null) ({ onEditTile(i) }) else null)
+        }
+        MacCreadyControl(state?.macCready, onMacCreadyChange)
+        MenuTile(onMenu)
+    }
+}
+
+/**
+ * Lays its children out in rows of [TILE_COLUMNS], each over
+ * [spans] columns (in the children's order), all as high as the
+ * highest: a tile with a comment is no taller than one without.
+ */
+@Composable
+private fun TileGrid(spans: List<Int>, modifier: Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        val gap = 8.dp.roundToPx()
+        val cell = (constraints.maxWidth - gap * (TILE_COLUMNS - 1)) / TILE_COLUMNS
+        fun width(span: Int) = cell * span + gap * (span - 1)
+
+        val height = measurables.withIndex()
+            .maxOfOrNull { (i, m) -> m.minIntrinsicHeight(width(spans[i])) } ?: 0
+        // the column and row of each child
+        var column = 0
+        var row = 0
+        val cells = spans.map { span ->
+            if (column + span > TILE_COLUMNS) {
+                column = 0
+                row++
+            }
+            (column to row).also { column += span }
+        }
+        val placeables = measurables.mapIndexed { i, m ->
+            m.measure(Constraints.fixed(width(spans[i]), height))
+        }
+        val rows = if (spans.isEmpty()) 0 else row + 1
+        layout(constraints.maxWidth, (rows * height + (rows - 1) * gap).coerceAtLeast(0)) {
+            placeables.forEachIndexed { i, p ->
+                val (c, r) = cells[i]
+                p.place(c * (cell + gap), r * (height + gap))
             }
         }
-    }
-
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        MacCreadyControl(state?.macCready, onMacCreadyChange,
-                         Modifier.weight(1f).fillMaxHeight())
-        val thermal = state?.currentThermal
-        if (circling && thermal != null && thermal.lift > 0)
-            SetMacCreadyButton(thermal.lift,
-                               { onSetMacCready(Format.stepVerticalSpeed(thermal.lift, 0)) },
-                               Modifier.width(96.dp).fillMaxHeight())
-        MenuButton(onMenu)
     }
 }
 
@@ -584,7 +635,11 @@ private fun MenuPreview() {
     }
 }
 
-/** The flight menu: in-flight actions, then what is set on the ground. */
+/**
+ * The flight menu: in-flight actions, the flight screen's quick
+ * settings, then what is done before and after the flight and the
+ * settings.  Each page is listed once.
+ */
 fun flightMenu(
     onOpenWaypoints: () -> Unit = {},
     onOpenTask: () -> Unit = {},
@@ -593,9 +648,16 @@ fun flightMenu(
     onOpenCrew: () -> Unit = {},
     onOpenFlights: () -> Unit = {},
     onOpenDataFiles: () -> Unit = {},
-    onOpenSettings: () -> Unit = {},
     onOpenAirspaceAlerts: () -> Unit = {},
     onOpenWeather: () -> Unit = {},
+    onOpenNotams: () -> Unit = {},
+    onOpenPilot: () -> Unit = {},
+    onOpenUnits: () -> Unit = {},
+    /** null when the core draws no map */
+    onOpenMapSettings: (() -> Unit)? = {},
+    onOpenSafety: () -> Unit = {},
+    onOpenVarioSound: () -> Unit = {},
+    onOpenTracking: () -> Unit = {},
     airspaceAlerts: AirspaceAlerts = AirspaceAlerts(),
     replay: Boolean = false,
     canReplay: Boolean = false,
@@ -603,6 +665,12 @@ fun flightMenu(
     onStopReplay: () -> Unit = {},
     tileLayout: Boolean? = null,
     onTileLayout: (circling: Boolean?) -> Unit = {},
+    orientation: MapOrientation? = null,
+    onOrientation: (MapOrientation) -> Unit = {},
+    varioSound: Boolean? = null,
+    onVarioSound: (Boolean) -> Unit = {},
+    theme: ThemeChoice = ThemeChoice.SYSTEM,
+    onTheme: (ThemeChoice) -> Unit = {},
 ) = FlightMenu(
     inFlight = listOf(
         MenuAction("Go to waypoint", "Nearest landable first", onClick = onOpenWaypoints),
@@ -610,22 +678,42 @@ fun flightMenu(
         MenuAction("Flight setup", "Ballast, bugs, QNH", onClick = onOpenFlightSetup),
         MenuAction("Analysis", "Barograph, climb, contest", onClick = onOpenAnalysis),
     ),
-    ground = listOf(
-        MenuAction("Aircraft & crew", "Plane and co-pilot", onClick = onOpenCrew),
-        MenuAction("Flights", "Share, upload to WeGlide", onClick = onOpenFlights),
-        MenuAction("Weather", "METAR and TAF", onClick = onOpenWeather),
-        MenuAction("Airspace", describe(airspaceAlerts), onClick = onOpenAirspaceAlerts),
-        MenuAction("Data files", "Map, airspace, waypoints", onClick = onOpenDataFiles),
-        MenuAction("Settings", "Units, map, pilot and WeGlide", onClick = onOpenSettings),
-        if (replay)
-            MenuAction("Stop replay", "Back to the GPS", closesMenu = true,
-                       onClick = onStopReplay)
-        else
-            MenuAction("Replay demo", "A demo flight, on the ground only",
-                       enabled = canReplay, closesMenu = true, onClick = onReplay),
+    sections = listOf(
+        MenuSection("Before and after the flight", listOf(
+            MenuAction("Aircraft & crew", "Plane, polar, masses, co-pilot",
+                       onClick = onOpenCrew),
+            MenuAction("Weather", "METAR, TAF, RASP", onClick = onOpenWeather),
+            MenuAction("NOTAMs", "Download, filters, list", onClick = onOpenNotams),
+            MenuAction("Flights", "Share, upload to WeGlide", onClick = onOpenFlights),
+            if (replay)
+                MenuAction("Stop replay", "Back to the GPS", closesMenu = true,
+                           onClick = onStopReplay)
+            else
+                MenuAction("Replay demo", "A demo flight, on the ground only",
+                           enabled = canReplay, closesMenu = true, onClick = onReplay),
+        )),
+        MenuSection("Settings", listOfNotNull(
+            MenuAction("Airspace", describe(airspaceAlerts), onClick = onOpenAirspaceAlerts),
+            MenuAction("Safety heights", "Arrival, terrain, safety MC", onClick = onOpenSafety),
+            MenuAction("Vario sound", "Volume, mode, dead band", onClick = onOpenVarioSound),
+            onOpenMapSettings?.let {
+                MenuAction("Map", "Terrain, topography, trail", onClick = it)
+            },
+            MenuAction("Units", "Altitude, speed, lift…", onClick = onOpenUnits),
+            MenuAction("Pilot & WeGlide", "Name, WeGlide ID", onClick = onOpenPilot),
+            MenuAction("Live tracking", "Cloud, SkyLines, LiveTrack24",
+                       onClick = onOpenTracking),
+            MenuAction("Data files", "Map, airspace, waypoints", onClick = onOpenDataFiles),
+        )),
     ),
     tileLayout = tileLayout,
     onTileLayout = onTileLayout,
+    orientation = orientation,
+    onOrientation = onOrientation,
+    varioSound = varioSound,
+    onVarioSound = onVarioSound,
+    theme = theme,
+    onTheme = onTheme,
 )
 
 /** "On · sound · vibration", "Off": the airspace alerts at a glance. */

@@ -136,6 +136,13 @@ private val barlowFonts = XcsFonts(
 
 val LocalXcsColors = staticCompositionLocalOf { sunlight }
 
+/** The pilot's choice of theme: the phone's (the default), white (sunlight) or dark (night). */
+enum class ThemeChoice(val label: String) {
+    SYSTEM("System"),
+    WHITE("White"),
+    DARK("Dark"),
+}
+
 @Composable
 fun XcsTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val colors = if (dark) night else sunlight

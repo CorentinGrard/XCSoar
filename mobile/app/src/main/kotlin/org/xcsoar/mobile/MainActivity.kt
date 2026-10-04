@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -27,7 +28,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -68,7 +72,6 @@ import org.xcsoar.mobile.ui.settings.AirspaceAlertsScreen
 import org.xcsoar.mobile.ui.settings.AirspaceAlertsViewModel
 import org.xcsoar.mobile.ui.settings.SafetyScreen
 import org.xcsoar.mobile.ui.settings.SafetyViewModel
-import org.xcsoar.mobile.ui.settings.SettingsScreen
 import org.xcsoar.mobile.ui.settings.VarioSoundScreen
 import org.xcsoar.mobile.ui.settings.NotamScreen
 import org.xcsoar.mobile.ui.settings.NotamViewModel
@@ -86,12 +89,13 @@ import org.xcsoar.mobile.ui.units.UnitsViewModel
 import org.xcsoar.mobile.core.WaypointFilter
 import org.xcsoar.mobile.ui.setup.FlightSetupViewModel
 import org.xcsoar.mobile.ui.flight.FlightViewModel
+import org.xcsoar.mobile.ui.theme.ThemeChoice
 import org.xcsoar.mobile.ui.theme.XcsTheme
 import java.io.File
 
 private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS,
                             TASK, TASK_FILES, TASK_ADD_POINT, UNITS, ANALYSIS,
-                            CREW, PLANE_EDIT, PILOT, TILE_PICKER, SETTINGS,
+                            CREW, PLANE_EDIT, PILOT, TILE_PICKER,
                             AIRSPACE_ALERTS, SAFETY, VARIO_SOUND, TRACKING, WEATHER,
                             NOTAMS }
 
@@ -99,11 +103,7 @@ private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINT
 private val Screen.depth: Int
     get() = when (this) {
         Screen.FLIGHT -> 0
-        Screen.DOWNLOAD -> 3
-        Screen.PLANE_EDIT, Screen.PILOT, Screen.UNITS, Screen.MAP_SETTINGS,
-        Screen.DATA_FILES, Screen.AIRSPACE_ALERTS, Screen.SAFETY, Screen.VARIO_SOUND,
-        Screen.TRACKING, Screen.NOTAMS, Screen.TASK_FILES,
-        Screen.TASK_ADD_POINT -> 2
+        Screen.DOWNLOAD, Screen.PLANE_EDIT, Screen.TASK_FILES, Screen.TASK_ADD_POINT -> 2
         else -> 1
     }
 
@@ -182,7 +182,21 @@ class MainActivity : ComponentActivity() {
             app.permissionManager.requestNotificationPermissionDirect()
 
         setContent {
-            XcsTheme {
+            var theme by remember { mutableStateOf(app.theme) }
+            val dark = when (theme) {
+                ThemeChoice.WHITE -> false
+                ThemeChoice.DARK -> true
+                ThemeChoice.SYSTEM -> isSystemInDarkTheme()
+            }
+            // the status bar icons follow the theme, not the phone's
+            DisposableEffect(dark) {
+                val bars = if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                           else SystemBarStyle.light(android.graphics.Color.TRANSPARENT,
+                                                     android.graphics.Color.TRANSPARENT)
+                enableEdgeToEdge(bars, bars)
+                onDispose {}
+            }
+            XcsTheme(dark) {
                 val flightViewModel: FlightViewModel = viewModel(factory = viewModelFactory {
                     initializer {
                         FlightViewModel(
@@ -286,13 +300,8 @@ class MainActivity : ComponentActivity() {
                 }
                 /* the crew screen was opened from the menu (it has Back) */
                 var crewFromMenu by rememberSaveable { mutableStateOf(false) }
-                /* data files open from the menu and from settings: back to either */
-                var dataFilesBack by rememberSaveable { mutableStateOf(Screen.FLIGHT) }
-                var airspaceAlertsBack by rememberSaveable { mutableStateOf(Screen.FLIGHT) }
                 /* downloads open from data files and from the weather */
                 var downloadBack by rememberSaveable { mutableStateOf(Screen.DATA_FILES) }
-                /* the plane editor opens from the crew screen and from settings */
-                var planeEditBack by rememberSaveable { mutableStateOf(Screen.CREW) }
                 /* the flight menu; it stays open under the pages it opens,
                    so their Back comes back to it */
                 var menuOpen by rememberSaveable { mutableStateOf(false) }
@@ -312,10 +321,7 @@ class MainActivity : ComponentActivity() {
                           else Modifier)) {
                     FlightScreen(
                         flightViewModel,
-                        onOpenDataFiles = {
-                            dataFilesBack = Screen.FLIGHT
-                            screen = Screen.DATA_FILES
-                        },
+                        onOpenDataFiles = { screen = Screen.DATA_FILES },
                         onOpenWaypoints = { screen = Screen.WAYPOINTS },
                         onOpenFlightSetup = { screen = Screen.FLIGHT_SETUP },
                         onOpenFlights = { screen = Screen.FLIGHTS },
@@ -325,15 +331,25 @@ class MainActivity : ComponentActivity() {
                             crewFromMenu = true
                             screen = Screen.CREW
                         },
-                        onOpenSettings = { screen = Screen.SETTINGS },
                         onOpenWeather = { screen = Screen.WEATHER },
-                        onOpenAirspaceAlerts = {
-                            airspaceAlertsBack = Screen.FLIGHT
-                            screen = Screen.AIRSPACE_ALERTS
-                        },
+                        onOpenAirspaceAlerts = { screen = Screen.AIRSPACE_ALERTS },
+                        onOpenNotams = { screen = Screen.NOTAMS },
+                        onOpenPilot = { screen = Screen.PILOT },
+                        onOpenUnits = { screen = Screen.UNITS },
+                        onOpenMapSettings = if (flightViewModel.hasMap)
+                                                ({ screen = Screen.MAP_SETTINGS })
+                                            else null,
+                        onOpenSafety = { screen = Screen.SAFETY },
+                        onOpenVarioSound = { screen = Screen.VARIO_SOUND },
+                        onOpenTracking = { screen = Screen.TRACKING },
                         onEditTile = { layout, tile ->
                             tilePickerViewModel.open(layout, tile)
                             screen = Screen.TILE_PICKER
+                        },
+                        theme = theme,
+                        onTheme = {
+                            theme = it
+                            app.theme = it
                         },
                         menuOpen = menuOpen,
                         onMenuOpen = { menuOpen = it },
@@ -358,7 +374,6 @@ class MainActivity : ComponentActivity() {
                             Screen.CREW -> CrewScreen(
                                 crewViewModel,
                                 onEditPlane = { plane ->
-                                    planeEditBack = Screen.CREW
                                     planeEditViewModel.open(plane)
                                     screen = Screen.PLANE_EDIT
                                 },
@@ -369,43 +384,13 @@ class MainActivity : ComponentActivity() {
                                 planeEditViewModel,
                                 onSaved = { path ->
                                     crewViewModel.load(select = path)
-                                    screen = planeEditBack
+                                    screen = Screen.CREW
                                 },
                                 onDeleted = {
                                     crewViewModel.load()
-                                    screen = planeEditBack
+                                    screen = Screen.CREW
                                 },
-                                onBack = { screen = planeEditBack },
-                            )
-                            Screen.SETTINGS -> SettingsScreen(
-                                onBack = { screen = Screen.FLIGHT },
-                                onPilot = { screen = Screen.PILOT },
-                                onUnits = { screen = Screen.UNITS },
-                                onMap = if (flightViewModel.hasMap) ({ screen = Screen.MAP_SETTINGS })
-                                        else null,
-                                onDataFiles = {
-                                    dataFilesBack = Screen.SETTINGS
-                                    screen = Screen.DATA_FILES
-                                },
-                                onAirspaceAlerts = {
-                                    airspaceAlertsBack = Screen.SETTINGS
-                                    screen = Screen.AIRSPACE_ALERTS
-                                },
-                                onSafety = { screen = Screen.SAFETY },
-                                onVarioSound = { screen = Screen.VARIO_SOUND },
-                                onTracking = { screen = Screen.TRACKING },
-                                onNotams = { screen = Screen.NOTAMS },
-                                onPlane = {
-                                    planeEditViewModel.openActive(
-                                        onOpened = {
-                                            planeEditBack = Screen.SETTINGS
-                                            screen = Screen.PLANE_EDIT
-                                        },
-                                        onNone = {
-                                            crewFromMenu = true
-                                            screen = Screen.CREW
-                                        })
-                                },
+                                onBack = { screen = Screen.CREW },
                             )
                             Screen.WEATHER -> WeatherScreen(
                                 weatherViewModel,
@@ -416,17 +401,17 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onBack = { screen = Screen.FLIGHT })
                             Screen.NOTAMS -> NotamScreen(
-                                notamViewModel, onBack = { screen = Screen.SETTINGS })
+                                notamViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.TRACKING -> TrackingScreen(
-                                trackingViewModel, onBack = { screen = Screen.SETTINGS })
+                                trackingViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.VARIO_SOUND -> VarioSoundScreen(
-                                varioSoundViewModel, onBack = { screen = Screen.SETTINGS })
+                                varioSoundViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.SAFETY -> SafetyScreen(
-                                safetyViewModel, onBack = { screen = Screen.SETTINGS })
+                                safetyViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.AIRSPACE_ALERTS -> AirspaceAlertsScreen(
-                                airspaceAlertsViewModel, onBack = { screen = airspaceAlertsBack })
+                                airspaceAlertsViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.PILOT -> PilotScreen(
-                                pilotViewModel, onBack = { screen = Screen.SETTINGS })
+                                pilotViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.DATA_FILES -> DataFilesScreen(
                                 dataViewModel,
                                 onChoose = { kind ->
@@ -439,7 +424,7 @@ class MainActivity : ComponentActivity() {
                                     downloadViewModel.open(kind)
                                     screen = Screen.DOWNLOAD
                                 },
-                                onBack = { screen = dataFilesBack },
+                                onBack = { screen = Screen.FLIGHT },
                             )
                             Screen.DOWNLOAD -> DownloadScreen(
                                 downloadViewModel, onDone = { screen = downloadBack })
@@ -452,11 +437,11 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onBack = { screen = Screen.FLIGHT })
                             Screen.MAP_SETTINGS -> MapSettingsScreen(
-                                mapViewModel, onBack = { screen = Screen.SETTINGS })
+                                mapViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.FLIGHT_SETUP -> FlightSetupScreen(
                                 setupViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.UNITS -> UnitsScreen(
-                                unitsViewModel, onBack = { screen = Screen.SETTINGS })
+                                unitsViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.ANALYSIS -> AnalysisScreen(
                                 analysisViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.TASK -> TaskScreen(

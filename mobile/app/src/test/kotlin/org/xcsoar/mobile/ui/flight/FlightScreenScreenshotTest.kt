@@ -11,6 +11,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.xcsoar.mobile.core.FakeXcsoarCore
+import org.xcsoar.mobile.core.MapOrientation
+import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 /**
@@ -28,8 +30,7 @@ class FlightScreenScreenshotTest {
     @Config(qualifiers = "w390dp-h844dp-xxhdpi")
     fun cruiseSunlight() = capture("cruise_sunlight") {
         XcsTheme(dark = false) {
-            FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {},
-                          varioSound = true)
+            FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {})
         }
     }
 
@@ -37,8 +38,7 @@ class FlightScreenScreenshotTest {
     @Config(qualifiers = "w390dp-h844dp-xxhdpi")
     fun circlingSunlight() = capture("circling_sunlight") {
         XcsTheme(dark = false) {
-            FlightContent(FakeXcsoarCore.syntheticState(320), null, circling = true, {},
-                          varioSound = false)
+            FlightContent(FakeXcsoarCore.syntheticState(320), null, circling = true, {})
         }
     }
 
@@ -47,6 +47,27 @@ class FlightScreenScreenshotTest {
     fun cruiseNight() = capture("cruise_night") {
         XcsTheme(dark = true) {
             FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {})
+        }
+    }
+
+    /**
+     * The core's tiles: one with a comment (the altitude in feet) is as
+     * high as the others.
+     */
+    @Test
+    @Config(qualifiers = "w390dp-h844dp-xxhdpi")
+    fun tilesWithComment() = capture("tiles_comment") {
+        XcsTheme(dark = false) {
+            FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {},
+                          tiles = listOf(
+                              TileValue(1, "Alt GPS", "1646", "m", comment = "5400 ft"),
+                              TileValue(2, "H AGL", "1046", "m", comment = "3432 ft"),
+                              TileValue(3, "V Opt", "126", "km/h"),
+                              TileValue(4, "Next Dist", "22.8", "km",
+                                        comment = "Grenoble Le Versoud"),
+                              TileValue(5, "V GND", "130", "km/h"),
+                              TileValue(6, "TC 30s", "+2.1", "m/s",
+                                        color = TileValue.COLOR_GREEN)))
         }
     }
 
@@ -75,7 +96,10 @@ class FlightScreenScreenshotTest {
     fun menu() = capture("flight_menu") {
         XcsTheme(dark = false) {
             FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {},
-                          menu = flightMenu(canReplay = true), menuOpen = true)
+                          menu = flightMenu(canReplay = true,
+                                            orientation = MapOrientation.TRACK_UP,
+                                            varioSound = true),
+                          menuOpen = true)
         }
     }
 

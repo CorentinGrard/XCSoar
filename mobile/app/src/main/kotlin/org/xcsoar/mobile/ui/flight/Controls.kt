@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,7 +39,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -54,7 +52,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.UnitGroup
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.XcsTheme
@@ -208,24 +205,26 @@ fun Segmented(
     }
 }
 
-/** Opens the flight menu. */
+/** Opens the flight menu: a tile of its own, under the thumb. */
 @Composable
-fun MenuButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun MenuTile(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = XcsTheme.colors
-    Box(
+    Column(
         modifier = modifier
-            .size(TOUCH)
-            .background(colors.selected, RoundedCornerShape(16.dp))
+            .heightIn(min = TOUCH)
+            .background(colors.selected, RoundedCornerShape(12.dp))
             .clickable(role = Role.Button, onClickLabel = "Open menu", onClick = onClick)
             .semantics { contentDescription = "Menu" },
-        contentAlignment = Alignment.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
     ) {
-        Canvas(Modifier.size(20.dp)) {
-            val stroke = 2.25.dp.toPx()
+        Canvas(Modifier.size(22.dp)) {
+            val stroke = 2.5.dp.toPx()
             for (y in listOf(0.2f, 0.5f, 0.8f))
                 drawLine(colors.onSelected, Offset(stroke, size.height * y),
                          Offset(size.width - stroke, size.height * y), stroke, StrokeCap.Round)
         }
+        Caption("Menu", color = colors.onSelected)
     }
 }
 
@@ -298,35 +297,24 @@ fun CentreButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 /**
- * Map orientation: a north mark turned to where north is on the map,
- * over the reference the map turns with ("N", "TRK", "TGT"...).
+ * Where north is on a turned map: a mark turned with the map.  It is
+ * not a button; the orientation is chosen in the menu.
  *
  * @param mapAngle the map's rotation (degrees, the direction shown at
- * the top); null when unknown, which hides the mark
+ * the top)
  */
 @Composable
-fun OrientationButton(orientation: MapOrientation, mapAngle: Double?, onClick: () -> Unit,
-                      modifier: Modifier = Modifier) {
+fun NorthMark(mapAngle: Double, modifier: Modifier = Modifier) {
     val colors = XcsTheme.colors
-    val (label, description) = when (orientation) {
-        MapOrientation.NORTH_UP -> "N" to "north up"
-        MapOrientation.TRACK_UP -> "TRK" to "track up"
-        MapOrientation.TARGET_UP -> "TGT" to "target up"
-        MapOrientation.HEADING_UP -> "HDG" to "heading up"
-        MapOrientation.WIND_UP -> "WIND" to "wind up"
-    }
     Column(
         modifier
             .size(TOUCH)
             .mapButton()
-            .clickable(role = Role.Button, onClickLabel = "Change map orientation",
-                       onClick = onClick)
-            .semantics { contentDescription = "Map orientation: $description" },
+            .clearAndSetSemantics { contentDescription = "North" },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Canvas(Modifier.size(14.dp)) {
-            if (mapAngle == null) return@Canvas
             rotate(-mapAngle.toFloat()) {
                 drawPath(Path().apply {
                     moveTo(size.width / 2, 0f)
@@ -336,50 +324,8 @@ fun OrientationButton(orientation: MapOrientation, mapAngle: Double?, onClick: (
                 }, colors.text)
             }
         }
-        Text(label, color = colors.text, style = XcsTheme.numberStyle,
+        Text("N", color = colors.text, style = XcsTheme.numberStyle,
              fontWeight = FontWeight.Bold, fontSize = 14.sp)
-    }
-}
-
-/** The vario sound on or off: a speaker, with sound waves or crossed out. */
-@Composable
-fun VarioSoundButton(enabled: Boolean, onToggle: (Boolean) -> Unit,
-                     modifier: Modifier = Modifier) {
-    val colors = XcsTheme.colors
-    Box(
-        modifier
-            .size(TOUCH)
-            .mapButton()
-            .toggleable(enabled, role = Role.Switch, onValueChange = onToggle)
-            .semantics { contentDescription = "Vario sound" },
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(Modifier.size(24.dp)) {
-            val w = size.width
-            val h = size.height
-            drawPath(Path().apply {
-                moveTo(0f, h * 0.35f)
-                lineTo(w * 0.22f, h * 0.35f)
-                lineTo(w * 0.5f, h * 0.1f)
-                lineTo(w * 0.5f, h * 0.9f)
-                lineTo(w * 0.22f, h * 0.65f)
-                lineTo(0f, h * 0.65f)
-                close()
-            }, colors.text)
-            val stroke = 2.25.dp.toPx()
-            if (enabled) {
-                for (r in listOf(0.18f, 0.36f))
-                    drawArc(colors.text, -50f, 100f, useCenter = false,
-                            topLeft = Offset(w * 0.5f - w * r, h / 2 - h * r),
-                            size = Size(w * r * 2, h * r * 2),
-                            style = Stroke(stroke, cap = StrokeCap.Round))
-            } else {
-                drawLine(colors.caution, Offset(w * 0.64f, h * 0.32f), Offset(w, h * 0.68f),
-                         stroke, StrokeCap.Round)
-                drawLine(colors.caution, Offset(w * 0.64f, h * 0.68f), Offset(w, h * 0.32f),
-                         stroke, StrokeCap.Round)
-            }
-        }
     }
 }
 
@@ -391,6 +337,8 @@ fun SetMacCreadyButton(lift: Double, onClick: () -> Unit, modifier: Modifier = M
     Column(
         modifier
             .heightIn(min = TOUCH)
+            .shadow(8.dp, RoundedCornerShape(16.dp), ambientColor = colors.text,
+                    spotColor = colors.text)
             .background(colors.updraft, RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClickLabel = "Set MacCready to ${value.text}",
                        onClick = onClick)

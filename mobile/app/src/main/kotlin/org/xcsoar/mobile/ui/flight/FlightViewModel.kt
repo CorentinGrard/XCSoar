@@ -394,13 +394,7 @@ class FlightViewModel(
     /** The map orientation; null until the core answered. */
     val mapOrientation: StateFlow<MapOrientation?> = mapOrientationFlow.asStateFlow()
 
-    /** North up → track up → target up → north up. */
-    fun cycleMapOrientation() {
-        val next = when (mapOrientationFlow.value) {
-            MapOrientation.NORTH_UP -> MapOrientation.TRACK_UP
-            MapOrientation.TRACK_UP -> MapOrientation.TARGET_UP
-            else -> MapOrientation.NORTH_UP
-        }
+    fun setMapOrientation(next: MapOrientation) {
         mapOrientationFlow.value = next
         viewModelScope.launch {
             try {
