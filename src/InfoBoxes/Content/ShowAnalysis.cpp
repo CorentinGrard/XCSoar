@@ -13,9 +13,10 @@
 bool
 ShowAnalysis(AnalysisPage page) noexcept
 {
+  /* the analysis pages draw without airspace or terrain, like the
+     menu's Analysis opens them */
   if (!backend_components || !backend_components->glide_computer ||
-      !data_components || !data_components->airspaces ||
-      !data_components->terrain)
+      !data_components)
     return false;
 
   dlgAnalysisShowModal(UIGlobals::GetMainWindow(),
