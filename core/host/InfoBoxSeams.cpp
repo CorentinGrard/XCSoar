@@ -4,13 +4,15 @@
 /*
  * The UI that XCSoar's InfoBox contents (src/InfoBoxes/Content) reach
  * from a tap (HandleClick()), their dialog panels (GetDialogContent())
- * and their drawing (OnCustomPaint()).  The core only calls Update()
- * (core/host/CoreInfoBoxes.cpp); the app has its own tile picker, so
- * none of these run (link-time seams, mobile/docs/DECISIONS.md D5).
+ * and their drawing (OnCustomPaint()) (link-time seams,
+ * mobile/docs/DECISIONS.md D5).  A tapped tile's dialogs tell
+ * CoreInfoBoxes what was asked for, and the app shows its own page for
+ * it (CoreInfoBoxes::Click()); the panels and drawing never run.
  */
 
 #include "Dialogs/Dialogs.h"
 #include "Dialogs/dlgAnalysis.hpp"
+#include "InfoBoxes/Content/ShowAnalysis.hpp"
 #include "Dialogs/Airspace/Airspace.hpp"
 #include "Dialogs/Task/TaskDialogs.hpp"
 #include "Dialogs/Traffic/TrafficDialogs.hpp"
@@ -31,24 +33,35 @@
 #include "FLARM/Id.hpp"
 #include "UIGlobals.hpp"
 #include "Widget/Widget.hpp"
+#include "CoreInfoBoxes.hpp"
 
 #include <cstdlib>
+#include <iterator>
 
 /* src/Dialogs: tapped InfoBoxes open these */
 
 void
 ShowWindSettingsDialog()
 {
+  CoreInfoBoxes::RequestAction("wind");
 }
 
 void
-dlgStatusShowModal([[maybe_unused]] int page)
+dlgStatusShowModal(int page)
 {
+  /* the pages of src/Dialogs/StatusPanels, in dlgStatus.cpp's order */
+  static constexpr const char *pages[] = {
+    "flight", "system", "task", "rules", "times",
+  };
+  CoreInfoBoxes::RequestAction("status",
+                               page >= 0 && page < int(std::size(pages))
+                               ? pages[page] : nullptr);
 }
 
 void
 dlgTeamCodeShowModal()
 {
+  CoreInfoBoxes::RequestAction("team_code");
 }
 
 void
@@ -62,16 +75,33 @@ dlgAnalysisShowModal([[maybe_unused]] UI::SingleWindow &parent,
 {
 }
 
+/* src/InfoBoxes/Content/ShowAnalysis.cpp, which needs the main window
+   and the look for the dialog */
+bool
+ShowAnalysis(AnalysisPage page) noexcept
+{
+  /* AnalysisPage's members, lower case */
+  static constexpr const char *pages[] = {
+    "barograph", "climb", "thermal_band", "vario_histogram", "task_speed",
+    "wind", "polar", "maccready", "temptrace", "task", "contest", "airspace",
+  };
+  static_assert(std::size(pages) == unsigned(AnalysisPage::COUNT));
+  CoreInfoBoxes::RequestAction("analysis", pages[unsigned(page)]);
+  return true;
+}
+
 void
 dlgAirspaceDetails([[maybe_unused]] ConstAirspacePtr airspace,
                    [[maybe_unused]] ProtectedAirspaceWarningManager *warnings)
 {
+  CoreInfoBoxes::RequestAction("airspace");
 }
 
 void
 dlgAlternatesListShowModal([[maybe_unused]] Waypoints *waypoints,
                            [[maybe_unused]] std::optional<AlternateInfoBoxSlot> slot) noexcept
 {
+  CoreInfoBoxes::RequestAction("alternates");
 }
 
 void
@@ -81,6 +111,7 @@ dlgWaypointDetailsShowModal([[maybe_unused]] Waypoints *waypoints,
                             [[maybe_unused]] bool allow_edit,
                             [[maybe_unused]] const WaypointDetailsNesting *nesting) noexcept
 {
+  CoreInfoBoxes::RequestAction("waypoint");
 }
 
 WaypointPtr
@@ -93,6 +124,8 @@ ShowWaypointListDialog([[maybe_unused]] Waypoints &waypoints,
                        [[maybe_unused]] const char *caption,
                        [[maybe_unused]] bool *pan_from_details)
 {
+  /* nothing picked: the InfoBox changes nothing */
+  CoreInfoBoxes::RequestAction("waypoints");
   return nullptr;
 }
 

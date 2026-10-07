@@ -53,6 +53,7 @@ import org.xcsoar.mobile.ui.data.DataFilesScreen
 import org.xcsoar.mobile.ui.data.DownloadScreen
 import org.xcsoar.mobile.ui.data.DownloadViewModel
 import org.xcsoar.mobile.ui.data.DataFilesViewModel
+import org.xcsoar.mobile.ui.analysis.AnalysisPage
 import org.xcsoar.mobile.ui.analysis.AnalysisScreen
 import org.xcsoar.mobile.ui.crew.CrewScreen
 import org.xcsoar.mobile.ui.crew.CrewViewModel
@@ -374,6 +375,19 @@ class MainActivity : ComponentActivity() {
                         onOpenTracking = { screen = Screen.TRACKING },
                         onOpenReplay = { screen = Screen.REPLAY },
                         onOpenProfiles = { screen = Screen.PROFILES },
+                        onTileAction = { action ->
+                            when (action.action) {
+                                "analysis" -> {
+                                    AnalysisPage.fromCore(action.page)?.let(analysisViewModel::show)
+                                    screen = Screen.ANALYSIS
+                                }
+                                // the nearest landables first, like upstream's lists
+                                "alternates", "waypoints", "waypoint" -> screen = Screen.WAYPOINTS
+                                // QNH, as in upstream's altitude setup panel
+                                "altitude" -> screen = Screen.FLIGHT_SETUP
+                                // the others have no page in the app yet
+                            }
+                        },
                         onEditTile = { layout, tile ->
                             tilePickerViewModel.open(layout, tile)
                             screen = Screen.TILE_PICKER

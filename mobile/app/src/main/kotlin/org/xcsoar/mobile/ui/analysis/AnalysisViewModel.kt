@@ -17,6 +17,14 @@ class AnalysisViewModel(private val core: XcsoarCore) : ViewModel() {
     /** `null` until the core has answered. */
     val analysis: StateFlow<Analysis?> = analysisFlow.asStateFlow()
 
+    private val pageFlow = MutableStateFlow(AnalysisPage.BAROGRAPH)
+    /** The page shown; kept while the app runs, like upstream's dialog. */
+    val page: StateFlow<AnalysisPage> = pageFlow.asStateFlow()
+
+    fun show(page: AnalysisPage) {
+        pageFlow.value = page
+    }
+
     /** Runs until cancelled: call it from the screen's composition. */
     suspend fun refreshWhileShown() {
         while (true) {

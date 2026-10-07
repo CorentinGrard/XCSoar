@@ -723,6 +723,17 @@ Java_org_xcsoar_mobile_NativeCore_nativeTilesUpdate(JNIEnv *env, jclass,
 }
 
 JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTilesClick(JNIEnv *env, jclass,
+                                                   jlong core, jint layout,
+                                                   jint tile)
+{
+  return GetJson(env, [core, layout, tile](char *buffer, size_t size,
+                                           size_t *length){
+    return xcs_tiles_click(ToCore(core), layout, tile, buffer, size, length);
+  });
+}
+
+JNIEXPORT jstring JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativePlanesList(JNIEnv *env, jclass,
                                                    jlong core)
 {

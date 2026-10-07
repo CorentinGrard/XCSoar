@@ -49,15 +49,19 @@ fun InfoBox(
     comment: String = "",
     commentColor: Color? = null,
     onLongClick: (() -> Unit)? = null,
+    /** What XCSoar's InfoBox opens when tapped. */
+    onClick: (() -> Unit)? = null,
 ) {
     val colors = XcsTheme.colors
     val spoken = "$title ${value.text} ${value.unit} $comment".trim()
     Column(
         modifier = modifier
             .background(colors.panel, RoundedCornerShape(12.dp))
-            .then(if (onLongClick != null)
-                      Modifier.combinedClickable(onClickLabel = null, onClick = {},
-                                                 onLongClickLabel = "Change tile",
+            .then(if (onLongClick != null || onClick != null)
+                      Modifier.combinedClickable(onClickLabel = "Open".takeIf { onClick != null },
+                                                 onClick = onClick ?: {},
+                                                 onLongClickLabel = "Change tile"
+                                                     .takeIf { onLongClick != null },
                                                  onLongClick = onLongClick)
                   else Modifier)
             .padding(horizontal = 10.dp, vertical = 8.dp)

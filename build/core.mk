@@ -63,9 +63,11 @@ CORE_KEEP_SOURCES = \
 	$(SRC)/Gauge/ThermalAssistantRenderer.cpp
 
 # The InfoBoxes' contents (the flight screen's tiles), without their
-# windows and dialogs (core/host/InfoBoxSeams.cpp).
+# windows and dialogs (core/host/InfoBoxSeams.cpp, which also has
+# ShowAnalysis(): a tap asks the app for an analysis page).
 CORE_INFOBOX_SOURCES = \
-	$(filter $(SRC)/InfoBoxes/Content/%,$(LIBINFOBOX_SOURCES)) \
+	$(filter-out $(SRC)/InfoBoxes/Content/ShowAnalysis.cpp, \
+	  $(filter $(SRC)/InfoBoxes/Content/%,$(LIBINFOBOX_SOURCES))) \
 	$(SRC)/InfoBoxes/Data.cpp \
 	$(SRC)/InfoBoxes/Format.cpp \
 	$(SRC)/InfoBoxes/Units.cpp

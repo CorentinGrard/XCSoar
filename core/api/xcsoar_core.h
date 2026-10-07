@@ -732,6 +732,12 @@ XCS_EXPORT xcs_status
 xcs_tiles_update(xcs_core *core, uint32_t layout, char *buffer, size_t size,
                  size_t *length_r);
 
+/** Tap a tile: what XCSoar's InfoBox would open, as a page for the app
+    (core/host/CoreInfoBoxes.hpp, Click()). */
+XCS_EXPORT xcs_status
+xcs_tiles_click(xcs_core *core, uint32_t layout, uint32_t tile, char *buffer,
+                size_t size, size_t *length_r);
+
 /*
  * Planes and crew (core/host/CorePlanes.hpp has the JSON formats).
  * Buffer rules as for xcs_get_data_status().

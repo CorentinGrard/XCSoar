@@ -27,9 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -58,21 +55,29 @@ import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 
-/** The pages of XCSoar's analysis dialog this app has. */
-enum class AnalysisPage(val label: String) {
-    BAROGRAPH("Barograph"),
-    CLIMB("Climb"),
-    TASK_SPEED("Speed"),
-    CONTEST("Contest"),
+/**
+ * The pages of XCSoar's analysis dialog this app has; [core] is the
+ * name `xcs_tiles_click` gives them.
+ */
+enum class AnalysisPage(val label: String, val core: String) {
+    BAROGRAPH("Barograph", "barograph"),
+    CLIMB("Climb", "climb"),
+    TASK_SPEED("Speed", "task_speed"),
+    CONTEST("Contest", "contest");
+
+    companion object {
+        /** The page a tapped tile asks for; null if the app has none. */
+        fun fromCore(name: String): AnalysisPage? = entries.firstOrNull { it.core == name }
+    }
 }
 
 @Composable
 fun AnalysisScreen(viewModel: AnalysisViewModel, onBack: () -> Unit) {
     val analysis by viewModel.analysis.collectAsStateWithLifecycle()
-    var page by rememberSaveable { mutableStateOf(AnalysisPage.BAROGRAPH) }
+    val page by viewModel.page.collectAsStateWithLifecycle()
     LaunchedEffect(viewModel) { viewModel.refreshWhileShown() }
     BackHandler(onBack = onBack)
-    AnalysisContent(analysis, page, { page = it }, onBack)
+    AnalysisContent(analysis, page, viewModel::show, onBack)
 }
 
 /** XCSoar's analysis pages: a chart and the numbers upstream shows beside it. */

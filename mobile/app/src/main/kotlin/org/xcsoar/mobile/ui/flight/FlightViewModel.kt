@@ -36,6 +36,7 @@ import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SoundOption
 import org.xcsoar.mobile.ui.Format
+import org.xcsoar.mobile.core.TileAction
 import org.xcsoar.mobile.core.TileLayout
 import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.core.XcsoarCore
@@ -111,6 +112,17 @@ class FlightViewModel(
             }
             // only while the flight screen shows them
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Tap a tile: [onAction] gets what XCSoar's InfoBox opens. */
+    fun tapTile(layout: TileLayout, tile: Int, onAction: (TileAction) -> Unit) {
+        viewModelScope.launch {
+            try {
+                core.tapTile(layout, tile)?.let(onAction)
+            } catch (_: Exception) {
+                // the core stopped: nothing to open
+            }
+        }
+    }
 
     /** Read the tiles again now (after the pilot changed one). */
     fun refreshTiles() {

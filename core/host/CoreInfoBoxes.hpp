@@ -42,6 +42,28 @@ SetTile(unsigned layout, unsigned tile, unsigned type) noexcept;
 std::string
 Update(unsigned layout) noexcept;
 
+/**
+ * Tap a tile: what XCSoar's InfoBox does when tapped
+ * (InfoBoxContent::HandleClick(), else its dialog panels), as the page
+ * the app should show:
+ *   {"action": "analysis", "page": "thermal_band"}, also "wind",
+ *   "alternates", "waypoints", "waypoint", "airspace", "team_code",
+ *   {"action": "status", "page": "times"}, the panels "altitude",
+ *   "maccready", "radio", "atc", "simulator"; or "none".
+ * Empty string for an invalid tile.
+ */
+std::string
+Click(unsigned layout, unsigned tile) noexcept;
+
+/**
+ * For the seams of the dialogs a tapped InfoBox opens
+ * (InfoBoxSeams.cpp): remember what it asked for.
+ *
+ * @param page a page of that action (e.g. an analysis page), or nullptr
+ */
+void
+RequestAction(const char *action, const char *page = nullptr) noexcept;
+
 /** Forget the content objects (on shutdown). */
 void
 Clear() noexcept;

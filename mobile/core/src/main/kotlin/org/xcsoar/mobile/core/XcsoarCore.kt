@@ -135,6 +135,9 @@ interface XcsoarCore {
     /** The tiles of [layout] now; null if the core has not started. */
     suspend fun tiles(layout: TileLayout): List<TileValue>? = null
 
+    /** Tap tile [tile] of [layout]: what XCSoar's InfoBox opens. */
+    suspend fun tapTile(layout: TileLayout, tile: Int): TileAction? = null
+
     /** The plane files; null if the core has not started. */
     suspend fun planes(): PlaneList? = null
 

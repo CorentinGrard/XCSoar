@@ -399,8 +399,12 @@ the core already links but that has never run in this app:
       saved in the profile ("MobileTilesCruise" / "MobileTilesCircling").
       `xcs_tiles_*`.  Checked on a Pixel 7.  Not yet: the graphical
       InfoBoxes (barogram, sparklines, thermal band, assistant, arrows,
-      horizon), more or fewer tiles, a tap action per tile (upstream's
-      InfoBox dialogs).  The Battery InfoBox shows the phone's charge
+      horizon), more or fewer tiles.  A tap does what upstream's InfoBox
+      does (`xcs_tiles_click`: HandleClick() runs, the dialog seams record
+      what it asked for, else its panels): analysis pages open Analysis
+      on that page, alternates and waypoint lists open Go to, the
+      altitude panels Flight setup (QNH); wind, status, team code,
+      airspace, radio and MacCready panels have no page yet.  The Battery InfoBox shows the phone's charge
       and "AC ON"/"AC Off": upstream's BatteryReceiver (copied, D13)
       feeds src/Android/Battery.cpp, now linked into the core; checked
       on a Pixel 7 (plugged in, and unplugged at 57 % with `dumpsys
@@ -570,6 +574,10 @@ the core already links but that has never run in this app:
 ---
 
 ## Log
+
+- 2026-10-07 — Tapping a tile does what XCSoar's InfoBox does (as far
+  as the app has the page).  Upstream fix: analysis InfoBoxes opened
+  nothing without terrain.
 
 - 2026-10-07 — "Battery low" warning (upstream's BatteryTimer).
 

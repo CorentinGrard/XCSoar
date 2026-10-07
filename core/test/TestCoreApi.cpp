@@ -699,6 +699,27 @@ TestTiles(xcs_core *core)
   });
   ok1(Contains(tiles, "{\"type\":" + std::to_string(e_Speed_GPS) + ",\"title\":\"V GND\""));
   ok1(Contains(tiles, "\"title\":\"Vopt\"") && Contains(tiles, "\"unit\":\"km/h\""));
+
+  /* a tap: what upstream's InfoBox opens, as a page for the app */
+  const auto click = [core](Type type){
+    xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, type);
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_tiles_click(core, XCS_TILES_CIRCLING, 5, b, s, l);
+    });
+  };
+  ok1(xcs_tiles_click(core, XCS_TILES_CRUISE, 6, buffer, sizeof(buffer),
+                      &length) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(click(e_OC_Distance) == "{\"action\":\"analysis\",\"page\":\"contest\"}");
+  ok1(click(e_Temperature) == "{\"action\":\"analysis\",\"page\":\"temptrace\"}");
+  ok1(click(e_WindSpeed_Est) == "{\"action\":\"wind\"}");
+  ok1(click(e_TimeLocal) == "{\"action\":\"status\",\"page\":\"times\"}");
+  ok1(click(e_MacCready) == "{\"action\":\"maccready\"}");
+  ok1(click(NavAltitude) == "{\"action\":\"altitude\"}");
+  /* its panel is for the simulator only */
+  ok1(click(e_Speed_GPS) == "{\"action\":\"none\"}");
+  /* a wind InfoBox too */
+  ok1(click(e_HeadWind) == "{\"action\":\"wind\"}");
+  xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, e_WindSpeed_Est);
 }
 
 static void
@@ -1001,7 +1022,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9);
 
   Recorder recorder;
   TestCreateArguments(recorder);

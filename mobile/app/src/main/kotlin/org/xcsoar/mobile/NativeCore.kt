@@ -78,6 +78,7 @@ internal object NativeCore {
     @JvmStatic external fun nativeTilesLayouts(core: Long): String?
     @JvmStatic external fun nativeTilesSet(core: Long, layout: Int, tile: Int, type: Int): Int
     @JvmStatic external fun nativeTilesUpdate(core: Long, layout: Int): String?
+    @JvmStatic external fun nativeTilesClick(core: Long, layout: Int, tile: Int): String?
     @JvmStatic external fun nativePlanesList(core: Long): String?
     @JvmStatic external fun nativePolarsList(core: Long): String?
     /** @return the plane's path, or null on error */

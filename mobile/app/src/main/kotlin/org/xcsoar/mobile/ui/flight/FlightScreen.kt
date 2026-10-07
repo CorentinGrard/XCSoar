@@ -56,6 +56,7 @@ import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOrientation
+import org.xcsoar.mobile.core.TileAction
 import org.xcsoar.mobile.core.TileLayout
 import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.ui.Format
@@ -88,6 +89,8 @@ fun FlightScreen(
     theme: ThemeChoice = ThemeChoice.SYSTEM,
     onTheme: (ThemeChoice) -> Unit = {},
     onEditTile: (TileLayout, Int) -> Unit = { _, _ -> },
+    /** A tile was tapped: the page its InfoBox opens. */
+    onTileAction: (TileAction) -> Unit = {},
     /** the menu is open (kept under the pages it opens) */
     menuOpen: Boolean = false,
     onMenuOpen: (Boolean) -> Unit = {},
@@ -128,6 +131,10 @@ fun FlightScreen(
         macCready = macCready,
         onEditTile = { tile ->
             onEditTile(if (circling) TileLayout.CIRCLING else TileLayout.CRUISE, tile)
+        },
+        onTapTile = { tile ->
+            viewModel.tapTile(if (circling) TileLayout.CIRCLING else TileLayout.CRUISE, tile,
+                              onTileAction)
         },
         onMacCreadyChange = viewModel::setMacCready,
         onSetMacCready = viewModel::setMacCready,
@@ -249,6 +256,7 @@ fun FlightContent(
     onNextWaypoint: () -> Unit = {},
     tiles: List<TileValue>? = null,
     onEditTile: (Int) -> Unit = {},
+    onTapTile: (Int) -> Unit = {},
     /** Faster than [state]; from [state] when null (previews). */
     vario: (() -> VarioValues?)? = null,
     /** As the pilot set it, before [state] has it. */
@@ -259,8 +267,8 @@ fun FlightContent(
     val colors = XcsTheme.colors
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
         val instruments = @Composable {
-            Instruments(state, macCready, circling, tiles, onEditTile, onMacCreadyChange,
-                        onMenu = { onMenuOpen(true) })
+            Instruments(state, macCready, circling, tiles, onEditTile, onTapTile,
+                        onMacCreadyChange, onMenu = { onMenuOpen(true) })
         }
         val mapArea = @Composable { showNext: Boolean, modifier: Modifier,
                                     insets: WindowInsets ->
@@ -493,6 +501,7 @@ private fun Instruments(
     circling: Boolean,
     tiles: List<TileValue>?,
     onEditTile: (Int) -> Unit,
+    onTapTile: (Int) -> Unit,
     onMacCreadyChange: (Double) -> Unit,
     onMenu: () -> Unit,
 ) {
@@ -501,7 +510,8 @@ private fun Instruments(
     TileGrid(boxes.map { 1 } + listOf(2, 1), Modifier.fillMaxWidth()) {
         boxes.forEachIndexed { i, box ->
             InfoBox(box.title, box.value, Modifier, box.color, box.comment, box.commentColor,
-                    onLongClick = if (tiles != null) ({ onEditTile(i) }) else null)
+                    onLongClick = if (tiles != null) ({ onEditTile(i) }) else null,
+                    onClick = if (tiles != null) ({ onTapTile(i) }) else null)
         }
         MacCreadyControl(macCready, onMacCreadyChange)
         MenuTile(onMenu)

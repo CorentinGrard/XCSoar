@@ -18,6 +18,7 @@ import org.xcsoar.mobile.core.Analysis
 import org.xcsoar.mobile.core.Crew
 import org.xcsoar.mobile.core.PlaneEdit
 import org.xcsoar.mobile.core.PlaneList
+import org.xcsoar.mobile.core.TileAction
 import org.xcsoar.mobile.core.TileLayout
 import org.xcsoar.mobile.core.TileLayouts
 import org.xcsoar.mobile.core.TileType
@@ -290,6 +291,9 @@ class NativeXcsoarCore(
 
     override suspend fun tiles(layout: TileLayout) =
         query({ NativeCore.nativeTilesUpdate(it, layout.code) }, TileValue::parseList)
+
+    override suspend fun tapTile(layout: TileLayout, tile: Int) =
+        query({ NativeCore.nativeTilesClick(it, layout.code, tile) }, TileAction::parse)
 
     override suspend fun planes() = query(NativeCore::nativePlanesList, PlaneList::parse)
 

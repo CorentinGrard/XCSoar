@@ -67,3 +67,18 @@ data class TileValue(
             json.decodeFromString(ListSerializer(serializer()), text)
     }
 }
+
+/**
+ * What a tapped tile opens, as XCSoar's InfoBox decides
+ * (`xcs_tiles_click`): [action] "analysis" with an analysis [page]
+ * ("barograph", "thermal_band", ...), "wind", "alternates",
+ * "waypoints", "waypoint", "airspace", "team_code", "status" with a
+ * [page], the panels "altitude", "maccready", "radio", "atc",
+ * "simulator"; or "none".
+ */
+@Serializable
+data class TileAction(val action: String, val page: String = "") {
+    companion object {
+        fun parse(text: String): TileAction = json.decodeFromString(serializer(), text)
+    }
+}

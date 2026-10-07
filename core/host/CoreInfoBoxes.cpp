@@ -5,6 +5,14 @@
 #include "InfoBoxes/Content/Base.hpp"
 #include "InfoBoxes/Content/Factory.hpp"
 #include "InfoBoxes/Data.hpp"
+#include "InfoBoxes/Panel/Panel.hpp"
+#include "InfoBoxes/Panel/AltitudeInfo.hpp"
+#include "InfoBoxes/Panel/AltitudeSetup.hpp"
+#include "InfoBoxes/Panel/ATCReference.hpp"
+#include "InfoBoxes/Panel/ATCSetup.hpp"
+#include "InfoBoxes/Panel/MacCreadyEdit.hpp"
+#include "InfoBoxes/Panel/RadioEdit.hpp"
+#include "InfoBoxes/Panel/SpeedSimulator.hpp"
 #include "Language/Language.hpp"
 #include "Profile/Profile.hpp"
 #include "Units/Descriptor.hpp"
@@ -159,6 +167,21 @@ CoreInfoBoxes::SetTile(unsigned layout, unsigned tile, unsigned type) noexcept
   return true;
 }
 
+/** A new type: a new content object, as
+    InfoBoxManager::DisplayInfoBox() does. */
+static void
+Show(Tile &tile, Type type) noexcept
+{
+  if (tile.type == type && tile.content)
+    return;
+
+  tile.type = type;
+  tile.content = Create(type);
+  tile.data.Clear();
+  tile.data.SetInvalid();
+  tile.data.SetTitle(gettext(GetCaption(type)));
+}
+
 std::string
 CoreInfoBoxes::Update(unsigned layout) noexcept
 {
@@ -171,16 +194,7 @@ CoreInfoBoxes::Update(unsigned layout) noexcept
   for (unsigned i = 0; i < TILE_COUNT; ++i) {
     Tile &tile = tiles[layout][i];
 
-    /* a new type: a new content object, as
-       InfoBoxManager::DisplayInfoBox() does */
-    if (tile.type != types[i] || !tile.content) {
-      tile.type = types[i];
-      tile.content = Create(tile.type);
-      tile.data.Clear();
-      tile.data.SetInvalid();
-      tile.data.SetTitle(gettext(GetCaption(tile.type)));
-    }
-
+    Show(tile, types[i]);
     if (tile.content)
       tile.content->Update(tile.data);
 
@@ -209,3 +223,62 @@ CoreInfoBoxes::Clear() noexcept
       tile.type = e_NUM_TYPES;
     }
 }
+
+/* what the last HandleClick() asked for (RequestAction()) */
+static std::string requested_action, requested_page;
+
+void
+CoreInfoBoxes::RequestAction(const char *action, const char *page) noexcept
+{
+  requested_action = action;
+  requested_page = page != nullptr ? page : "";
+}
+
+/** The page an InfoBox's dialog panels edit, by their loaders. */
+static const char *
+PanelAction(const InfoBoxPanel *panels) noexcept
+{
+  for (; panels != nullptr && panels->load != nullptr; ++panels) {
+    if (panels->load == LoadAltitudeSetupPanel ||
+        panels->load == LoadAltitudeInfoPanel)
+      return "altitude";
+    if (panels->load == LoadMacCreadyEditPanel)
+      return "maccready";
+    if (panels->load == LoadActiveRadioFrequencyEditPanel ||
+        panels->load == LoadStandbyRadioFrequencyEditPanel)
+      return "radio";
+    if (panels->load == LoadATCSetupPanel ||
+        panels->load == LoadATCReferencePanel)
+      return "atc";
+    if (panels->load == LoadSpeedSimulatorPanel)
+      return "simulator";
+  }
+  return nullptr;
+}
+
+std::string
+CoreInfoBoxes::Click(unsigned layout, unsigned index) noexcept
+{
+  if (layout >= LAYOUT_COUNT || index >= TILE_COUNT)
+    return {};
+
+  /* the tile as shown, even before its first update */
+  Tile &tile = tiles[layout][index];
+  Show(tile, LoadLayout(layout)[index]);
+
+  boost::json::object o;
+  requested_action.clear();
+  if (tile.content && tile.content->HandleClick() &&
+      !requested_action.empty()) {
+    o["action"] = requested_action;
+    if (!requested_page.empty())
+      o["page"] = requested_page;
+  } else if (const char *action = tile.content
+             ? PanelAction(tile.content->GetDialogContent()) : nullptr) {
+    o["action"] = action;
+  } else
+    o["action"] = "none";
+
+  return Serialize(o);
+}
+

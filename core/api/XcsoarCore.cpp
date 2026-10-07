@@ -1230,6 +1230,21 @@ xcs_tiles_update(xcs_core *core, uint32_t layout, char *buffer, size_t size,
 }
 
 xcs_status
+xcs_tiles_click(xcs_core *core, uint32_t layout, uint32_t tile, char *buffer,
+                size_t size, size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr ||
+      layout >= CoreInfoBoxes::LAYOUT_COUNT ||
+      tile >= CoreInfoBoxes::TILE_COUNT)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [layout, tile, buffer, size, length_r]{
+    return CopyJson(CoreInfoBoxes::Click(layout, tile), buffer, size,
+                    length_r);
+  });
+}
+
+xcs_status
 xcs_planes_list(xcs_core *core, char *buffer, size_t size, size_t *length_r)
 {
   return GetJsonOnMain(core, buffer, size, length_r, CorePlanes::List);

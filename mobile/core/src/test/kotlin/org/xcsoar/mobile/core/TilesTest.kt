@@ -33,4 +33,12 @@ class TilesTest {
         assertEquals(TileValue(43, "Vopt", "142", "km/h", "DOLPHIN"), tiles[0])
         assertEquals(TileValue.COLOR_RED, tiles[1].color)
     }
+
+    @Test
+    fun tileActions() {
+        // as core/host/CoreInfoBoxes.hpp documents them
+        assertEquals(TileAction("analysis", "thermal_band"),
+                     TileAction.parse("""{"action":"analysis","page":"thermal_band"}"""))
+        assertEquals(TileAction("wind"), TileAction.parse("""{"action":"wind"}"""))
+    }
 }
