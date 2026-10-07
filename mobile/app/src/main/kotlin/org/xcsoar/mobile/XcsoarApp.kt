@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
 import org.xcsoar.AppPermissionManager
+import org.xcsoar.CoreBattery
 import org.xcsoar.CoreGraphics
 import org.xcsoar.mobile.core.DataFile
 import org.xcsoar.mobile.core.FakeXcsoarCore
@@ -44,6 +45,7 @@ class XcsoarApp : Application() {
         try {
             CoreGraphics.initialise(this)
             NativeCore.nativeInit(this, permissionManager)
+            CoreBattery.register(this)
             NativeXcsoarCore(xcsoarDataDir.path, profile?.takeIf { File(it).isFile })
         } catch (e: UnsatisfiedLinkError) {
             Log.w(TAG, "no native core, using the fake one", e)

@@ -182,7 +182,8 @@ LIBXCSOAR_CORE_SOURCES = $(CORE_API_SOURCES) $(CORE_SRC_DIR)/jni/CoreJni.cpp \
 	$(SRC)/Android/NativeSensorListener.cpp \
 	$(SRC)/Android/NativeInputListener.cpp \
 	$(SRC)/Android/NativePortListener.cpp \
-	$(SRC)/Android/NativeDetectDeviceListener.cpp
+	$(SRC)/Android/NativeDetectDeviceListener.cpp \
+	$(SRC)/Android/Battery.cpp
 LIBXCSOAR_CORE_CPPFLAGS = $(CORE_CPPFLAGS)
 LIBXCSOAR_CORE_DEPENDS = $(CORE_DEPENDS)
 LIBXCSOAR_CORE_LDLIBS = $(CORE_LDLIBS) -Wl,--no-undefined \

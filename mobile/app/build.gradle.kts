@@ -126,6 +126,8 @@ val upstreamJava = tasks.register<CopyIntoGenerated>("upstreamJava") {
         "TextUtil", "BitmapUtil",
         // system CA certificates for curl (WeGlide)
         "CertificateUtil",
+        // the phone's battery for the Battery InfoBox
+        "BatteryReceiver",
     ).map { xcsoarRoot.file("android/src/$it.java") })
     subDirectory.set("org/xcsoar")
 }

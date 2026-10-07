@@ -400,8 +400,11 @@ the core already links but that has never run in this app:
       `xcs_tiles_*`.  Checked on a Pixel 7.  Not yet: the graphical
       InfoBoxes (barogram, sparklines, thermal band, assistant, arrows,
       horizon), more or fewer tiles, a tap action per tile (upstream's
-      InfoBox dialogs), and the battery InfoBox (the core does not read
-      Android's battery yet: "---")
+      InfoBox dialogs).  The Battery InfoBox shows the phone's charge
+      and "AC ON"/"AC Off": upstream's BatteryReceiver (copied, D13)
+      feeds src/Android/Battery.cpp, now linked into the core; checked
+      on a Pixel 7 (plugged in, and unplugged at 57 % with `dumpsys
+      battery`).  Not yet: upstream's low-battery warnings (BatteryTimer)
 - [x] Aircraft & crew: when the app opens (not when it restarts in the
       air), the pilot picks the plane, the last one flown first, and for
       a two-seater the co-pilot (solo, a recent one or a new one); also
@@ -567,6 +570,8 @@ the core already links but that has never run in this app:
 ---
 
 ## Log
+
+- 2026-10-07 — Battery InfoBox reads the phone's battery.
 
 - 2026-10-07 — Profiles: list, switch (app restart), new/copy, import,
   delete, passwords.  TestCoreApi 317 checks.
