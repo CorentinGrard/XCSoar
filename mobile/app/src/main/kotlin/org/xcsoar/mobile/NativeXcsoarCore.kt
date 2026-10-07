@@ -127,6 +127,12 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
     override suspend fun stopReplay() =
         command { NativeCore.nativeReplayStop(it) }
 
+    override suspend fun setReplayTimeScale(timeScale: Double) =
+        command { NativeCore.nativeReplaySetTimeScale(it, timeScale) }
+
+    override suspend fun fastForwardReplay(seconds: Double) =
+        command { NativeCore.nativeReplayFastForward(it, seconds) }
+
     override suspend fun setDataFile(kind: DataFile, path: String?) =
         command { NativeCore.nativeSetDataFile(it, kind.code, path) }
 

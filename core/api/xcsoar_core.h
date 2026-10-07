@@ -1146,6 +1146,16 @@ xcs_replay_start(xcs_core *core, const char *path, double time_scale);
 XCS_EXPORT xcs_status
 xcs_replay_stop(xcs_core *core);
 
+/** Change the speed of the replay: 0 pauses it, 1 = real time. */
+XCS_EXPORT xcs_status
+xcs_replay_set_time_scale(xcs_core *core, double time_scale);
+
+/** Skip ahead: replay the next \a seconds of the file (flight time)
+    as fast as possible, then go on at the chosen speed.
+    XCS_ERROR_FAILED without a replay. */
+XCS_EXPORT xcs_status
+xcs_replay_fast_forward(xcs_core *core, double seconds);
+
 /**
  * Replay the whole file as fast as possible and deterministically:
  * every fix goes through the merge and calculation code, in order,

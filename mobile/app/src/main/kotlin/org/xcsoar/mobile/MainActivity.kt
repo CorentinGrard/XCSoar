@@ -9,6 +9,7 @@ import android.content.Intent
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -40,6 +41,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -68,6 +70,7 @@ import org.xcsoar.mobile.ui.map.MapSettingsViewModel
 import org.xcsoar.mobile.ui.flights.FlightLog
 import org.xcsoar.mobile.ui.flights.FlightsScreen
 import org.xcsoar.mobile.ui.flights.FlightsViewModel
+import org.xcsoar.mobile.ui.flights.ReplayScreen
 import org.xcsoar.mobile.ui.settings.AirspaceAlertsScreen
 import org.xcsoar.mobile.ui.settings.AirspaceAlertsViewModel
 import org.xcsoar.mobile.ui.settings.SafetyScreen
@@ -91,13 +94,14 @@ import org.xcsoar.mobile.ui.setup.FlightSetupViewModel
 import org.xcsoar.mobile.ui.flight.FlightViewModel
 import org.xcsoar.mobile.ui.theme.ThemeChoice
 import org.xcsoar.mobile.ui.theme.XcsTheme
+import kotlinx.coroutines.launch
 import java.io.File
 
 private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS,
                             TASK, TASK_FILES, TASK_ADD_POINT, UNITS, ANALYSIS,
                             CREW, PLANE_EDIT, PILOT, TILE_PICKER,
                             AIRSPACE_ALERTS, SAFETY, VARIO_SOUND, TRACKING, WEATHER,
-                            NOTAMS }
+                            NOTAMS, REPLAY }
 
 /** How deep a page is: pages further in slide in from the right. */
 private val Screen.depth: Int
@@ -108,6 +112,8 @@ private val Screen.depth: Int
     }
 
 private const val PAGE_MILLIS = 250
+
+private const val TAG = "MainActivity"
 
 /**
  * Deeper pages slide in from the right over the one they leave; going
@@ -164,6 +170,12 @@ class MainActivity : ComponentActivity() {
             pickingKind = null
             if (uri != null && kind != null)
                 onPicked?.invoke(kind, uri.toString())
+        }
+
+    private var onReplayPicked: ((Uri) -> Unit)? = null
+    private val replayPicker =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) onReplayPicked?.invoke(uri)
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -342,6 +354,7 @@ class MainActivity : ComponentActivity() {
                         onOpenSafety = { screen = Screen.SAFETY },
                         onOpenVarioSound = { screen = Screen.VARIO_SOUND },
                         onOpenTracking = { screen = Screen.TRACKING },
+                        onOpenReplay = { screen = Screen.REPLAY },
                         onEditTile = { layout, tile ->
                             tilePickerViewModel.open(layout, tile)
                             screen = Screen.TILE_PICKER
@@ -457,6 +470,32 @@ class MainActivity : ComponentActivity() {
                             Screen.FLIGHTS -> FlightsScreen(
                                 flightsViewModel, onShare = ::share, onOpenUrl = ::openUrl,
                                 onBack = { screen = Screen.FLIGHT })
+                            Screen.REPLAY -> {
+                                val speed by flightViewModel.replaySpeed.collectAsState()
+                                // replaying: back to the map itself
+                                val replay = { path: String ->
+                                    flightViewModel.startReplay(path)
+                                    menuOpen = false
+                                    screen = Screen.FLIGHT
+                                }
+                                onReplayPicked = { uri ->
+                                    lifecycleScope.launch {
+                                        try {
+                                            replay(app.importReplayFile(uri))
+                                        } catch (e: Exception) {
+                                            Log.w(TAG, "replay file not copied", e)
+                                        }
+                                    }
+                                }
+                                ReplayScreen(
+                                    flightsViewModel, speed,
+                                    onSpeed = flightViewModel::setReplaySpeed,
+                                    onDemo = { replay(app.demoFlight().path) },
+                                    onReplay = { replay(it.path) },
+                                    // IGC and NMEA files have no reliable type
+                                    onOpenFile = { replayPicker.launch(arrayOf("*/*")) },
+                                    onBack = { screen = Screen.FLIGHT })
+                            }
                             Screen.FLIGHT -> {}
                         }
                     }

@@ -113,8 +113,7 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
 - [x] Export only `xcs_*` and `Java_*` from `libxcsoar_core.so`
       (`core/api/libxcsoar_core.map`): 2,762 → 37 exported symbols. Add
       `JNI_OnLoad` there in M2
-- [ ] Not yet run on a device: needs the JNI glue that creates `Context`
-      and the helpers (first task of M2)
+- [x] Runs on a device with the JNI glue of M2 (Pixel 7)
 - [x] `core/api/xcsoar_core.h` v1: create/start/stop/destroy, snapshot and
       event callbacks (always on the core main thread), `xcs_get_snapshot`,
       `xcs_set_mac_cready`, `xcs_replay_start/stop` (timed) and
@@ -182,9 +181,9 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       asks for the location permission, a GPS fix shows up (1,147 m MSL for
       1,200 m ellipsoidal: the geoid correction), the bundled IGC replays
       through the real glide computer (take-off, tow climb, "Next (takeoff)")
-- [~] `:core`: `XcsoarCore` interface, `FlightState`, `SnapshotDecoder`,
-      `FakeXcsoarCore` (synthetic cruise/thermal flight) done;
-      `NativeXcsoarCore` (JNI) next
+- [x] `:core`: `XcsoarCore` interface, `FlightState`, `SnapshotDecoder`,
+      `FakeXcsoarCore` (synthetic cruise/thermal flight); the JNI side is
+      `NativeXcsoarCore` in `:app`
 - [x] **L3** `SnapshotDecoderTest` (8 tests): every field and validity bit,
       buffer position, bad version/size, and the Kotlin constants
       (`XCS_GCE_*`, `XCS_VALID_*`, `XCS_FLAG_*`, API version) parsed from
@@ -220,8 +219,16 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       (Data files → Download): the app fetches the index and the file
       (https, SHA-256 checked when listed), the core parses the index
       (`xcs_repository_list`, XCSoar's parser) and loads the file
-- [~] Replay: "Replay demo" (bundled IGC, 10×) on the ground; choosing a
-      file, play/pause/speed later
+- [x] Replay (Menu → Replay, on the ground): the demo flight, the
+      recorded flights or any IGC/NMEA file (system picker, copied to the
+      cache), at 1–50×.  A bar over the map while it runs: replayed time
+      (UTC), pause, speed, "+10′" and Stop (`xcs_replay_set_time_scale`,
+      `xcs_replay_fast_forward`).  Upstream's fast-forward now goes 4 s
+      per 50 ms tick (~80×, was 10×).  When a replay stops or ends the
+      core resets the glide computer and drops the goto task the
+      replayed takeoff created (`TaskManager::ClearGoto()`): before, the
+      live flight kept the replay's "(takeoff)" target 16,000 km away,
+      its thermals and its task progress.  Checked on a Pixel 7
 - [x] **L4** Roborazzi screenshot tests of the flight screen against the
       fake core (cruise, circling, night, no data, landscape); reference
       images in `app/src/test/screenshots`, checked in CI
@@ -548,6 +555,13 @@ the core already links but that has never run in this app:
 ---
 
 ## Log
+
+- 2026-10-07 — Replay page and controls (file, speed, pause, +10′,
+  stop), faster upstream fast-forward, glide computer reset after a
+  replay.  Checked on a Pixel 7; TestCoreApi (301), test_modes and the
+  Roborazzi screenshots pass (`flight_tiles.png` re-recorded: it was
+  left over from before the uniform tiles).  The map once stayed on the
+  last frame during a replay right after installing; not reproduced.
 Newest first. One line per session: what was done and what's next.
 
 - 2026-10-03 — RASP: readable field names, daily download on Wi-Fi;

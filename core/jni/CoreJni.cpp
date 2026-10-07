@@ -288,6 +288,22 @@ Java_org_xcsoar_mobile_NativeCore_nativeReplayStop(JNIEnv *, jclass,
 }
 
 JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeReplaySetTimeScale(JNIEnv *, jclass,
+                                                           jlong core,
+                                                           jdouble time_scale)
+{
+  return xcs_replay_set_time_scale(ToCore(core), time_scale);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeReplayFastForward(JNIEnv *, jclass,
+                                                          jlong core,
+                                                          jdouble seconds)
+{
+  return xcs_replay_fast_forward(ToCore(core), seconds);
+}
+
+JNIEXPORT jint JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeSetDataFile(JNIEnv *env, jclass,
                                                     jlong core, jint kind,
                                                     jstring path)

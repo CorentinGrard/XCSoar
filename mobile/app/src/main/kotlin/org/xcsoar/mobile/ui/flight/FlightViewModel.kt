@@ -280,11 +280,19 @@ class FlightViewModel(
         }
     }
 
-    /** Replay the bundled demo flight at 10× real time. */
-    fun replayDemo() {
+    private val replaySpeedFlow = MutableStateFlow(ReplaySpeed())
+    /** The speed the next or current replay runs at, and whether it is paused. */
+    val replaySpeed: StateFlow<ReplaySpeed> = replaySpeedFlow.asStateFlow()
+
+    /** Replay the bundled demo flight. */
+    fun replayDemo() = startReplay(demoFlight())
+
+    /** Replay an IGC or NMEA file at [replaySpeed]. */
+    fun startReplay(path: String) {
+        replaySpeedFlow.value = replaySpeedFlow.value.copy(paused = false)
         viewModelScope.launch {
             try {
-                core.startReplay(demoFlight(), timeScale = 10.0)
+                core.startReplay(path, timeScale = replaySpeedFlow.value.timeScale)
             } catch (e: Exception) {
                 lastEventFlow.value = "Replay failed: ${e.message}"
             }
@@ -297,6 +305,41 @@ class FlightViewModel(
                 core.stopReplay()
             } catch (e: Exception) {
                 lastEventFlow.value = "Replay not stopped: ${e.message}"
+            }
+        }
+    }
+
+    /** The replay's speed, one of [ReplaySpeed.CHOICES]; it goes on if paused. */
+    fun setReplaySpeed(timeScale: Double) {
+        replaySpeedFlow.value = ReplaySpeed(timeScale, paused = false)
+        applyReplaySpeed()
+    }
+
+    fun pauseReplay(paused: Boolean) {
+        replaySpeedFlow.value = replaySpeedFlow.value.copy(paused = paused)
+        applyReplaySpeed()
+    }
+
+    private fun applyReplaySpeed() {
+        val speed = replaySpeedFlow.value
+        // only a running replay: the speed is also the next one's
+        if (flightState.value?.replay != true) return
+        viewModelScope.launch {
+            try {
+                core.setReplayTimeScale(if (speed.paused) 0.0 else speed.timeScale)
+            } catch (_: Exception) {
+                // the replay just ended
+            }
+        }
+    }
+
+    /** Skip [REPLAY_SKIP_SECONDS] of the replayed flight. */
+    fun skipReplay() {
+        viewModelScope.launch {
+            try {
+                core.fastForwardReplay(REPLAY_SKIP_SECONDS)
+            } catch (_: Exception) {
+                // the replay just ended
             }
         }
     }
@@ -496,6 +539,19 @@ class FlightViewModel(
 
 /** 5 screen updates per second: smooth enough for the vario. */
 private const val UI_INTERVAL_MS = 1000L
+
+/** What "+10 min" skips in a replay, like XCSoar's replay dialog. */
+const val REPLAY_SKIP_SECONDS = 600.0
+
+/**
+ * How fast a replay runs: [timeScale] times real time, unless [paused].
+ */
+data class ReplaySpeed(val timeScale: Double = 10.0, val paused: Boolean = false) {
+    companion object {
+        /** The speeds offered: real time to a long flight in minutes. */
+        val CHOICES = listOf(1.0, 2.0, 5.0, 10.0, 20.0, 50.0)
+    }
+}
 private const val VARIO_INTERVAL_MS = 200L
 private const val TILES_INTERVAL_MS = 1000L
 

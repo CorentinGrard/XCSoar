@@ -263,6 +263,16 @@ interface XcsoarCore {
     /** Replay an IGC or NMEA file; [timeScale] 1 = real time. */
     suspend fun startReplay(path: String, timeScale: Double = 1.0)
     suspend fun stopReplay()
+
+    /** Speed of the replay: 0 pauses it, 1 = real time. */
+    suspend fun setReplayTimeScale(timeScale: Double) {}
+
+    /**
+     * Replay the next [seconds] of flight time as fast as possible.
+     *
+     * @throws IllegalStateException without a replay
+     */
+    suspend fun fastForwardReplay(seconds: Double) {}
 }
 
 /** Values of `xcs_event_type` (core/api/xcsoar_core.h). */

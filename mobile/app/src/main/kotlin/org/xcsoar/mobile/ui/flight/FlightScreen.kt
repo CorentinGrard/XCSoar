@@ -83,6 +83,7 @@ fun FlightScreen(
     onOpenSafety: () -> Unit = {},
     onOpenVarioSound: () -> Unit = {},
     onOpenTracking: () -> Unit = {},
+    onOpenReplay: () -> Unit = {},
     theme: ThemeChoice = ThemeChoice.SYSTEM,
     onTheme: (ThemeChoice) -> Unit = {},
     onEditTile: (TileLayout, Int) -> Unit = { _, _ -> },
@@ -107,6 +108,7 @@ fun FlightScreen(
     val tiles by viewModel.tiles.collectAsStateWithLifecycle()
     val hideTimer by viewModel.airspaceHideTimer.collectAsStateWithLifecycle()
     val airspaceAlerts by viewModel.airspaceAlerts.collectAsStateWithLifecycle()
+    val replaySpeed by viewModel.replaySpeed.collectAsStateWithLifecycle()
     // back from a page: the airspace alerts or the vario sound may have changed
     LaunchedEffect(covered) {
         if (!covered) {
@@ -133,6 +135,8 @@ fun FlightScreen(
         airspaceAlertsOff = !airspaceAlerts.warnings,
         onAcknowledge = viewModel::acknowledgeAirspace,
         onNextWaypoint = onOpenWaypoints,
+        replay = ReplayControls(replaySpeed, viewModel::pauseReplay, viewModel::setReplaySpeed,
+                                viewModel::skipReplay, viewModel::stopReplay),
         menuOpen = menuOpen,
         onMenuOpen = onMenuOpen,
         menu = flightMenu(
@@ -148,9 +152,9 @@ fun FlightScreen(
             onOpenTracking = onOpenTracking,
             airspaceAlerts = airspaceAlerts,
             replay = state?.replay == true,
-            // on the ground only: a demo, not something to press in flight
+            // on the ground only: not something to press in flight
             canReplay = state?.flying == false,
-            onReplay = viewModel::replayDemo,
+            onReplay = onOpenReplay,
             onStopReplay = viewModel::stopReplay,
             tileLayout = tileLayout,
             onTileLayout = viewModel::selectFlightMode,
@@ -178,6 +182,15 @@ fun FlightScreen(
         ) else null,
     )
 }
+
+/** What the replay bar does (see [ReplayBar]). */
+class ReplayControls(
+    val speed: ReplaySpeed,
+    val onPause: (Boolean) -> Unit = {},
+    val onSpeed: (Double) -> Unit = {},
+    val onSkip: () -> Unit = {},
+    val onStop: () -> Unit = {},
+)
 
 /**
  * XCSoar's moving map, when the core draws one.
@@ -238,6 +251,8 @@ fun FlightContent(
     vario: (() -> VarioValues?)? = null,
     /** As the pilot set it, before [state] has it. */
     macCready: Double? = state?.macCready,
+    /** The replay's controls, shown while [state] is a replay. */
+    replay: ReplayControls? = null,
 ) {
     val colors = XcsTheme.colors
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
@@ -249,7 +264,7 @@ fun FlightContent(
                                     insets: WindowInsets ->
             MapArea(state, lastEvent, circling, map, warnings, airspaceHideTimer,
                     airspaceAlertsOff, onAcknowledge, onNextWaypoint, onSetMacCready, showNext,
-                    vario, modifier, insets)
+                    vario, replay, modifier, insets)
         }
 
         if (maxWidth > maxHeight && maxWidth >= 600.dp) {
@@ -318,6 +333,7 @@ private fun MapArea(
     /** false in landscape, where the side panel shows it */
     showNext: Boolean,
     vario: (() -> VarioValues?)?,
+    replay: ReplayControls?,
     modifier: Modifier,
     insets: WindowInsets,
 ) {
@@ -373,6 +389,9 @@ private fun MapArea(
                 AirspaceWarningBanner(top, warnings.size - 1, { day -> onAcknowledge(top, day) },
                                       Modifier.fillMaxWidth(), hideTimer)
             }
+            if (state?.replay == true && replay != null)
+                ReplayBar(state.timeUtc, replay.speed, replay.onPause, replay.onSpeed,
+                          replay.onSkip, replay.onStop)
             if (showNext)
                 NextWaypointCard(state?.next, Modifier.fillMaxWidth(), state?.nextTimeRemaining,
                                  onClick = onNextWaypoint)
@@ -384,7 +403,8 @@ private fun MapArea(
                         WindChip(state.wind)
                         if (state.position == null) StatusChip("NO GPS", colors.caution)
                         if (alertsOff) StatusChip("AIRSPACE ALERTS OFF", colors.caution)
-                        if (state.replay) StatusChip("REPLAY", colors.neutralSafe)
+                        if (state.replay && replay == null)
+                            StatusChip("REPLAY", colors.neutralSafe)
                         if (!state.flying) StatusChip("On ground", colors.text)
                     }
                 }
@@ -694,8 +714,8 @@ fun flightMenu(
                 MenuAction("Stop replay", "Back to the GPS", closesMenu = true,
                            onClick = onStopReplay)
             else
-                MenuAction("Replay demo", "A demo flight, on the ground only",
-                           enabled = canReplay, closesMenu = true, onClick = onReplay),
+                MenuAction("Replay", "A recorded flight, on the ground only",
+                           enabled = canReplay, onClick = onReplay),
         )),
         MenuSection("Settings", listOfNotNull(
             MenuAction("Airspace", describe(airspaceAlerts), onClick = onOpenAirspaceAlerts),

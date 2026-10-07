@@ -103,6 +103,17 @@ class FlightScreenScreenshotTest {
         }
     }
 
+    /** A paused replay: its controls take the place of the chip. */
+    @Test
+    @Config(qualifiers = "w390dp-h844dp-xxhdpi")
+    fun replay() = capture("replay_bar") {
+        XcsTheme(dark = false) {
+            FlightContent(FakeXcsoarCore.syntheticState(120).copy(replay = true), null,
+                          circling = false, {},
+                          replay = ReplayControls(ReplaySpeed(20.0, paused = true)))
+        }
+    }
+
     @Test
     @Config(qualifiers = "w844dp-h390dp-land-xxhdpi")
     fun landscape() = capture("landscape_sunlight") {

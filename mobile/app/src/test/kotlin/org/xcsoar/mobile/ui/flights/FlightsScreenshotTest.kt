@@ -10,6 +10,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.xcsoar.mobile.core.WeGlideFlight
+import org.xcsoar.mobile.ui.flight.ReplaySpeed
 import org.xcsoar.mobile.ui.theme.XcsTheme
 import java.util.TimeZone
 
@@ -47,6 +48,16 @@ class FlightsScreenshotTest {
                 done to Upload.Done(WeGlideFlight(123456, "https://www.weglide.org/flight/123456")),
                 failed to Upload.Failed("422: This flight was already uploaded"),
             ))
+        }
+    }
+
+    @Test
+    fun replay() = captureRoboImage("src/test/screenshots/replay.png") {
+        XcsTheme(dark = false) {
+            ReplayContent(listOf(
+                FlightLog("/x/2026-10-02-XCS-AAA-02.igc", "2026-10-02-XCS-AAA-02.igc",
+                          1790959200000L, 412_300),
+            ), ReplaySpeed(), {}, {}, {}, {}, {}, utc)
         }
     }
 

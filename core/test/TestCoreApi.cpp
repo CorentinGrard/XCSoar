@@ -146,6 +146,8 @@ TestNotStarted(xcs_core *core)
   ok1(xcs_sound_set_option(core, XCS_SOUND_VARIO, 1) == XCS_ERROR_STATE);
   ok1(xcs_get_snapshot(core, &s) == XCS_ERROR_STATE);
   ok1(xcs_replay_run(core, FLIGHT, 60, nullptr) == XCS_ERROR_STATE);
+  ok1(xcs_replay_set_time_scale(core, 0) == XCS_ERROR_STATE);
+  ok1(xcs_replay_fast_forward(core, 600) == XCS_ERROR_STATE);
   ok1(xcs_set_data_file(core, XCS_DATA_AIRSPACE, AIRSPACE) == XCS_ERROR_STATE);
 
   char buffer[64];
@@ -738,6 +740,25 @@ TestSafety(xcs_core *core)
 }
 
 static void
+TestReplayControls(xcs_core *core)
+{
+  ok1(xcs_replay_set_time_scale(nullptr, 1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_replay_set_time_scale(core, -1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_replay_fast_forward(core, 0) == XCS_ERROR_INVALID_ARGUMENT);
+  /* nothing to skip without a replay */
+  ok1(xcs_replay_fast_forward(core, 600) == XCS_ERROR_FAILED);
+
+  ok1(xcs_replay_start(core, FLIGHT, 1) == XCS_OK);
+  ok1(xcs_replay_fast_forward(core, 600) == XCS_OK);
+  /* 0 pauses */
+  ok1(xcs_replay_set_time_scale(core, 0) == XCS_OK);
+  ok1(xcs_replay_set_time_scale(core, 20) == XCS_OK);
+  ok1(xcs_replay_stop(core) == XCS_OK);
+  ok1(xcs_replay_fast_forward(core, 600) == XCS_ERROR_FAILED);
+  ok1(xcs_replay_set_time_scale(core, 1) == XCS_OK);
+}
+
+static void
 TestStarted(xcs_core *core, Recorder &recorder)
 {
   ok1(xcs_start(core) == XCS_ERROR_STATE);
@@ -925,7 +946,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -953,6 +974,7 @@ main()
   TestRasp(core);
   TestNotam(core);
   TestTiles(core);
+  TestReplayControls(core);
   ok1(xcs_stop(core) == XCS_OK);
 
   /* the same core can be started again */

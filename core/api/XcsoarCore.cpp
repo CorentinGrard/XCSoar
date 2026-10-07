@@ -62,6 +62,7 @@
 #include "Replay/Replay.hpp"
 #include "Task/ProtectedTaskManager.hpp"
 #include "Engine/Task/TaskManager.hpp"
+#include "Engine/Task/TaskType.hpp"
 #include "Engine/Task/AbstractTask.hpp"
 #include "Engine/Task/Points/TaskWaypoint.hpp"
 #include "Engine/Waypoint/Waypoint.hpp"
@@ -113,6 +114,7 @@
 #include <future>
 #include <iterator>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -204,6 +206,11 @@ struct xcs_core final : CoreListener {
   double replay_run_last_time = -1;
 
   std::unique_ptr<UI::Timer> replay_watch;
+
+  /* the task mode before xcs_replay_start(), while a replay runs */
+  std::optional<TaskType> task_mode_before_replay;
+
+  void EndReplay() noexcept;
 
   /* sensors merge many times per second (the phone's barometer,
      accelerometer and gyroscope each), and every merge updates GPS and
@@ -2420,6 +2427,32 @@ xcs_waypoints_search(xcs_core *core, const char *name, uint32_t filter,
   });
 }
 
+/**
+ * The replayed flight is not the pilot's: forget what the glide
+ * computer learnt from it (flight state, statistics, task progress,
+ * trace) and the goto task its takeoff created.
+ */
+void
+xcs_core::EndReplay() noexcept
+{
+  replay_watch.reset();
+  if (!task_mode_before_replay)
+    return;
+
+  const TaskType mode = *task_mode_before_replay;
+  task_mode_before_replay.reset();
+
+  auto &bc = *backend_components;
+  bc.merge_thread->Suspend();
+  bc.calculation_thread->Suspend();
+  bc.glide_computer->ResetFlight(true);
+  if (mode == TaskType::NONE)
+    ProtectedTaskManager::ExclusiveLease{*bc.protected_task_manager}
+      ->ClearGoto();
+  bc.calculation_thread->Resume();
+  bc.merge_thread->Resume();
+}
+
 static xcs_status
 StartReplay(const char *path) noexcept
 try {
@@ -2440,8 +2473,15 @@ xcs_replay_start(xcs_core *core, const char *path, double time_scale)
   return RunOnMain(*core, [core, path, time_scale]{
     auto &replay = *backend_components->replay;
     replay.SetTimeScale(time_scale);
-    if (const auto status = StartReplay(path); status != XCS_OK)
+    if (!core->task_mode_before_replay) {
+      const ProtectedTaskManager::Lease task_manager{
+        *backend_components->protected_task_manager};
+      core->task_mode_before_replay = task_manager->GetMode();
+    }
+    if (const auto status = StartReplay(path); status != XCS_OK) {
+      core->EndReplay();
       return status;
+    }
 
     /* Replay has no "finished" callback; check once per second */
     core->replay_watch = std::make_unique<UI::Timer>([core]{
@@ -2450,6 +2490,7 @@ xcs_replay_start(xcs_core *core, const char *path, double time_scale)
         return;
       }
 
+      core->EndReplay();
       core->QueueEvent({XCS_EVENT_REPLAY_FINISHED, 0, {}, {}});
     });
     core->replay_watch->Schedule(std::chrono::seconds(1));
@@ -2464,8 +2505,36 @@ xcs_replay_stop(xcs_core *core)
     return XCS_ERROR_INVALID_ARGUMENT;
 
   return RunOnMain(*core, [core]{
-    core->replay_watch.reset();
     backend_components->replay->Stop();
+    core->EndReplay();
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_replay_set_time_scale(xcs_core *core, double time_scale)
+{
+  if (core == nullptr || !(time_scale >= 0))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [time_scale]{
+    backend_components->replay->SetTimeScale(time_scale);
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_replay_fast_forward(xcs_core *core, double seconds)
+{
+  if (core == nullptr || !(seconds > 0))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [seconds]{
+    auto &replay = *backend_components->replay;
+    if (!replay.IsActive())
+      return XCS_ERROR_FAILED;
+
+    replay.FastForward(FloatDuration{seconds});
     return XCS_OK;
   });
 }
@@ -2480,8 +2549,8 @@ xcs_replay_run(xcs_core *core, const char *path, double snapshot_interval,
   return RunOnMain(*core, [core, path, snapshot_interval, fixes_r]{
     auto &bc = *backend_components;
 
-    core->replay_watch.reset();
     bc.replay->Stop();
+    core->EndReplay();
     if (const auto status = StartReplay(path); status != XCS_OK)
       return status;
 

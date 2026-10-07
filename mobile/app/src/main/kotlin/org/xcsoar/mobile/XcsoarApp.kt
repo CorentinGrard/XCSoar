@@ -93,6 +93,22 @@ class XcsoarApp : Application() {
         target.path
     }
 
+    /**
+     * Copy a flight the user picked for a replay into the cache,
+     * keeping its name (its extension tells IGC from NMEA); the
+     * previous one goes.
+     *
+     * @return the path of the copy
+     */
+    suspend fun importReplayFile(uri: Uri): String = withContext(Dispatchers.IO) {
+        val folder = File(cacheDir, "replay")
+        folder.deleteRecursively()
+        val target = File(folder.apply { mkdirs() }, displayName(uri))
+        val input = checkNotNull(contentResolver.openInputStream(uri)) { "cannot open $uri" }
+        input.use { source -> target.outputStream().use { source.copyTo(it) } }
+        target.path
+    }
+
     val downloader by lazy { Downloader(cacheDir) }
 
     /**
