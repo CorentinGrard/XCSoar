@@ -40,6 +40,7 @@
 #include "CoreTask.hpp"
 #include "CoreAnalysis.hpp"
 #include "CorePlanes.hpp"
+#include "CoreProfiles.hpp"
 #include "CoreInfoBoxes.hpp"
 #include "CoreWeGlide.hpp"
 #include "CoreTracking.hpp"
@@ -1346,6 +1347,61 @@ xcs_plane_delete(xcs_core *core, const char *path)
 
   return RunOnMain(*core, [path]{
     return CorePlanes::Delete(path) ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_profiles_list(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r, CoreProfiles::List);
+}
+
+xcs_status
+xcs_profile_check_password(xcs_core *core, const char *path,
+                           const char *password)
+{
+  if (core == nullptr || path == nullptr || password == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [path, password]{
+    return CoreProfiles::CheckPassword(path, password)
+      ? XCS_OK : XCS_ERROR_FAILED;
+  });
+}
+
+xcs_status
+xcs_profile_create(xcs_core *core, const char *name, const char *copy_from,
+                   const char *password, char *buffer, size_t size,
+                   size_t *length_r)
+{
+  if (core == nullptr || name == nullptr || buffer == nullptr ||
+      length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [=]{
+    if (copy_from != nullptr &&
+        !CoreProfiles::CheckPassword(copy_from,
+                                     password != nullptr ? password : ""))
+      return XCS_ERROR_FAILED;
+
+    const auto path = CoreProfiles::Create(name, copy_from);
+    if (path.empty())
+      return XCS_ERROR_FAILED;
+    return CopyJson(path, buffer, size, length_r);
+  });
+}
+
+xcs_status
+xcs_profile_delete(xcs_core *core, const char *path, const char *password)
+{
+  if (core == nullptr || path == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [path, password]{
+    return CoreProfiles::CheckPassword(path,
+                                       password != nullptr ? password : "") &&
+      CoreProfiles::Delete(path)
+      ? XCS_OK : XCS_ERROR_FAILED;
   });
 }
 

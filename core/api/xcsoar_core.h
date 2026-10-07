@@ -825,6 +825,40 @@ XCS_EXPORT xcs_status
 xcs_crew_set(xcs_core *core, const char *pilot, const char *copilot);
 
 /*
+ * Profiles (core/host/CoreProfiles.hpp has the JSON format).  The core
+ * runs with the profile of xcs_config: to switch, stop it and create
+ * it again with another one.  Buffer rules as for
+ * xcs_get_data_status().
+ */
+
+/** The profile files, the current one marked. */
+XCS_EXPORT xcs_status
+xcs_profiles_list(xcs_core *core, char *buffer, size_t size,
+                  size_t *length_r);
+
+/** XCS_OK if the profile has no password or @p password is its own,
+    else XCS_ERROR_FAILED. */
+XCS_EXPORT xcs_status
+xcs_profile_check_password(xcs_core *core, const char *path,
+                           const char *password);
+
+/**
+ * Create profiles/<name>.prf, empty or a copy of @p copy_from (NULL:
+ * empty; a protected profile needs its @p password).  The new path goes
+ * to @p buffer.  XCS_ERROR_FAILED if the name is taken or not a file
+ * name, or the password is wrong.
+ */
+XCS_EXPORT xcs_status
+xcs_profile_create(xcs_core *core, const char *name, const char *copy_from,
+                   const char *password, char *buffer, size_t size,
+                   size_t *length_r);
+
+/** Delete a profile file (never the current one); a protected profile
+    needs its @p password. */
+XCS_EXPORT xcs_status
+xcs_profile_delete(xcs_core *core, const char *path, const char *password);
+
+/*
  * Live tracking: SkyLines, LiveTrack24 and the XCSoar Cloud (which also
  * sends nearby traffic, including OGN).  The core sends positions while
  * it runs; these are XCSoar's settings (TrackingConfigPanel,

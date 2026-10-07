@@ -439,7 +439,19 @@ the core already links but that has never run in this app:
       (`xcs_sound_option` 3–6).  Tone frequencies stay XCSoar's defaults
 - [ ] Settings screens backed by `xcs_settings_*` JSON sections: units, polar /
       plane, safety heights, airspace filters, audio, map, InfoBox pages
-- [ ] Profiles: list, switch, import existing `.prf`
+- [x] Profiles (Menu → Profiles): XCSoar's .prf files, the one in use
+      first; Use (on the ground: the core saves the profile in use and
+      the app restarts with the other one, kept in the app's
+      preferences), Delete, New (empty or from the current settings),
+      Import a .prf file (system picker → XCSoarData/profiles).  Profile
+      passwords as upstream (asked before use or delete, case ignored).
+      `xcs_profiles_list`, `xcs_profile_check_password`,
+      `xcs_profile_create`, `xcs_profile_delete`
+      (`core/host/CoreProfiles.cpp`).  Checked on a Pixel 7: a copy, a
+      switch and back (the units stay per profile), an imported protected
+      profile deleted with its password.  Not yet: setting or changing a
+      password (upstream's Password button); the password field lets
+      password managers offer to save it
 - [x] Live tracking (Settings → Live tracking): XCSoar Cloud (position
       out, nearby traffic incl. OGN and thermals in), SkyLines (key,
       interval, friends, nearby pilots, roaming) and LiveTrack24 (server,
@@ -555,6 +567,9 @@ the core already links but that has never run in this app:
 ---
 
 ## Log
+
+- 2026-10-07 — Profiles: list, switch (app restart), new/copy, import,
+  delete, passwords.  TestCoreApi 317 checks.
 
 - 2026-10-07 — Replay page and controls (file, speed, pause, +10′,
   stop), faster upstream fast-forward, glide computer reset after a

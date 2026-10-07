@@ -31,7 +31,8 @@ internal object NativeCore {
     @JvmStatic external fun nativeInit(context: Context, permissionManager: Any)
 
     /** @return a handle, or 0 on error */
-    @JvmStatic external fun nativeCreate(dataPath: String): Long
+    /** @param profile the profile file; null for "default.prf" */
+    @JvmStatic external fun nativeCreate(dataPath: String, profile: String?): Long
     @JvmStatic external fun nativeStart(core: Long): Int
     @JvmStatic external fun nativeStop(core: Long): Int
     @JvmStatic external fun nativeDestroy(core: Long)
@@ -85,6 +86,13 @@ internal object NativeCore {
                                             weGlideType: Int, doubleSeater: Boolean): String?
     @JvmStatic external fun nativePlaneActivate(core: Long, path: String): Int
     @JvmStatic external fun nativePlaneDelete(core: Long, path: String): Int
+    @JvmStatic external fun nativeProfilesList(core: Long): String?
+    @JvmStatic external fun nativeProfileCheckPassword(core: Long, path: String,
+                                                       password: String): Int
+    /** @return the new profile's path, or null on error */
+    @JvmStatic external fun nativeProfileCreate(core: Long, name: String, copyFrom: String?,
+                                                password: String?): String?
+    @JvmStatic external fun nativeProfileDelete(core: Long, path: String, password: String?): Int
     @JvmStatic external fun nativeCrewGet(core: Long): String?
     @JvmStatic external fun nativeCrewSet(core: Long, pilot: String?, copilot: String?): Int
     @JvmStatic external fun nativeNotamSettingsGet(core: Long): String?

@@ -44,7 +44,7 @@ class XcsoarApp : Application() {
         try {
             CoreGraphics.initialise(this)
             NativeCore.nativeInit(this, permissionManager)
-            NativeXcsoarCore(xcsoarDataDir.path)
+            NativeXcsoarCore(xcsoarDataDir.path, profile?.takeIf { File(it).isFile })
         } catch (e: UnsatisfiedLinkError) {
             Log.w(TAG, "no native core, using the fake one", e)
             null
@@ -69,6 +69,31 @@ class XcsoarApp : Application() {
             it.name == uiPreferences.getString("theme", null)
         } ?: ThemeChoice.SYSTEM
         set(value) = uiPreferences.edit().putString("theme", value.name).apply()
+
+    /**
+     * The profile file the core starts with; null for XCSoar's
+     * "default.prf".  Kept on the phone: the profile cannot name itself.
+     */
+    var profile: String?
+        get() = uiPreferences.getString("profile", null)
+        set(value) = uiPreferences.edit().putString("profile", value).commit().let {}
+
+    /**
+     * Copy a profile the user picked (e.g. from XCSoar on another
+     * device) into XCSoarData/profiles, keeping its name.
+     *
+     * @return the path of the copy
+     * @throws IllegalStateException if a profile has that name already
+     */
+    suspend fun importProfile(uri: Uri): String = withContext(Dispatchers.IO) {
+        var name = displayName(uri)
+        if (!name.endsWith(".prf", ignoreCase = true)) name += ".prf"
+        val target = File(File(xcsoarDataDir, "profiles").apply { mkdirs() }, name)
+        check(!target.exists()) { "A profile named ${name.removeSuffix(".prf")} exists already" }
+        val input = checkNotNull(contentResolver.openInputStream(uri)) { "cannot open $uri" }
+        input.use { source -> target.outputStream().use { source.copyTo(it) } }
+        target.path
+    }
 
     /** The pilot chose the plane and crew since the app started. */
     var crewChosen = false

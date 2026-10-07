@@ -43,6 +43,7 @@ import org.xcsoar.mobile.core.AirspaceOption
 import org.xcsoar.mobile.core.MapOption
 import org.xcsoar.mobile.core.PlaneDetails
 import org.xcsoar.mobile.core.PolarInfo
+import org.xcsoar.mobile.core.ProfileInfo
 import org.xcsoar.mobile.core.SafetyOption
 import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.WaypointFilter
@@ -65,8 +66,13 @@ import java.nio.ByteBuffer
  * on [Dispatchers.IO].  Only one instance may exist per process.
  *
  * @param dataPath the XCSoarData directory
+ * @param profile the profile file to start with; null for XCSoar's
+ * "default.prf"
  */
-class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Listener {
+class NativeXcsoarCore(
+    private val dataPath: String,
+    private val profile: String? = null,
+) : XcsoarCore, NativeCore.Listener {
     private val state = MutableStateFlow<FlightState?>(null)
     override val flightState: StateFlow<FlightState?> = state.asStateFlow()
 
@@ -86,7 +92,7 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
         if (handle != 0L) return@withLock
         withContext(Dispatchers.IO) {
             NativeCore.listener = this@NativeXcsoarCore
-            val h = NativeCore.nativeCreate(dataPath)
+            val h = NativeCore.nativeCreate(dataPath, profile)
             check(h != 0L) { "xcs_create failed" }
             val status = NativeCore.nativeStart(h)
             if (status != 0) {
@@ -325,6 +331,27 @@ class NativeXcsoarCore(private val dataPath: String) : XcsoarCore, NativeCore.Li
 
     override suspend fun deletePlane(path: String) =
         command { NativeCore.nativePlaneDelete(it, path) }
+
+    override suspend fun profiles() =
+        query(NativeCore::nativeProfilesList, ProfileInfo::parseList).orEmpty()
+
+    override suspend fun checkProfilePassword(path: String, password: String) = lock.withLock {
+        check(handle != 0L) { "core not started" }
+        withContext(Dispatchers.IO) {
+            NativeCore.nativeProfileCheckPassword(handle, path, password)
+        } == 0
+    }
+
+    override suspend fun createProfile(name: String, copyFrom: String?,
+                                       password: String?): String = lock.withLock {
+        check(handle != 0L) { "core not started" }
+        withContext(Dispatchers.IO) {
+            NativeCore.nativeProfileCreate(handle, name, copyFrom, password)
+        } ?: error("xcs_profile_create failed")
+    }
+
+    override suspend fun deleteProfile(path: String, password: String?) =
+        command { NativeCore.nativeProfileDelete(it, path, password) }
 
     override suspend fun crew() = query(NativeCore::nativeCrewGet, Crew::parse)
 

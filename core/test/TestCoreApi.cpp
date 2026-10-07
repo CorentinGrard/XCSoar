@@ -460,6 +460,61 @@ TestPlanesAndCrew(xcs_core *core)
       Contains(answer, "\"error\":"));
 }
 
+static void
+TestProfiles(xcs_core *core)
+{
+  const auto profiles = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_profiles_list(core, b, s, l);
+    });
+  };
+  const std::string dir =
+    (std::filesystem::path{DATA_PATH} / "profiles").string();
+  const std::string current = dir + "/default.prf";
+  const std::string club = dir + "/Club.prf";
+  const std::string copy = dir + "/Copy.prf";
+  std::filesystem::remove(club);
+  std::filesystem::remove(copy);
+
+  ok1(Contains(profiles(), "{\"name\":\"default\",\"path\":\"" + current +
+               "\",\"current\":true,\"password\":false}"));
+
+  char path[512];
+  size_t length = 0;
+  ok1(xcs_profile_create(core, "Club", nullptr, nullptr, path, sizeof(path),
+                         &length) == XCS_OK && club == path);
+  /* taken, or not a file name */
+  ok1(xcs_profile_create(core, "Club", nullptr, nullptr, path, sizeof(path),
+                         &length) == XCS_ERROR_FAILED);
+  ok1(xcs_profile_create(core, "../Club", nullptr, nullptr, path,
+                         sizeof(path), &length) == XCS_ERROR_FAILED);
+
+  /* a copy of the current profile has its settings, saved first */
+  ok1(xcs_profile_create(core, "Copy", current.c_str(), nullptr, path,
+                         sizeof(path), &length) == XCS_OK && copy == path);
+  ok1(std::filesystem::file_size(copy) > 0);
+
+  /* XCSoar's profile password */
+  if (FILE *f = fopen(club.c_str(), "w")) {
+    fputs("Password=\"Secret\"\n", f);
+    fclose(f);
+  }
+  ok1(Contains(profiles(), "\"name\":\"Club\",\"path\":\"" + club +
+               "\",\"current\":false,\"password\":true}"));
+  ok1(xcs_profile_check_password(core, club.c_str(), "secret") == XCS_OK);
+  ok1(xcs_profile_check_password(core, club.c_str(), "wrong")
+      == XCS_ERROR_FAILED);
+  ok1(xcs_profile_check_password(core, copy.c_str(), "") == XCS_OK);
+  ok1(xcs_profile_create(core, "Copy2", club.c_str(), "wrong", path,
+                         sizeof(path), &length) == XCS_ERROR_FAILED);
+
+  ok1(xcs_profile_delete(core, current.c_str(), nullptr) == XCS_ERROR_FAILED);
+  ok1(xcs_profile_delete(core, club.c_str(), "wrong") == XCS_ERROR_FAILED);
+  ok1(xcs_profile_delete(core, club.c_str(), "SECRET") == XCS_OK);
+  ok1(xcs_profile_delete(core, copy.c_str(), nullptr) == XCS_OK);
+  ok1(!Contains(profiles(), "Club") && !Contains(profiles(), "Copy"));
+}
+
 /* nothing is switched on: the test must not send positions */
 static void
 TestTracking(xcs_core *core)
@@ -946,7 +1001,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -975,6 +1030,7 @@ main()
   TestNotam(core);
   TestTiles(core);
   TestReplayControls(core);
+  TestProfiles(core);
   ok1(xcs_stop(core) == XCS_OK);
 
   /* the same core can be started again */

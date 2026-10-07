@@ -5,6 +5,7 @@ package org.xcsoar.mobile
 
 import android.content.ActivityNotFoundException
 import android.content.ClipData
+import android.content.ComponentName
 import android.content.Intent
 import android.media.AudioManager
 import android.net.Uri
@@ -71,6 +72,8 @@ import org.xcsoar.mobile.ui.flights.FlightLog
 import org.xcsoar.mobile.ui.flights.FlightsScreen
 import org.xcsoar.mobile.ui.flights.FlightsViewModel
 import org.xcsoar.mobile.ui.flights.ReplayScreen
+import org.xcsoar.mobile.ui.profiles.ProfilesScreen
+import org.xcsoar.mobile.ui.profiles.ProfilesViewModel
 import org.xcsoar.mobile.ui.settings.AirspaceAlertsScreen
 import org.xcsoar.mobile.ui.settings.AirspaceAlertsViewModel
 import org.xcsoar.mobile.ui.settings.SafetyScreen
@@ -101,7 +104,7 @@ private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINT
                             TASK, TASK_FILES, TASK_ADD_POINT, UNITS, ANALYSIS,
                             CREW, PLANE_EDIT, PILOT, TILE_PICKER,
                             AIRSPACE_ALERTS, SAFETY, VARIO_SOUND, TRACKING, WEATHER,
-                            NOTAMS, REPLAY }
+                            NOTAMS, REPLAY, PROFILES }
 
 /** How deep a page is: pages further in slide in from the right. */
 private val Screen.depth: Int
@@ -170,6 +173,12 @@ class MainActivity : ComponentActivity() {
             pickingKind = null
             if (uri != null && kind != null)
                 onPicked?.invoke(kind, uri.toString())
+        }
+
+    private var onProfilePicked: ((Uri) -> Unit)? = null
+    private val profilePicker =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) onProfilePicked?.invoke(uri)
         }
 
     private var onReplayPicked: ((Uri) -> Unit)? = null
@@ -298,6 +307,15 @@ class MainActivity : ComponentActivity() {
                     factory = viewModelFactory {
                         initializer { AirspaceAlertsViewModel(app.anyCore) }
                     })
+                val profilesViewModel: ProfilesViewModel = viewModel(
+                    factory = viewModelFactory {
+                        initializer {
+                            ProfilesViewModel(app.anyCore,
+                                              importFile = { app.importProfile(Uri.parse(it)) },
+                                              switch = ::switchProfile)
+                        }
+                    })
+                onProfilePicked = { profilesViewModel.import(it.toString()) }
                 val tilePickerViewModel: TilePickerViewModel = viewModel(
                     factory = viewModelFactory { initializer { TilePickerViewModel(app.anyCore) } })
 
@@ -355,6 +373,7 @@ class MainActivity : ComponentActivity() {
                         onOpenVarioSound = { screen = Screen.VARIO_SOUND },
                         onOpenTracking = { screen = Screen.TRACKING },
                         onOpenReplay = { screen = Screen.REPLAY },
+                        onOpenProfiles = { screen = Screen.PROFILES },
                         onEditTile = { layout, tile ->
                             tilePickerViewModel.open(layout, tile)
                             screen = Screen.TILE_PICKER
@@ -496,12 +515,32 @@ class MainActivity : ComponentActivity() {
                                     onOpenFile = { replayPicker.launch(arrayOf("*/*")) },
                                     onBack = { screen = Screen.FLIGHT })
                             }
+                            Screen.PROFILES -> ProfilesScreen(
+                                profilesViewModel,
+                                flying = flightViewModel.flightState
+                                    .collectAsState().value?.flying == true,
+                                // .prf has no registered type
+                                onImport = { profilePicker.launch(arrayOf("*/*")) },
+                                onBack = { screen = Screen.FLIGHT })
                             Screen.FLIGHT -> {}
                         }
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Fly with another profile: the core saves the one in use and stops,
+     * and the app starts again with [path] (XCSoar reads its profile at
+     * startup only).
+     */
+    private suspend fun switchProfile(path: String) {
+        app.anyCore.stop()
+        app.profile = path
+        FlightService.stop(this)
+        startActivity(Intent.makeRestartActivityTask(ComponentName(this, MainActivity::class.java)))
+        Runtime.getRuntime().exit(0)
     }
 
     /** A web page, e.g. the flight on WeGlide, in the browser. */

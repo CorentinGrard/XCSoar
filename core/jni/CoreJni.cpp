@@ -207,14 +207,17 @@ Java_org_xcsoar_mobile_NativeCore_nativeInit(JNIEnv *env, jclass,
 
 JNIEXPORT jlong JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeCreate(JNIEnv *env, jclass,
-                                               jstring data_path)
+                                               jstring data_path,
+                                               jstring profile)
 {
   const auto path = Java::String::GetUTFChars(env, data_path);
+  const auto profile_path = OptionalUTFChars(env, profile);
 
   xcs_config config{};
   config.struct_size = sizeof(config);
   config.api_version = XCS_API_VERSION;
   config.data_path = path.c_str();
+  config.profile = profile_path.c_str();
   config.on_snapshot = OnSnapshot;
   config.on_event = OnEvent;
 
@@ -772,6 +775,52 @@ Java_org_xcsoar_mobile_NativeCore_nativePlaneDelete(JNIEnv *env, jclass,
 {
   const auto p = Java::String::GetUTFChars(env, path);
   return xcs_plane_delete(ToCore(core), p.c_str());
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeProfilesList(JNIEnv *env, jclass,
+                                                     jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_profiles_list(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeProfileCheckPassword(JNIEnv *env,
+                                                             jclass,
+                                                             jlong core,
+                                                             jstring path,
+                                                             jstring password)
+{
+  const auto p = Java::String::GetUTFChars(env, path);
+  const auto pw = Java::String::GetUTFChars(env, password);
+  return xcs_profile_check_password(ToCore(core), p.c_str(), pw.c_str());
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeProfileCreate(JNIEnv *env, jclass,
+                                                      jlong core, jstring name,
+                                                      jstring copy_from,
+                                                      jstring password)
+{
+  const auto n = Java::String::GetUTFChars(env, name);
+  const auto c = OptionalUTFChars(env, copy_from);
+  const auto pw = OptionalUTFChars(env, password);
+  return GetJson(env, [&](char *buffer, size_t size, size_t *length){
+    return xcs_profile_create(ToCore(core), n.c_str(), c.c_str(), pw.c_str(),
+                              buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeProfileDelete(JNIEnv *env, jclass,
+                                                      jlong core, jstring path,
+                                                      jstring password)
+{
+  const auto p = Java::String::GetUTFChars(env, path);
+  const auto pw = OptionalUTFChars(env, password);
+  return xcs_profile_delete(ToCore(core), p.c_str(), pw.c_str());
 }
 
 JNIEXPORT jstring JNICALL

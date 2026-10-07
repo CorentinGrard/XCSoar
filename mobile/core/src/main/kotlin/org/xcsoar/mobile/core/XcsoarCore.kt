@@ -196,6 +196,31 @@ interface XcsoarCore {
 
     suspend fun deletePlane(path: String) {}
 
+    /** XCSoar's profiles, sorted by name, the current one marked. */
+    suspend fun profiles(): List<ProfileInfo> = emptyList()
+
+    /** The profile has no password, or [password] is its own. */
+    suspend fun checkProfilePassword(path: String, password: String): Boolean = true
+
+    /**
+     * Create profiles/<name>.prf: empty (XCSoar's defaults) or a copy
+     * of [copyFrom], which needs its [password] if it has one.
+     *
+     * @return the new profile's path
+     * @throws IllegalStateException if the name is taken or not a file
+     * name, or the password is wrong
+     */
+    suspend fun createProfile(name: String, copyFrom: String? = null,
+                              password: String? = null): String = error("no profiles")
+
+    /**
+     * Delete a profile (never the current one).
+     *
+     * @throws IllegalStateException if it is the current one or the
+     * password is wrong
+     */
+    suspend fun deleteProfile(path: String, password: String? = null) {}
+
     /** The pilot and co-pilot for the IGC file; null if not started. */
     suspend fun crew(): Crew? = null
 
