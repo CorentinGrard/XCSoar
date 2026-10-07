@@ -45,7 +45,7 @@ public:
    */
   void SlotAltitude(const MoreData &info, DerivedInfo &derived) noexcept;
 
-  [[gnu::pure]]
+  /* not pure: it writes #found */
   const Vector GetWind(TimeStamp time, double h,
                        bool &found) const noexcept;
 
