@@ -99,7 +99,9 @@ Replay::Update()
     } else {
       clock.Update();
 
-      virtual_time += std::chrono::seconds{1};
+      /* 4 s is the usual IGC fix interval: at one step per 50 ms
+         (OnTimer()), 80 times real time without skipping such fixes */
+      virtual_time += std::chrono::seconds{4};
       if (virtual_time >= fast_forward)
         fast_forward = TimeStamp::Undefined();
     }
@@ -251,7 +253,7 @@ Replay::OnTimer()
   if (time_scale <= 0)
     schedule = std::chrono::seconds(1);
   else if (fast_forward.IsDefined())
-    schedule = std::chrono::milliseconds(100);
+    schedule = std::chrono::milliseconds(50);
   else if (!virtual_time.IsDefined() || !next_data.time_available)
     schedule = std::chrono::milliseconds(500);
   else if (cli != nullptr) {

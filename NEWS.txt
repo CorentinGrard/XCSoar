@@ -135,6 +135,8 @@ Version 7.46 - not yet released
     protocol, so an S-series logger is not sent Colibri commands
     while it is still identifying
 * dialogs
+  - replay: "+10'" skips ten minutes in about eight seconds instead
+    of a minute
   - show the flight name, the device, and the driver on separate
     lines above a flight download, and the percent, amount complete,
     transfer speed, and estimated time remaining inside the progress
