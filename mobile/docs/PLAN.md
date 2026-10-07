@@ -348,10 +348,15 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       drawn in Compose; the numbers of upstream's captions (working band,
       ceiling and climb trends, Vave / Vest, distance / score / time /
       speed per contest result).  Refreshed every 5 s while shown.
-      Checked on a Pixel 7 during a replay.  Not yet: upstream's other
-      pages (vario histogram, thermal band, wind, polar, MacCready,
-      temperature trace, task, airspace cross-section) and the contest
-      path on the terrain map (it is drawn on a plain background)
+      Checked on a Pixel 7 during a replay.  Also the thermal band, vario
+      histogram, wind (heights with a wind measurement only), polar,
+      MacCready, temperature trace and task pages: the core computes
+      upstream's series and captions (CoreAnalysis.cpp, following each
+      renderer), the app draws them (XYChart); checked on a Pixel 7
+      during a replay (wind, polar, MacCready, thermal band, vario).
+      Upstream fix: WindStore::GetWind() was [[gnu::pure]] with an out
+      parameter.  Not yet: the airspace cross-section, the task's
+      observation zones, and the maps on terrain (plain background)
 - [ ] **L5** instrumented replay test on an emulator in CI (nightly)
 - [ ] **Demo / field test:** car or walk test, then a real flight *next to* a
       certified instrument or the upstream XCSoar app
@@ -574,6 +579,9 @@ the core already links but that has never run in this app:
 ---
 
 ## Log
+
+- 2026-10-07 — Analysis: all of upstream's pages but the airspace
+  cross-section.
 
 - 2026-10-07 — Tapping a tile does what XCSoar's InfoBox does (as far
   as the app has the page).  Upstream fix: analysis InfoBoxes opened

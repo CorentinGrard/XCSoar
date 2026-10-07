@@ -52,5 +52,38 @@ class AnalysisScreenshotTest {
     fun contest() = capture("contest", AnalysisPage.CONTEST, replay)
 
     @Test
+    fun thermalBand() = capture("thermal_band", AnalysisPage.THERMAL_BAND, replay)
+
+    @Test
+    fun varioHistogram() = capture("vario_histogram", AnalysisPage.VARIO_HISTOGRAM, replay)
+
+    @Test
+    fun polar() = capture("polar", AnalysisPage.POLAR, replay)
+
+    @Test
+    fun macCready() = capture("maccready", AnalysisPage.MAC_CREADY, replay)
+
+    /* none of these in the replay: made up */
+    @Test
+    fun wind() = capture("wind", AnalysisPage.WIND, Analysis.parse(
+        """{"legs":[],"wind":{"levels":[[600,3.0,250],[900,4.5,260],[1200,6.0,265],
+            [1500,7.5,270],[1800,8.0,280],[2100,9.5,285]]}}"""))
+
+    @Test
+    fun temperature() = capture("temperature", AnalysisPage.TEMPERATURE, Analysis.parse(
+        """{"legs":[],"temperature":{"levels":[[0,301,300,285],[500,296,297,284],
+            [1000,291,294,283],[1500,286,291,282],[2000,281,287,null]],
+            "thermal_height":1700,"cloud_base":2100}}"""))
+
+    @Test
+    fun task() = capture("task", AnalysisPage.TASK, Analysis.parse(
+        """{"legs":[],"task":{"points":[
+            {"name":"Benalla","location":[-36.55,145.98],"target":[-36.55,145.98]},
+            {"name":"Mansfield","location":[-37.05,146.08],"target":[-37.05,146.08]},
+            {"name":"Wangaratta","location":[-36.36,146.31],"target":[-36.36,146.31]},
+            {"name":"Benalla","location":[-36.55,145.98],"target":[-36.55,145.98]}],
+            "distance_to_go":148000,"task_to_go":5400}}"""))
+
+    @Test
     fun noData() = capture("no_data", AnalysisPage.BAROGRAPH, null)
 }

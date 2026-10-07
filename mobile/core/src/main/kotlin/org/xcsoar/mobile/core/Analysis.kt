@@ -110,6 +110,143 @@ data class ContestInfo(
     val trace get() = traceRaw.toLatLon()
 }
 
+/** A point of a chart that is not over time, SI units. */
+data class XY(val x: Double, val y: Double)
+
+private fun List<List<Double>>.toXY() = map { XY(it[0], it[1]) }
+
+/** XCSoar's vario histogram: how often each climb rate was flown. */
+@Serializable
+data class VarioHistogram(
+    @SerialName("mac_cready") val macCready: Double = 0.0,
+    /** The polar's sink at best glide, negative m/s. */
+    @SerialName("cruise_sink") val cruiseSink: Double = 0.0,
+    @SerialName("cruise") private val cruiseRaw: List<List<Double>> = emptyList(),
+    @SerialName("circling") private val circlingRaw: List<List<Double>> = emptyList(),
+) {
+    /** [XY.x] climb rate (m/s), [XY.y] how often. */
+    val cruise get() = cruiseRaw.toXY()
+    val circling get() = circlingRaw.toXY()
+}
+
+/** XCSoar's thermal band: climb rate by height above the terrain base. */
+@Serializable
+data class ThermalBandInfo(
+    /** Height above the terrain base now, m. */
+    val height: Double? = null,
+    @SerialName("mac_cready") val macCready: Double = 0.0,
+    /** The chart's height range, m. */
+    val range: List<Double>? = null,
+    @SerialName("working_band") val workingBand: List<Double>? = null,
+    /** [XY.x] climb rate (m/s), [XY.y] height: all climbs so far. */
+    @SerialName("collection") private val collectionRaw: List<List<Double>> = emptyList(),
+    /** The climb now, if any. */
+    @SerialName("current") private val currentRaw: List<List<Double>> = emptyList(),
+    /** The MacCready the risk factor allows at each height. */
+    @SerialName("risk_mc") private val riskRaw: List<List<Double>> = emptyList(),
+) {
+    val collection get() = collectionRaw.toXY()
+    val current get() = currentRaw.toXY()
+    val riskMacCready get() = riskRaw.toXY()
+}
+
+/** The wind at one height: m, m/s, degrees it blows from. */
+data class WindLevel(val height: Double, val speed: Double, val bearing: Double)
+
+@Serializable
+data class WindChart(@SerialName("levels") private val levelsRaw: List<List<Double>> = emptyList()) {
+    /** From the lowest climb base to the highest ceiling. */
+    val levels get() = levelsRaw.map { WindLevel(it[0], it[1], it[2]) }
+}
+
+/** XCSoar's polar page: the polar and the speeds it gives, m/s. */
+@Serializable
+data class PolarChart(
+    @SerialName("mac_cready") val macCready: Double = 0.0,
+    @SerialName("v_min") val vMin: Double = 0.0,
+    @SerialName("v_max") val vMax: Double = 0.0,
+    @SerialName("polar") private val polarRaw: List<List<Double>> = emptyList(),
+    @SerialName("dolphin") private val dolphinRaw: List<List<Double>> = emptyList(),
+    @SerialName("climbs") private val climbsRaw: List<List<Double>> = emptyList(),
+    @SerialName("best_glide") private val bestGlideRaw: List<List<Double>> = emptyList(),
+    @SerialName("best_ld") val bestLd: Double = 0.0,
+    @SerialName("v_best_ld") val vBestLd: Double = 0.0,
+    @SerialName("min_sink") val minSink: Double = 0.0,
+    @SerialName("v_min_sink") val vMinSink: Double = 0.0,
+    /** kg */
+    val mass: Double = 0.0,
+    /** kg/m² */
+    @SerialName("wing_loading") val wingLoading: Double? = null,
+) {
+    /** [XY.x] airspeed, [XY.y] vertical speed (sink negative). */
+    val polar get() = polarRaw.toXY()
+    /** The dolphin speed command at the current MacCready. */
+    val dolphin get() = dolphinRaw.toXY()
+    /** Climb rates flown at each speed. */
+    val climbs get() = climbsRaw.toXY()
+    /** The tangent from MacCready to the polar. */
+    val bestGlide get() = bestGlideRaw.toXY()
+    val isValid get() = polarRaw.isNotEmpty()
+}
+
+/** Best glide and average speed at one MacCready, m/s. */
+data class MacCreadySpeeds(val macCready: Double, val vOpt: Double, val vAverage: Double)
+
+/** XCSoar's MacCready page. */
+@Serializable
+data class MacCreadyChart(
+    @SerialName("mac_cready") val macCready: Double = 0.0,
+    @SerialName("v_max") val vMax: Double = 0.0,
+    @SerialName("speeds") private val speedsRaw: List<List<Double>> = emptyList(),
+    @SerialName("v_opt") val vOpt: Double = 0.0,
+    @SerialName("v_average") val vAverage: Double = 0.0,
+    val mass: Double = 0.0,
+    @SerialName("wing_loading") val wingLoading: Double? = null,
+) {
+    val speeds get() = speedsRaw.map { MacCreadySpeeds(it[0], it[1], it[2]) }
+    val isValid get() = speedsRaw.isNotEmpty()
+}
+
+/** One 100 m level of the temperature trace, kelvin. */
+data class TemperatureLevel(val height: Double, val dry: Double, val air: Double,
+                            val dewPoint: Double?)
+
+/** XCSoar's temperature trace (needs a temperature probe). */
+@Serializable
+data class TemperatureTrace(
+    @SerialName("levels") private val levelsRaw: List<List<Double?>> = emptyList(),
+    /** m */
+    @SerialName("thermal_height") val thermalHeight: Double? = null,
+    @SerialName("cloud_base") val cloudBase: Double? = null,
+) {
+    val levels get() = levelsRaw.map { TemperatureLevel(it[0]!!, it[1]!!, it[2]!!, it[3]) }
+}
+
+@Serializable
+data class TaskChartPoint(
+    val name: String,
+    @SerialName("location") private val locationRaw: List<Double>,
+    @SerialName("target") private val targetRaw: List<Double>,
+) {
+    val location get() = LatLon(locationRaw[0], locationRaw[1])
+    /** Where the task goes from this point (AAT targets). */
+    val target get() = LatLon(targetRaw[0], targetRaw[1])
+}
+
+/** XCSoar's task page; no points without a valid ordered task. */
+@Serializable
+data class TaskChart(
+    val points: List<TaskChartPoint> = emptyList(),
+    /** m */
+    @SerialName("distance_to_go") val distanceToGo: Double? = null,
+    /** s */
+    @SerialName("task_to_go") val taskToGo: Double? = null,
+    /** s, AAT only */
+    @SerialName("aat_to_go") val aatToGo: Double? = null,
+    /** m/s, AAT only */
+    @SerialName("target_speed") val targetSpeed: Double? = null,
+)
+
 /** XCSoar's analysis pages (`xcs_get_analysis`). */
 @Serializable
 data class Analysis(
@@ -121,6 +258,13 @@ data class Analysis(
     /** null without an ordered task or before two task speed samples. */
     @SerialName("task_speed") val taskSpeed: TaskSpeedHistory? = null,
     val contest: ContestInfo = ContestInfo(),
+    @SerialName("vario_histogram") val varioHistogram: VarioHistogram = VarioHistogram(),
+    @SerialName("thermal_band") val thermalBand: ThermalBandInfo = ThermalBandInfo(),
+    val wind: WindChart = WindChart(),
+    val polar: PolarChart = PolarChart(),
+    @SerialName("mac_cready") val macCready: MacCreadyChart = MacCreadyChart(),
+    val temperature: TemperatureTrace = TemperatureTrace(),
+    val task: TaskChart = TaskChart(),
 ) {
     companion object {
         fun parse(text: String): Analysis = json.decodeFromString(serializer(), text)

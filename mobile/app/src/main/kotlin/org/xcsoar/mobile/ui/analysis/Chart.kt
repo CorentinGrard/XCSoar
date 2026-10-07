@@ -70,8 +70,9 @@ class ChartMapper(
     private val left: Float, private val top: Float,
     private val width: Float, private val height: Float,
     val xMax: Double, val yMin: Double, val yMax: Double,
+    val xMin: Double = 0.0,
 ) {
-    fun x(t: Double) = left + (t / xMax * width).toFloat()
+    fun x(t: Double) = left + ((t - xMin) / (xMax - xMin) * width).toFloat()
     fun y(v: Double) = top + height - ((v - yMin) / (yMax - yMin) * height).toFloat()
     fun at(p: ChartPoint) = Offset(x(p.t), y(p.y))
     val bottom get() = top + height
@@ -111,7 +112,111 @@ fun DrawScope.trend(m: ChartMapper, trend: Trend, color: Color) =
 
 /** A horizontal reference line (MacCready, estimated speed). */
 fun DrawScope.level(m: ChartMapper, y: Double, color: Color) =
-    line(m, listOf(ChartPoint(0.0, y), ChartPoint(m.xMax, y)), color, width = 2f, dashed = true)
+    line(m, listOf(ChartPoint(m.xMin, y), ChartPoint(m.xMax, y)), color, width = 2f,
+         dashed = true)
+
+/** A vertical reference line (the MacCready setting). */
+fun DrawScope.vertical(m: ChartMapper, x: Double, color: Color) =
+    line(m, listOf(ChartPoint(x, m.yMin), ChartPoint(x, m.yMax)), color, width = 2f,
+         dashed = true)
+
+/** The value grid of [unit] along one axis: round steps, labelled. */
+private fun gridValues(unit: UnitInfo, siMin: Double, siMax: Double): List<Pair<Double, String>> {
+    val userMin = min(unit.toUser(siMin), unit.toUser(siMax))
+    val userMax = max(unit.toUser(siMin), unit.toUser(siMax))
+    val step = ChartAxis.niceStep(userMax - userMin)
+    val values = mutableListOf<Pair<Double, String>>()
+    var v = ceil(userMin / step) * step
+    while (v <= userMax + 1e-9) {
+        values += unit.toSi(v) to ChartAxis.label(v, step)
+        v += step
+    }
+    return values
+}
+
+/**
+ * A chart of one value against another, like XCSoar's analysis charts
+ * that are not over time (polar, thermal band, wind…): grids in the
+ * pilot's [xUnit] and [yUnit] (none: no labels on that axis), the axes'
+ * names below and beside them.  Shows "No data yet" when [hasData] is
+ * false.
+ */
+@Composable
+fun XYChart(
+    description: String,
+    hasData: Boolean,
+    xMin: Double,
+    xMax: Double,
+    yMin: Double,
+    yMax: Double,
+    xUnit: UnitInfo?,
+    yUnit: UnitInfo?,
+    xName: String,
+    yName: String,
+    modifier: Modifier = Modifier,
+    labels: List<Pair<String, ChartPoint>> = emptyList(),
+    draw: DrawScope.(ChartMapper) -> Unit,
+) {
+    val colors = XcsTheme.colors
+    val measurer = rememberTextMeasurer()
+    val labelStyle = TextStyle(color = colors.textSecondary, fontSize = 12.sp)
+    val tagStyle = TextStyle(color = colors.text, fontSize = 12.sp)
+
+    Box(modifier
+            .fillMaxWidth()
+            .height(280.dp)
+            .background(colors.panel, RoundedCornerShape(12.dp))
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center) {
+        if (!hasData || xMax <= xMin || yMax <= yMin) {
+            Text("No data yet", color = colors.textSecondary, fontSize = 15.sp)
+            return@Box
+        }
+        Canvas(Modifier.matchParentSize()) {
+            val pad = 12.dp.toPx()
+            val axisLeft = 44.dp.toPx()
+            val axisBottom = 40.dp.toPx()
+            val m = ChartMapper(axisLeft, pad + 14.dp.toPx(), size.width - axisLeft - pad,
+                                size.height - pad - 14.dp.toPx() - axisBottom, xMax, yMin,
+                                yMax, xMin)
+
+            drawLine(colors.panelBorder, Offset(m.leftX, m.topY), Offset(m.leftX, m.bottom), 1f)
+            drawLine(colors.panelBorder, Offset(m.leftX, m.bottom), Offset(m.right, m.bottom), 1f)
+            yUnit?.let {
+                for ((si, text) in gridValues(it, yMin, yMax)) {
+                    val y = m.y(si)
+                    drawLine(colors.panelBorder, Offset(m.leftX, y), Offset(m.right, y), 1f)
+                    val layout = measurer.measure(text, labelStyle)
+                    drawText(layout, topLeft = Offset(m.leftX - layout.size.width - 6f,
+                                                      y - layout.size.height / 2f))
+                }
+            }
+            xUnit?.let {
+                for ((si, text) in gridValues(it, xMin, xMax)) {
+                    val x = m.x(si)
+                    drawLine(colors.panelBorder, Offset(x, m.topY), Offset(x, m.bottom), 1f)
+                    val layout = measurer.measure(text, labelStyle)
+                    val left = (x - layout.size.width / 2f)
+                        .coerceIn(0f, size.width - layout.size.width - 4f)
+                    drawText(layout, topLeft = Offset(left, m.bottom + 4f))
+                }
+            }
+            // the axes' names: "V km/h" below, "w m/s" above the value axis
+            val xLayout = measurer.measure(xName, labelStyle)
+            drawText(xLayout, topLeft = Offset(m.right - xLayout.size.width,
+                                               size.height - pad - xLayout.size.height))
+            drawText(measurer.measure(yName, labelStyle), topLeft = Offset(pad, pad - 4f))
+
+            clipRect(m.leftX, m.topY, m.right, m.bottom) { draw(m) }
+
+            for ((text, p) in labels) {
+                val layout = measurer.measure(text, tagStyle)
+                val left = (m.x(p.t) - layout.size.width).coerceAtLeast(m.leftX + 4f)
+                drawText(layout, topLeft = Offset(left, m.y(p.y) - layout.size.height - 2f))
+            }
+        }
+    }
+}
 
 /**
  * A chart over the flight time, like XCSoar's analysis charts: time

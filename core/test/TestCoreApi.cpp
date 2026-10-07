@@ -942,11 +942,32 @@ TestStarted(xcs_core *core, Recorder &recorder)
     std::string json(length + 1, '\0');
     ok1(xcs_get_analysis(core, json.data(), json.size(), &length) == XCS_OK);
     json.resize(length);
+    /* the app's parser test reads it (mobile/core: analysis.json) */
+    if (const char *path = getenv("CORE_ANALYSIS_JSON"))
+      if (FILE *f = fopen(path, "w")) {
+        fputs(json.c_str(), f);
+        fclose(f);
+      }
     ok1(json.find("\"barograph\":{\"altitude\":[[") != std::string::npos);
     ok1(json.find("\"thermals\":[[") != std::string::npos &&
         json.find("\"average\":") != std::string::npos);
     ok1(json.find("\"results\":[{") != std::string::npos &&
         json.find("\"trace\":[[") != std::string::npos);
+    /* the other pages of upstream's analysis dialog */
+    ok1(json.find("\"vario_histogram\":{\"mac_cready\":") != std::string::npos &&
+        json.find("\"circling\":[[") != std::string::npos);
+    /* only heights with a wind measurement for the time now, which
+       after this replay is the live clock */
+    ok1(json.find("\"wind\":{\"levels\":[") != std::string::npos);
+    ok1(json.find("\"thermal_band\":{") != std::string::npos &&
+        json.find("\"collection\":[[") != std::string::npos);
+    ok1(json.find("\"polar\":{\"mac_cready\":") != std::string::npos &&
+        json.find("\"dolphin\":[[") != std::string::npos &&
+        json.find("\"best_ld\":") != std::string::npos);
+    ok1(json.find("\"mac_cready\":{\"mac_cready\":") != std::string::npos &&
+        json.find("\"speeds\":[[0") != std::string::npos);
+    /* no temperature probe in the IGC file */
+    ok1(json.find("\"temperature\":{\"levels\":[]}") != std::string::npos);
   }
 
   ok1(recorder.HasEvent(XCS_GCE_TAKEOFF));
@@ -1022,7 +1043,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6);
 
   Recorder recorder;
   TestCreateArguments(recorder);

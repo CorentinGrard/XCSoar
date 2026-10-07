@@ -714,7 +714,7 @@ fun flightMenu(
         MenuAction("Go to waypoint", "Nearest landable first", onClick = onOpenWaypoints),
         MenuAction("Task", "Edit, next, previous", onClick = onOpenTask),
         MenuAction("Flight setup", "Ballast, bugs, QNH", onClick = onOpenFlightSetup),
-        MenuAction("Analysis", "Barograph, climb, contest", onClick = onOpenAnalysis),
+        MenuAction("Analysis", "Barograph, thermals, polar, wind", onClick = onOpenAnalysis),
     ),
     sections = listOf(
         MenuSection("Before and after the flight", listOf(

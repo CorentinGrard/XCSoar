@@ -15,12 +15,23 @@
 #include "Engine/Contest/Solvers/Contests.hpp"
 #include "Engine/Trace/Point.hpp"
 #include "Engine/Trace/Vector.hpp"
+#include "Engine/GlideSolvers/GlidePolar.hpp"
+#include "Engine/ThermalBand/ThermalBand.hpp"
+#include "Atmosphere/CuSonde.hpp"
+#include "Computer/Wind/Store.hpp"
+#include "Computer/Settings.hpp"
+#include "NMEA/Derived.hpp"
+#include "NMEA/MoreData.hpp"
+#include "Math/LeastSquares.hpp"
 #include "json/Serialize.hxx"
 #include "io/StringOutputStream.hxx"
 
 #include <boost/json.hpp>
 
+#include <algorithm>
 #include <chrono>
+#include <optional>
+#include <span>
 
 using std::chrono::hours;
 
@@ -226,6 +237,333 @@ Trace(const TraceComputer &trace_computer) noexcept
   return a;
 }
 
+static boost::json::array
+Points(std::span<const DoublePoint2D> points) noexcept
+{
+  boost::json::array a;
+  for (const auto &p : points)
+    a.emplace_back(boost::json::array{p.x, p.y});
+  return a;
+}
+
+/** RenderVarioHistogram(): counts of vario values, cruise and circling. */
+static boost::json::object
+VarioHistogram(const FlightStatistics &fs, const GlidePolar &polar) noexcept
+{
+  boost::json::object o{
+    {"mac_cready", polar.GetMC()},
+    {"cruise_sink", -polar.GetSBestLD()},
+  };
+  if (fs.vario_cruise_histogram.empty() &&
+      fs.vario_circling_histogram.empty())
+    return o;
+
+  o["cruise"] = Points(fs.vario_cruise_histogram.GetSlots());
+  o["circling"] = Points(fs.vario_circling_histogram.GetSlots());
+  return o;
+}
+
+/**
+ * ThermalBandRenderer::DrawThermalProfile(): the band's climb rate by
+ * height above the terrain base, smoothed with its neighbours.
+ */
+static boost::json::array
+ThermalProfile(const ThermalBand &band, double hoffset) noexcept
+{
+  boost::json::array a;
+  if (!band.Valid())
+    return a;
+
+  for (unsigned i = 0; i < band.size(); ++i) {
+    constexpr double k_smooth = 0.5;
+    double k = band.GetSlice(i).n;
+    double w = band.GetSlice(i).w_n * k;
+    if (k > 0) {
+      for (const unsigned j : {i - 1, i + 1}) {
+        if (band.Occupied(j)) {
+          const double k_this = k_smooth * band.GetSlice(j).n;
+          w += band.GetSlice(j).w_n * k_this;
+          k += k_this;
+        }
+      }
+      w /= k;
+    }
+    a.emplace_back(boost::json::array{w, band.GetSliceCenter(i) - hoffset});
+  }
+  return a;
+}
+
+/**
+ * ThermalBandRenderer::DrawThermalBand() (not on the map): heights
+ * above the terrain base; "range" is the chart's height range, which
+ * the risk MacCready line spans.
+ */
+static boost::json::object
+ThermalBandChart(const MoreData &basic, const DerivedInfo &calculated,
+                 const ComputerSettings &settings) noexcept
+{
+  boost::json::object o;
+  /* no climbs recorded */
+  if (calculated.common_stats.height_max_working <= 0)
+    return o;
+
+  const auto hoffset = calculated.GetTerrainBaseFallback();
+  const GlidePolar &polar = settings.polar.glide_polar_task;
+
+  /* ScaleChart(), ScaleChartFromThermalBand() */
+  double y_min = settings.task.route_planner.safety_height_terrain;
+  double y_max = y_min;
+  const auto scale = [&](double h){
+    y_min = std::min(y_min, h);
+    y_max = std::max(y_max, h);
+  };
+  scale(calculated.common_stats.height_max_working - hoffset);
+
+  const ThermalBand &collection = calculated.thermal_encounter_collection;
+  const ThermalBand &current = calculated.thermal_encounter_band;
+  for (const ThermalBand *band : {&collection, &current})
+    if (band->Valid())
+      scale(band->GetCeiling() - hoffset);
+
+  std::optional<double> h;
+  if (basic.NavAltitudeAvailable()) {
+    h = basic.nav_altitude - hoffset;
+    scale(*h);
+    o["height"] = *h;
+  }
+
+  o["mac_cready"] = polar.GetMC();
+  o["range"] = boost::json::array{y_min, y_max};
+  o["working_band"] = boost::json::array{
+    calculated.common_stats.height_min_working - hoffset,
+    calculated.common_stats.height_max_working - hoffset,
+  };
+  o["collection"] = ThermalProfile(collection, hoffset);
+  if (current.Valid())
+    o["current"] = ThermalProfile(current, hoffset);
+
+  /* DrawRiskMC() */
+  if (h && *h > settings.task.safety_height_arrival && polar.GetMC() > 0) {
+    boost::json::array risk;
+    const double dh = (y_max - y_min) / 32;
+    for (double y = y_min; dh > 0 && y <= y_max; y += dh) {
+      const double f = calculated.CalculateWorkingFraction(
+        y + hoffset, settings.task.safety_height_arrival);
+      risk.emplace_back(boost::json::array{
+        polar.GetRiskMC(f, settings.task.risk_gamma), y});
+    }
+    o["risk_mc"] = std::move(risk);
+  }
+  return o;
+}
+
+/**
+ * RenderWindChart(): the wind at ten heights from the lowest climb
+ * base to the highest ceiling: [height, m/s, bearing it blows from];
+ * heights without a wind measurement are left out.
+ */
+static boost::json::array
+WindLevels(const FlightStatistics &fs, const NMEAInfo &basic,
+           const WindStore &wind_store) noexcept
+{
+  boost::json::array a;
+  if (fs.altitude_base.IsEmpty() || fs.altitude_ceiling.IsEmpty())
+    return a;
+
+  const auto height =
+    fs.altitude_ceiling.GetMaxY() - fs.altitude_ceiling.GetMinY();
+  if (height <= 10)
+    return a;
+
+  constexpr unsigned steps = 10;
+  for (unsigned i = 0; i < steps; ++i) {
+    const auto h = height * i / (steps - 1) + fs.altitude_base.GetMinY();
+    /* getWind() returns early, without setting it, when it has nothing */
+    bool found = false;
+    const Vector wind = wind_store.GetWind(basic.time, h, found);
+      /* upstream draws 0 there: no measurement is not calm air */
+    if (!found)
+      continue;
+
+    /* as WindStore::NewWind() */
+    const Angle bearing = wind.x == 0 && wind.y == 0
+      ? Angle::Zero()
+      : Angle::FromXY(wind.x, wind.y).AsBearing();
+    a.emplace_back(boost::json::array{h, wind.Magnitude(),
+                                      bearing.Degrees()});
+  }
+  return a;
+}
+
+/**
+ * RenderGlidePolar() and its caption: the polar, the dolphin speed
+ * command at the current MacCready, the best glide line from MC, and
+ * the climb rates flown at each speed ([m/s, m/s], sink negative).
+ */
+static boost::json::object
+Polar(const GlidePolar &polar, const ClimbHistory &climb_history) noexcept
+{
+  boost::json::object o;
+  if (!polar.IsValid())
+    return o;
+
+  const auto mc = polar.GetMC();
+  const auto s_min = -polar.GetSMax();
+  const auto vmin = polar.GetVMin();
+  const auto vmax = polar.GetVMax();
+
+  /* emplace_back(): one nested array in braces would be a copy */
+  boost::json::array dolphin;
+  dolphin.emplace_back(boost::json::array{vmin, mc});
+  auto w = polar.GetSMin() + mc;
+  for (double v_last = vmin;;) {
+    w += s_min * 0.05;
+    const auto v = polar.SpeedToFly(-w, 0);
+    const auto w_dolphin = -polar.SinkRate(v) + w;
+    if (w_dolphin <= s_min)
+      break;
+    if (v > v_last) {
+      dolphin.emplace_back(boost::json::array{v, w_dolphin});
+      v_last = v;
+    }
+  }
+
+  boost::json::array curve, climbs;
+  const auto dv = (vmax - vmin) / 50;
+  for (auto v = vmin; v <= vmax + dv / 2; v += dv) {
+    curve.emplace_back(boost::json::array{v, -polar.SinkRate(v)});
+    if (climb_history.Check(v))
+      climbs.emplace_back(boost::json::array{v, climb_history.Get(v)});
+  }
+
+  const auto slope = (-polar.GetSBestLD() - mc) / polar.GetVBestLD();
+  o["mac_cready"] = mc;
+  o["v_min"] = vmin;
+  o["v_max"] = vmax;
+  o["polar"] = std::move(curve);
+  o["dolphin"] = std::move(dolphin);
+  o["climbs"] = std::move(climbs);
+  o["best_glide"] = boost::json::array{
+    boost::json::array{vmin, mc + slope * vmin},
+    boost::json::array{vmax, mc + slope * vmax},
+  };
+  /* GlidePolarCaption(), RenderGlidePolarInfo() */
+  o["best_ld"] = polar.GetBestLD();
+  o["v_best_ld"] = polar.GetVBestLD();
+  o["min_sink"] = polar.GetSMin();
+  o["v_min_sink"] = polar.GetVMin();
+  o["mass"] = polar.GetTotalMass();
+  if (polar.GetWingLoading() > 0)
+    o["wing_loading"] = polar.GetWingLoading();
+  return o;
+}
+
+/**
+ * RenderMacCready() and its caption: the best glide speed and the
+ * average cross-country speed for MacCready 0 to 5.2 m/s,
+ * [MC, Vopt, Vave].
+ */
+static boost::json::object
+MacCready(const GlidePolar &polar) noexcept
+{
+  boost::json::object o;
+  if (!polar.IsValid())
+    return o;
+
+  static constexpr double MAX_MACCREADY = 5.2;
+  static constexpr unsigned STEPS_MACCREADY = 25;
+
+  GlidePolar gp = polar;
+  boost::json::array speeds;
+  for (unsigned i = 0; i <= STEPS_MACCREADY; ++i) {
+    const double m = MAX_MACCREADY * i / STEPS_MACCREADY;
+    gp.SetMC(m);
+    /* upstream draws Vave from 0 at MC 0 */
+    speeds.emplace_back(boost::json::array{m, gp.GetVBestLD(),
+                                           i > 0 ? gp.GetAverageSpeed() : 0.});
+  }
+  o["mac_cready"] = polar.GetMC();
+  o["v_max"] = polar.GetVMax();
+  o["speeds"] = std::move(speeds);
+  o["v_opt"] = polar.GetVBestLD();
+  o["v_average"] = polar.GetAverageSpeed();
+  o["mass"] = polar.GetTotalMass();
+  if (polar.GetWingLoading() > 0)
+    o["wing_loading"] = polar.GetWingLoading();
+  return o;
+}
+
+/**
+ * RenderTemperatureChart() and its caption: per 100 m level with data,
+ * [height, dry adiabat, air, dew point or null], kelvin.
+ */
+static boost::json::object
+Temperature(const CuSonde &cu_sonde) noexcept
+{
+  boost::json::array levels;
+  for (unsigned i = 0; i < cu_sonde.cslevels.size(); ++i) {
+    const auto &level = cu_sonde.cslevels[i];
+    if (level.empty())
+      continue;
+
+    boost::json::value dew = nullptr;
+    if (!level.dewpoint_empty())
+      dew = level.dewpoint.ToKelvin();
+    levels.emplace_back(boost::json::array{
+      double(i * CuSonde::HEIGHT_STEP), level.dry_temperature.ToKelvin(),
+      level.air_temperature.ToKelvin(), std::move(dew)});
+  }
+
+  boost::json::object o{{"levels", std::move(levels)}};
+  if (o["levels"].as_array().size() >= 2) {
+    o["thermal_height"] = cu_sonde.thermal_height;
+    o["cloud_base"] = cu_sonde.cloud_base;
+  }
+  return o;
+}
+
+/**
+ * The ordered task as FlightStatisticsRenderer::RenderTask() draws it
+ * (points and legs, without their zones) and CaptionTask()'s numbers.
+ */
+static boost::json::object
+TaskChart(const TaskManager &task_manager,
+          const DerivedInfo &calculated) noexcept
+{
+  boost::json::object o;
+  const TaskStats &stats = calculated.ordered_task_stats;
+  const OrderedTask &task = task_manager.GetOrderedTask();
+  if (!stats.task_valid || !stats.bounds.IsValid() ||
+      IsError(task.CheckTask()))
+    return o;
+
+  boost::json::array points;
+  for (unsigned i = 0, n = task.TaskSize(); i < n; ++i) {
+    const OrderedTaskPoint &tp = task.GetTaskPoint(i);
+    const GeoPoint &l = tp.GetLocation();
+    const GeoPoint &target = tp.GetLocationRemaining();
+    points.emplace_back(boost::json::object{
+      {"name", tp.GetWaypoint().name},
+      {"location", boost::json::array{l.latitude.Degrees(),
+                                      l.longitude.Degrees()}},
+      {"target", boost::json::array{target.latitude.Degrees(),
+                                    target.longitude.Degrees()}},
+    });
+  }
+  o["points"] = std::move(points);
+
+  if (calculated.task_stats.total.remaining.IsDefined()) {
+    o["distance_to_go"] = calculated.task_stats.total.remaining.GetDistance();
+    if (stats.has_targets) {
+      o["task_to_go"] = stats.total.time_remaining_start.count();
+      o["aat_to_go"] = calculated.common_stats.aat_time_remaining.count();
+      o["target_speed"] = calculated.common_stats.aat_speed_target;
+    } else
+      o["task_to_go"] = stats.total.time_remaining_now.count();
+  }
+  return o;
+}
+
 std::string
 CoreAnalysis::Describe() noexcept
 {
@@ -243,6 +581,7 @@ CoreAnalysis::Describe() noexcept
       *backend_components->protected_task_manager};
     o["legs"] = Legs(lease, calculated);
     ordered_task = lease->CheckOrderedTask();
+    o["task"] = TaskChart(lease, calculated);
   } else
     o["legs"] = boost::json::array{};
 
@@ -259,7 +598,14 @@ CoreAnalysis::Describe() noexcept
       /* RenderSpeed() and TaskSpeedCaption() */
       if (ordered_task && polar.IsValid() && fs.task_speed.HasResult())
         o["task_speed"] = TaskSpeed(fs, polar);
+      o["vario_histogram"] = VarioHistogram(fs, polar);
+      o["wind"] = boost::json::object{
+        {"levels", WindLevels(fs, CommonInterface::Basic(),
+                              glide_computer.GetWindStore())},
+      };
     }
+
+    o["temperature"] = Temperature(glide_computer.GetCuSonde());
 
     o["contest"] = boost::json::object{
       {"name", ContestToString(settings.contest.contest) != nullptr
@@ -269,6 +615,11 @@ CoreAnalysis::Describe() noexcept
       {"trace", Trace(glide_computer.GetTraceComputer())},
     };
   }
+
+  o["thermal_band"] = ThermalBandChart(CommonInterface::Basic(), calculated,
+                                       settings);
+  o["polar"] = Polar(polar, calculated.climb_history);
+  o["mac_cready"] = MacCready(polar);
 
   StringOutputStream os;
   Json::Serialize(os, o);

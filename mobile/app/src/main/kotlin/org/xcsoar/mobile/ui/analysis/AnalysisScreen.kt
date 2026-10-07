@@ -6,6 +6,10 @@ package org.xcsoar.mobile.ui.analysis
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -42,16 +45,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.xcsoar.mobile.core.Analysis
 import org.xcsoar.mobile.core.ContestInfo
-import org.xcsoar.mobile.core.LatLon
 import org.xcsoar.mobile.core.UnitGroup
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.flight.Caption
 import org.xcsoar.mobile.ui.setup.ValueRow
 import org.xcsoar.mobile.ui.theme.XcsTheme
-import org.xcsoar.mobile.ui.units.Segments
 import java.util.Locale
-import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 
@@ -62,7 +61,14 @@ import kotlin.math.min
 enum class AnalysisPage(val label: String, val core: String) {
     BAROGRAPH("Barograph", "barograph"),
     CLIMB("Climb", "climb"),
+    THERMAL_BAND("Thermal band", "thermal_band"),
+    VARIO_HISTOGRAM("Vario", "vario_histogram"),
     TASK_SPEED("Speed", "task_speed"),
+    WIND("Wind", "wind"),
+    POLAR("Polar", "polar"),
+    MAC_CREADY("MacCready", "maccready"),
+    TEMPERATURE("Temperature", "temptrace"),
+    TASK("Task", "task"),
     CONTEST("Contest", "contest");
 
     companion object {
@@ -113,15 +119,20 @@ fun AnalysisContent(
             Text("Analysis", color = colors.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         }
 
-        Segments(AnalysisPage.entries.map { it.ordinal to it.label }, page.ordinal) {
-            onPage(AnalysisPage.entries[it])
-        }
+        PageTabs(page, onPage)
 
         val a = analysis ?: Analysis()
         when (page) {
             AnalysisPage.BAROGRAPH -> BarographPage(a)
             AnalysisPage.CLIMB -> ClimbPage(a)
+            AnalysisPage.THERMAL_BAND -> ThermalBandPage(a)
+            AnalysisPage.VARIO_HISTOGRAM -> VarioHistogramPage(a)
             AnalysisPage.TASK_SPEED -> TaskSpeedPage(a)
+            AnalysisPage.WIND -> WindPage(a)
+            AnalysisPage.POLAR -> PolarPage(a)
+            AnalysisPage.MAC_CREADY -> MacCreadyPage(a)
+            AnalysisPage.TEMPERATURE -> TemperaturePage(a)
+            AnalysisPage.TASK -> TaskPage(a)
             AnalysisPage.CONTEST -> ContestPage(a.contest)
         }
     }
@@ -131,8 +142,43 @@ fun AnalysisContent(
 private fun timeSpan(a: Analysis, lastT: Double?) =
     max(max(a.flightTime ?: 0.0, lastT ?: 0.0), 0.25)
 
+/**
+ * The pages, one tab each, in upstream's order; the row scrolls and
+ * keeps the page shown in view.
+ */
 @Composable
-private fun Hint(text: String) {
+private fun PageTabs(page: AnalysisPage, onPage: (AnalysisPage) -> Unit) {
+    val colors = XcsTheme.colors
+    val scroll = rememberScrollState()
+    Row(Modifier
+            .fillMaxWidth()
+            .background(colors.panel, RoundedCornerShape(12.dp))
+            .horizontalScroll(scroll)
+            .selectableGroup()
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        for (p in AnalysisPage.entries) {
+            val selected = p == page
+            Box(Modifier
+                    .height(48.dp)
+                    .background(if (selected) colors.selected else Color.Transparent,
+                                RoundedCornerShape(9.dp))
+                    .selectable(selected, role = Role.Tab) { onPage(p) }
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center) {
+                Text(p.label, color = if (selected) colors.onSelected else colors.text,
+                     fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            }
+        }
+    }
+    // a tile may open a page further along the row
+    LaunchedEffect(page) {
+        scroll.animateScrollTo(scroll.maxValue * page.ordinal / (AnalysisPage.entries.size - 1))
+    }
+}
+
+@Composable
+internal fun Hint(text: String) {
     Text(text, color = XcsTheme.colors.textSecondary, fontSize = 15.sp,
          modifier = Modifier.padding(horizontal = 4.dp))
 }
@@ -272,29 +318,11 @@ private fun ContestMap(contest: ContestInfo) {
             return@Box
         }
         Canvas(Modifier.matchParentSize().padding(16.dp)) {
-            val minLat = all.minOf { it.latitude }
-            val maxLat = all.maxOf { it.latitude }
-            val minLon = all.minOf { it.longitude }
-            val maxLon = all.maxOf { it.longitude }
-            val cosLat = cos((minLat + maxLat) / 2 * PI / 180)
-            val spanX = max((maxLon - minLon) * cosLat, 1e-6)
-            val spanY = max(maxLat - minLat, 1e-6)
-            val scale = min(size.width / spanX, size.height / spanY)
-            val offsetX = (size.width - spanX * scale) / 2
-            val offsetY = (size.height - spanY * scale) / 2
-            fun at(p: LatLon) = Offset(
-                (offsetX + (p.longitude - minLon) * cosLat * scale).toFloat(),
-                (offsetY + (maxLat - p.latitude) * scale).toFloat())
-
-            fun path(points: List<LatLon>) = Path().apply {
-                moveTo(at(points[0]).x, at(points[0]).y)
-                for (p in points.drop(1)) lineTo(at(p).x, at(p).y)
-            }
-
+            val at = flatProjection(all)
             if (trace.size >= 2)
-                drawPath(path(trace), colors.textSecondary, style = Stroke(2f))
+                drawPath(path(trace, at), colors.textSecondary, style = Stroke(2f))
             if (best.size >= 2) {
-                drawPath(path(best), colors.route, style = Stroke(5f))
+                drawPath(path(best, at), colors.route, style = Stroke(5f))
                 for (p in best)
                     drawCircle(colors.route, radius = 7f, center = at(p))
             }

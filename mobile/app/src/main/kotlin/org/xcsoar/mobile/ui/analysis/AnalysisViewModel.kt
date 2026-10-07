@@ -3,6 +3,7 @@
 
 package org.xcsoar.mobile.ui.analysis
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,8 +31,9 @@ class AnalysisViewModel(private val core: XcsoarCore) : ViewModel() {
         while (true) {
             try {
                 core.analysis()?.let { analysisFlow.value = it }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 // keep the last pages; the next round tries again
+                Log.w("XCSoar", "analysis not read", e)
             }
             delay(REFRESH_MS)
         }

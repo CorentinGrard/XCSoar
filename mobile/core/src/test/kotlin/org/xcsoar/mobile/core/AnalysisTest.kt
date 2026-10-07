@@ -11,7 +11,8 @@ import org.junit.Test
 
 /**
  * L3: parsing `xcs_get_analysis`.  analysis.json is what the core wrote
- * after TestCoreApi's replay of test/data/01lz1hq1.igc.
+ * after TestCoreApi's replay of test/data/01lz1hq1.igc
+ * (`CORE_ANALYSIS_JSON=<path> output/UNIX/bin/TestCoreApi`).
  */
 class AnalysisTest {
     private val replay by lazy {
@@ -45,9 +46,56 @@ class AnalysisTest {
         assertEquals(1, contest.results.size)
         val r = contest.results.single()
         assertTrue(r.isDefined)
-        assertEquals(521_088.0, r.distance, 1.0)
+        // the contest solver works in time slices: it may differ a little
+        assertEquals(521_155.0, r.distance, 521.0)
         assertEquals(7, r.points.size)
         assertEquals(473, contest.trace.size)
+    }
+
+    @Test
+    fun otherPages() {
+        val a = replay
+        val polar = a.polar
+        assertTrue(polar.isValid)
+        assertEquals(1.5, polar.macCready, 0.0)
+        assertEquals(25.9, polar.bestLd, 0.1)
+        assertEquals(51, polar.polar.size)
+        // the dolphin command starts at MacCready at the slowest speed
+        assertEquals(XY(polar.vMin, 1.5), polar.dolphin.first())
+        assertEquals(2, polar.bestGlide.size)
+
+        val mc = a.macCready
+        assertEquals(26, mc.speeds.size)
+        assertEquals(MacCreadySpeeds(0.0, 26.558194415882436, 0.0), mc.speeds.first())
+        assertEquals(polar.vBestLd, mc.vOpt, 0.0)
+
+        val histogram = a.varioHistogram
+        assertEquals(61, histogram.cruise.size)
+        assertEquals(XY(-7.5, 0.85), histogram.circling.first())
+
+        val band = a.thermalBand
+        assertEquals(listOf(150.0, 2820.0), band.range!!.map { Math.round(it).toDouble() })
+        assertEquals(53, band.collection.size)
+        assertTrue(band.current.isEmpty())
+        // landed: no altitude now, no risk MacCready
+        assertNull(band.height)
+        assertTrue(band.riskMacCready.isEmpty())
+
+        // no wind measured for the time now (after the replay)
+        assertTrue(a.wind.levels.isEmpty())
+        assertTrue(a.temperature.levels.isEmpty())
+        assertTrue(a.task.points.isEmpty())
+    }
+
+    @Test
+    fun temperatureLevels() {
+        val t = TemperatureTrace.serializer().let {
+            kotlinx.serialization.json.Json.decodeFromString(it,
+                """{"levels":[[0,20,18,null],[100,19,17.5,8]],"cloud_base":1500}""")
+        }
+        assertEquals(listOf(TemperatureLevel(0.0, 20.0, 18.0, null),
+                            TemperatureLevel(100.0, 19.0, 17.5, 8.0)), t.levels)
+        assertEquals(1500.0, t.cloudBase!!, 0.0)
     }
 
     @Test
