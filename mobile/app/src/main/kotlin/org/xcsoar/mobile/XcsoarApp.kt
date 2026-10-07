@@ -19,7 +19,9 @@ import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.REPOSITORY_URI
 import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.XcsoarCore
+import org.xcsoar.mobile.core.WeGlideFlight
 import org.xcsoar.mobile.ui.flights.FlightLog
+import org.xcsoar.mobile.ui.flights.UploadStore
 import org.xcsoar.mobile.ui.theme.ThemeChoice
 import java.io.File
 
@@ -95,6 +97,29 @@ class XcsoarApp : Application() {
         val input = checkNotNull(contentResolver.openInputStream(uri)) { "cannot open $uri" }
         input.use { source -> target.outputStream().use { source.copyTo(it) } }
         target.path
+    }
+
+    /** The flights uploaded to WeGlide, by IGC file name (WeGlide's answer). */
+    val weGlideUploads = object : UploadStore {
+        private val preferences by lazy { getSharedPreferences("weglide_uploads", MODE_PRIVATE) }
+
+        override suspend fun load() = withContext(Dispatchers.IO) {
+            preferences.all.mapNotNull { (name, value) ->
+                (value as? String)?.let {
+                    try {
+                        name to WeGlideFlight.parse(it)
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+            }.toMap()
+        }
+
+        override suspend fun save(name: String, flight: WeGlideFlight) {
+            withContext(Dispatchers.IO) {
+                preferences.edit().putString(name, flight.encode()).commit()
+            }
+        }
     }
 
     /** The pilot chose the plane and crew since the app started. */

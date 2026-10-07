@@ -83,4 +83,11 @@ class PlanesTest {
             assertEquals("No network", e.message)
         }
     }
+
+    @Test
+    fun weGlideFlightRoundTrip() {
+        val flight = WeGlideFlight(123456, "https://www.weglide.org/flight/123456",
+                                   date = "2026-10-02", registration = "F-CGXB")
+        assertEquals(flight, WeGlideFlight.parse(flight.encode()))
+    }
 }

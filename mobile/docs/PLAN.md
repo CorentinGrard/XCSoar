@@ -511,8 +511,6 @@ the core already links but that has never run in this app:
   co-pilot is only in the IGC header
 - Automatic upload after landing (upstream's "WeGlideAutomaticUpload" is
   for flights downloaded from loggers)
-- Remembering which flights were uploaded (the list forgets on restart;
-  WeGlide refuses a second upload of the same file)
 - "Last flown" is recorded at take-off: not yet seen on a real take-off
 - Plane editor: no custom polar yet (upstream's PlanePolarDialog import
   / custom polar coefficients); masses, ballast, dump time, speed limit,
@@ -570,6 +568,10 @@ the core already links but that has never run in this app:
 ---
 
 ## Log
+
+- 2026-10-07 — Flights remember their WeGlide upload (app preferences,
+  by IGC file name): "On WeGlide: flight … · Open" after a restart.
+  FlightsViewModelTest; not yet seen with a real upload.
 
 - 2026-10-07 — Battery InfoBox reads the phone's battery.
 

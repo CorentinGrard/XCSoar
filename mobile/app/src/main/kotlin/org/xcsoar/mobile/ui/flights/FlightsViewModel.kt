@@ -31,10 +31,20 @@ sealed interface Upload {
     data class Failed(val message: String) : Upload
 }
 
-/** The recorded flights, newest first, and their WeGlide uploads. */
+/** Where the flights uploaded to WeGlide are remembered, by file name. */
+interface UploadStore {
+    suspend fun load(): Map<String, WeGlideFlight>
+    suspend fun save(name: String, flight: WeGlideFlight)
+}
+
+/**
+ * The recorded flights, newest first, and their WeGlide uploads: those
+ * of earlier sessions from [uploadStore] (WeGlide refuses a file twice).
+ */
 class FlightsViewModel(
     private val list: suspend () -> List<FlightLog>,
     private val core: XcsoarCore? = null,
+    private val uploadStore: UploadStore? = null,
 ) : ViewModel() {
     private val flightsFlow = MutableStateFlow<List<FlightLog>?>(null)
     /** `null` while loading. */
@@ -45,16 +55,27 @@ class FlightsViewModel(
     val weGlideReady: StateFlow<Boolean> = weGlideFlow.asStateFlow()
 
     private val uploadsFlow = MutableStateFlow<Map<String, Upload>>(emptyMap())
-    /** Uploads of this session, by IGC path. */
+    /** Uploads, by IGC path: done ones remembered, others of this session. */
     val uploads: StateFlow<Map<String, Upload>> = uploadsFlow.asStateFlow()
 
     fun refresh() {
         viewModelScope.launch {
-            flightsFlow.value = try {
+            val flights = try {
                 list().sortedByDescending { it.modified }
             } catch (_: Exception) {
                 emptyList()
             }
+            val saved = try {
+                uploadStore?.load().orEmpty()
+            } catch (_: Exception) {
+                emptyMap()
+            }
+            uploadsFlow.update { current ->
+                flights.mapNotNull { flight ->
+                    saved[flight.name]?.let { flight.path to Upload.Done(it) }
+                }.toMap() + current
+            }
+            flightsFlow.value = flights
             weGlideFlow.value = try {
                 core?.weGlideSettings()?.isConfigured == true
             } catch (_: Exception) {
@@ -69,7 +90,13 @@ class FlightsViewModel(
         uploadsFlow.update { it + (flight.path to Upload.Running) }
         viewModelScope.launch {
             val result = try {
-                Upload.Done(core.uploadToWeGlide(flight.path))
+                Upload.Done(core.uploadToWeGlide(flight.path)).also {
+                    try {
+                        uploadStore?.save(flight.name, it.flight)
+                    } catch (_: Exception) {
+                        // shown for this session at least
+                    }
+                }
             } catch (e: Exception) {
                 Upload.Failed(e.message ?: "Upload failed")
             }

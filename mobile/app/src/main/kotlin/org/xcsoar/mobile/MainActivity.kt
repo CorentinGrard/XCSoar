@@ -258,7 +258,7 @@ class MainActivity : ComponentActivity() {
                 })
 
                 val flightsViewModel: FlightsViewModel = viewModel(factory = viewModelFactory {
-                    initializer { FlightsViewModel(app::flightLogs, app.core) }
+                    initializer { FlightsViewModel(app::flightLogs, app.core, app.weGlideUploads) }
                 })
 
                 val taskViewModel: TaskViewModel = viewModel(factory = viewModelFactory {

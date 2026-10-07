@@ -161,6 +161,9 @@ data class WeGlideFlight(
     val registration: String = "",
     @SerialName("competition_id") val competitionId: String = "",
 ) {
+    /** The JSON [parse] reads, e.g. to remember the upload. */
+    fun encode(): String = json.encodeToString(serializer(), this)
+
     companion object {
         fun parse(text: String): WeGlideFlight =
             json.decodeFromString(serializer(), WeGlideException.check(text))
