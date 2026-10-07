@@ -23,6 +23,7 @@
 #include "ui/event/Notify.hpp"
 #include "ui/event/PeriodicTimer.hpp"
 #include "BackendProcessTimer.hpp"
+#include "BatteryTimer.hpp"
 #include "Blackboard/DeviceBlackboard.hpp"
 #include "CalculationThread.hpp"
 
@@ -134,6 +135,9 @@ LateInitialise() noexcept
   }
 }
 
+/* "Battery low" messages, as MainWindow's timer runs it */
+static BatteryTimer battery_timer;
+
 static void
 OnTimer() noexcept
 {
@@ -141,6 +145,7 @@ OnTimer() noexcept
   ExchangeBlackboard();
   BackendSettingsTimer();
   BackendDeviceTimer();
+  battery_timer.Process();
 }
 
 static std::unique_ptr<UI::PeriodicTimer> timer;

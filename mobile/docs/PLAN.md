@@ -404,7 +404,9 @@ the core already links but that has never run in this app:
       and "AC ON"/"AC Off": upstream's BatteryReceiver (copied, D13)
       feeds src/Android/Battery.cpp, now linked into the core; checked
       on a Pixel 7 (plugged in, and unplugged at 57 % with `dumpsys
-      battery`).  Not yet: upstream's low-battery warnings (BatteryTimer)
+      battery`).  Upstream's BatteryTimer runs in the core's 500 ms timer:
+      "Battery low" in the status line below 10 % when unplugged, again
+      every 5 minutes (checked at 8 % with `dumpsys battery`)
 - [x] Aircraft & crew: when the app opens (not when it restarts in the
       air), the pilot picks the plane, the last one flown first, and for
       a two-seater the co-pilot (solo, a recent one or a new one); also
@@ -568,6 +570,8 @@ the core already links but that has never run in this app:
 ---
 
 ## Log
+
+- 2026-10-07 — "Battery low" warning (upstream's BatteryTimer).
 
 - 2026-10-07 — Flights remember their WeGlide upload (app preferences,
   by IGC file name): "On WeGlide: flight … · Open" after a restart.
