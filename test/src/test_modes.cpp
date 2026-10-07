@@ -102,6 +102,33 @@ test_null()
   return run_flight(task_manager, autopilot_parms, 0);
 }
 
+/* ClearGoto() forgets the goto task a takeoff created, and the next
+   takeoff creates one again */
+static bool
+test_clear_goto()
+{
+  Waypoints waypoints;
+  SetupWaypoints(waypoints);
+
+  TaskBehaviour task_behaviour;
+  task_behaviour.SetDefaults();
+
+  TaskManager task_manager(task_behaviour, waypoints);
+  const GeoPoint takeoff = waypoints.LookupId(1)->location;
+
+  task_manager.TakeoffAutotask(takeoff, 0, waypoints);
+  if (task_manager.GetMode() != TaskType::GOTO)
+    return false;
+
+  task_manager.ClearGoto();
+  if (task_manager.GetMode() != TaskType::NONE ||
+      task_manager.GetActiveTask() != nullptr)
+    return false;
+
+  task_manager.TakeoffAutotask(takeoff, 0, waypoints);
+  return task_manager.GetMode() == TaskType::GOTO;
+}
+
 int
 main(int argc, char** argv)
 {
@@ -111,12 +138,13 @@ main(int argc, char** argv)
   if (!ParseArgs(argc, argv))
     return 0;
 
-  plan_tests(4);
+  plan_tests(5);
 
   ok(test_abort(0), "abort", 0);
   ok(test_goto(0, 5, false), "goto", 0);
   ok(test_goto(0, 5, true), "goto with auto mc", 0);
   ok(test_null(), "null", 0);
+  ok(test_clear_goto(), "clear goto", 0);
 
   return exit_status();
 }

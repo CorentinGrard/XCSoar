@@ -55,6 +55,14 @@ public:
    */
   bool TakeoffAutotask(const GeoPoint &loc, double terrain_alt);
 
+  /**
+   * Forget the waypoint to go to; the next takeoff creates a default
+   * goto task again.
+   */
+  void Clear() noexcept {
+    tp.reset();
+  }
+
 public:
   /* virtual methods from class TaskInterface */
   unsigned TaskSize() const noexcept override;

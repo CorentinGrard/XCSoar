@@ -424,6 +424,12 @@ public:
   void ResetTask() noexcept;
 
   /**
+   * Forget the goto task (e.g. the one a replayed takeoff created);
+   * leaves goto mode for no task.
+   */
+  void ClearGoto() noexcept;
+
+  /**
    * Sets the PEV start time span.
    * To be called when PEV has been pressed.
    */

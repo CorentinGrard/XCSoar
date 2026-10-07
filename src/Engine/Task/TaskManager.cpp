@@ -551,6 +551,14 @@ TaskManager::TakeoffAutotask(const GeoPoint &loc, const double terrain_alt,
 }
 
 void
+TaskManager::ClearGoto() noexcept
+{
+  goto_task->Clear();
+  if (mode == TaskType::GOTO)
+    SetMode(TaskType::NONE);
+}
+
+void
 TaskManager::ResetTask() noexcept
 {
   if (active_task) {
