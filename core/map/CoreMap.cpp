@@ -223,6 +223,10 @@ Validity drawn_fix;
 Angle drawn_angle = Angle::Zero();
 std::chrono::steady_clock::time_point drawn_time;
 
+/* a frame of this surface could not be shown (logged once per surface:
+   the map then stays on its last frame) */
+bool swap_failed = false;
+
 /* clock-driven things (the trail fading, warnings) stay current */
 constexpr auto IDLE_REDRAW_INTERVAL = std::chrono::seconds{5};
 
@@ -349,6 +353,8 @@ try {
   OpenGL::SetupViewport({width, height});
 
   graphics->map->Resize(size);
+  swap_failed = false;
+  LogFormat("Map attached %ux%u", width, height);
   Render();
   return true;
 } catch (...) {
@@ -359,8 +365,12 @@ try {
 void
 CoreMap::Detach() noexcept
 {
-  if (graphics != nullptr)
-    ReleaseSurface();
+  if (graphics == nullptr)
+    return;
+
+  if (IsAttached())
+    LogString("Map detached");
+  ReleaseSurface();
 }
 
 void
@@ -758,5 +768,8 @@ CoreMap::Render() noexcept
 
   Canvas canvas{size};
   map.Paint(canvas);
-  graphics->display.SwapBuffers(surface);
+  if (!graphics->display.SwapBuffers(surface) && !swap_failed) {
+    swap_failed = true;
+    LogFormat("Map frame not shown: EGL error 0x%x", unsigned(eglGetError()));
+  }
 }

@@ -274,6 +274,15 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       elevation and frequency, task points, thermals, traffic
 - [x] Overlays in Compose: vario bar and final-glide bar on the map's edges,
       wind and status chips (D19)
+- [ ] Map stopped drawing once (2026-10-15, Pixel 7, not reproduced):
+      zoom did nothing, the map stayed on the middle of the map file
+      while the tiles followed the GPS and a replay; going to the home
+      screen and back (a new surface) cured it.  The app had started
+      indoors without a fix.  Not reproduced in 8 cold starts (fix or
+      none, Fly tapped 0.5–5 s after start), a replay or a fix coming in.
+      A zoom that draws nothing means the core holds no EGL surface:
+      `xcsoar.log` now says "Map attached WxH", "Map detached" and the
+      first "Map frame not shown: EGL error" of a surface
 - [~] Measure: frame time, CPU, battery over a 1-hour replay.  First look
       (debug build, Pixel 7, on the ground): core thread incl. map ~4 % of
       a core, Android main thread ~30 % (debug Compose, ~14 ms per frame).
