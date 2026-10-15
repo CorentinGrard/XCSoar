@@ -144,7 +144,10 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       under ASan
 - [ ] Upstream TAP regression test for the `TriangleContest` fix (before
       sending it upstream)
-- [ ] Run L1 + L2 under ASan/TSan in CI
+- [ ] Run L1 + L2 under ASan/TSan in CI.  By hand on this Fedora host
+      (2026-10-15, 373 checks clean, `ASAN_OPTIONS=detect_leaks=0`):
+      `make SANITIZE=address TARGET_OUTPUT_DIR=output/UNIX-asan
+      output/UNIX-asan/bin/TestCoreApi` with the usual Fedora variables
 - [x] **L2** golden replays: `xcs-replay` (C API only, JSON lines) +
       `core/test/check_golden.py` (per-field tolerances, `--update`) on 4 IGC
       files; deterministic (byte-identical across runs)
@@ -233,7 +236,9 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       the core (its watch timer destroyed itself from its own callback,
       then locked a freed mutex in a loop): the flight screen stayed on
       the last replayed values.  `EndReplay()` now cancels the timer;
-      TestCoreApi replays a flight to its end
+      TestCoreApi replays a flight to its end.  On the host the test
+      passes without the fix too, but under ASan it fails with a
+      heap-use-after-free in that timer (checked 2026-10-15)
 - [x] **L4** Roborazzi screenshot tests of the flight screen against the
       fake core (cruise, circling, night, no data, landscape); reference
       images in `app/src/test/screenshots`, checked in CI
