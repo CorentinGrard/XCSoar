@@ -834,6 +834,29 @@ TestReplayControls(xcs_core *core)
   ok1(xcs_replay_set_time_scale(core, 1) == XCS_OK);
 }
 
+/* a replay that reaches the end of its file ends itself; the core
+   kept spinning in the watch timer it had just destroyed */
+static void
+TestReplayToEnd(xcs_core *core, Recorder &recorder)
+{
+  recorder.Clear();
+  ok1(xcs_replay_start(core, FLIGHT, 2000) == XCS_OK);
+
+  bool finished = false;
+  for (unsigned i = 0; i < 1200 && !finished; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    const std::lock_guard lock{recorder.mutex};
+    finished = recorder.replay_finished > 0;
+  }
+  ok1(finished);
+
+  /* the core's main thread still answers, and the replay is over */
+  double value;
+  ok1(xcs_safety_get_option(core, XCS_SAFETY_MC, &value) == XCS_OK);
+  ok1(xcs_replay_fast_forward(core, 600) == XCS_ERROR_FAILED);
+  ok1(xcs_replay_set_time_scale(core, 1) == XCS_OK);
+}
+
 static void
 TestStarted(xcs_core *core, Recorder &recorder)
 {
@@ -1043,7 +1066,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 5);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -1072,6 +1095,7 @@ main()
   TestNotam(core);
   TestTiles(core);
   TestReplayControls(core);
+  TestReplayToEnd(core, recorder);
   TestProfiles(core);
   ok1(xcs_stop(core) == XCS_OK);
 

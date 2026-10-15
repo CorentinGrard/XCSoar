@@ -2506,7 +2506,10 @@ xcs_waypoints_search(xcs_core *core, const char *name, uint32_t filter,
 void
 xcs_core::EndReplay() noexcept
 {
-  replay_watch.reset();
+  /* cancel, not destroy: this may run inside the timer's own callback,
+     which still uses its captures afterwards */
+  if (replay_watch)
+    replay_watch->Cancel();
   if (!task_mode_before_replay)
     return;
 
