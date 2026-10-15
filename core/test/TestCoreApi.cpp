@@ -18,6 +18,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <limits>
 #include <mutex>
 #include <set>
@@ -888,6 +890,12 @@ TestAutoMacCready(xcs_core *core)
   /* the pilot's MacCready turns it off, as in XCSoar */
   ok1(xcs_set_mac_cready(core, 1.0) == XCS_OK);
   ok1(xcs_mac_cready_get_option(core, XCS_MC_AUTO, &value) == XCS_OK && value == 0);
+  /* and saved at once: the app may be ended without xcs_stop() */
+  {
+    std::ifstream file{std::filesystem::path{DATA_PATH} / "profiles" / "default.prf"};
+    const std::string profile{std::istreambuf_iterator<char>{file}, {}};
+    ok1(Contains(profile, "AutoMc=\"0\""));
+  }
 
   ok1(xcs_mac_cready_set_option(core, XCS_MC_AUTO_MODE, 2) == XCS_OK);
   ok1(xcs_mac_cready_get_option(core, XCS_MC_AUTO_MODE, &value) == XCS_OK && value == 2);
@@ -1147,7 +1155,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 14 + 7);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);

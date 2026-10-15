@@ -718,7 +718,12 @@ xcs_set_mac_cready(xcs_core *core, double mac_cready)
     return XCS_ERROR_INVALID_ARGUMENT;
 
   return RunOnMain(*core, [mac_cready]{
+    const bool was_auto = CommonInterface::GetComputerSettings().task.auto_mc;
     ActionInterface::SetManualMacCready(mac_cready, true);
+    /* it turned the automatic MacCready off in the profile: keep that
+       when Android ends the app without a clean stop */
+    if (was_auto)
+      Profile::Save();
     return XCS_OK;
   });
 }

@@ -327,8 +327,9 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       AutoMc, AutoMcMode); the flight screen's control says "MC auto";
       a step by hand turns it off, as in XCSoar.  Snapshot flag
       `XCS_FLAG_AUTO_MC`, `xcs_mac_cready_set_option` / `_get_option`.
-      Checked on a Pixel 7 on the ground (not yet seen setting the
-      MacCready in flight)
+      Checked on a Pixel 7: on the ground, and in a replay of the
+      2026-10-10 flight (climbs: 0.5 → 0.9).  A step by hand saves the
+      profile at once, else Android ending the app brought Auto back
 - [x] Go To: from the map's hold card and from a waypoint list (Menu → Go
       to waypoint, or tap the next waypoint card): nearest first, landable /
       airports / all, name search, distance, bearing and arrival height
@@ -488,8 +489,9 @@ the core already links but that has never run in this app:
       `xcs_wind_get`, `xcs_wind_set_manual`, `xcs_wind_clear_manual`,
       `xcs_wind_set_option` / `_get_option`.  Checked on a Pixel 7 on
       the ground and in a replay of the 2026-10-10 flight (circling
-      estimate 271° 12 km/h, then a manual wind over it; a newer
-      estimate replacing it not seen yet)
+      estimate 271° 12 km/h, then a manual wind over it; in another
+      replay a manual 000° 10 km/h gave way to a circling 343° 37 km/h
+      and Clear went off)
 - [x] Vario sound (Settings → Vario sound): on/off, volume, Vario or Auto
       (speed to fly in cruise, needs airspeed), dead band and its edges
       (`xcs_sound_option` 3–6).  Tone frequencies stay XCSoar's defaults
