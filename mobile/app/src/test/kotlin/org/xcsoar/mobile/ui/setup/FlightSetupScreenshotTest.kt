@@ -9,6 +9,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.xcsoar.mobile.core.AutoMacCreadyMode
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 /** L4: the flight setup screen (mobile/docs/ARCHITECTURE.md §6). */
@@ -22,7 +23,8 @@ class FlightSetupScreenshotTest {
             FlightSetupContent(
                 FlightSetup(ballast = 80.0, maxBallast = 150.0, bugs = 0.9, wingLoading = 38.2,
                             crewMass = 90.0, qnh = 1021.0, staticPressure = 950.0,
-                            baroAltitude = 642.0),
+                            baroAltitude = 642.0, macCready = 1.5, autoMacCready = true,
+                            autoMode = AutoMacCreadyMode.BOTH),
                 {}, {}, {}, {}, {}, {})
         }
     }

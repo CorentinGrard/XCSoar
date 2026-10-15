@@ -76,6 +76,12 @@ interface XcsoarCore {
     /** Set a safety margin; saved in the profile. */
     suspend fun setSafetyOption(option: SafetyOption, value: Double) {}
 
+    /** An automatic MacCready setting; null if the core has none. */
+    suspend fun macCreadyOption(option: MacCreadyOption): Int? = null
+
+    /** Change an automatic MacCready setting; saved in the profile. */
+    suspend fun setMacCreadyOption(option: MacCreadyOption, value: Int) {}
+
     /** A wind setting; null if the core has none. */
     suspend fun windOption(option: WindOption): Boolean? = null
 
@@ -431,6 +437,23 @@ enum class SafetyOption(val code: Int) {
     ALTERNATES(5),
     /** 0/1: the turn back marker on the map */
     TURN_BACK_MARKER(6),
+}
+
+/** Values of `xcs_mac_cready_option` (core/api/xcsoar_core.h). */
+enum class MacCreadyOption(val code: Int) {
+    /** 0/1: XCSoar sets the MacCready; a change by the pilot turns it off */
+    AUTO(1),
+    /** an [AutoMacCreadyMode] code */
+    AUTO_MODE(2),
+}
+
+/** How XCSoar sets the MacCready (its AutoMCMode). */
+enum class AutoMacCreadyMode(val code: Int) {
+    FINAL_GLIDE(0), CLIMB_AVERAGE(1), BOTH(2);
+
+    companion object {
+        fun fromCode(code: Int?) = entries.firstOrNull { it.code == code }
+    }
 }
 
 /** Values of `xcs_wind_option` (core/api/xcsoar_core.h). */

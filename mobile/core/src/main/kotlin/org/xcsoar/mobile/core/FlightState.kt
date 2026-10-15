@@ -53,6 +53,8 @@ data class FlightState(
     /** Above final glide to the task finish. */
     val aboveFinalGlide: Boolean,
     val replay: Boolean,
+    /** XCSoar sets the MacCready itself. */
+    val autoMacCready: Boolean = false,
 
     /** Speed to fly, IAS m/s. */
     val speedToFly: Double? = null,

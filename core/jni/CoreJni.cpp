@@ -521,6 +521,27 @@ Java_org_xcsoar_mobile_NativeCore_nativeSafetyGetOption(JNIEnv *, jclass,
 }
 
 JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMacCreadySetOption(JNIEnv *, jclass,
+                                                           jlong core,
+                                                           jint option,
+                                                           jint value)
+{
+  return xcs_mac_cready_set_option(ToCore(core), option, value);
+}
+
+/** @return the value, or Integer.MIN_VALUE on error */
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeMacCreadyGetOption(JNIEnv *, jclass,
+                                                           jlong core,
+                                                           jint option)
+{
+  int32_t value;
+  return xcs_mac_cready_get_option(ToCore(core), option, &value) == XCS_OK
+    ? value
+    : INT32_MIN;
+}
+
+JNIEXPORT jint JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeWindSetOption(JNIEnv *, jclass,
                                                       jlong core, jint option,
                                                       jint value)

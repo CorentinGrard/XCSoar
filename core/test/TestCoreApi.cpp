@@ -856,6 +856,31 @@ TestWind(xcs_core *core)
 }
 
 static void
+TestAutoMacCready(xcs_core *core)
+{
+  int32_t auto_mc = -1, mode = -1, value = -1;
+  ok1(xcs_mac_cready_get_option(core, XCS_MC_AUTO, &auto_mc) == XCS_OK);
+  ok1(xcs_mac_cready_get_option(core, XCS_MC_AUTO_MODE, &mode) == XCS_OK);
+
+  ok1(xcs_mac_cready_set_option(core, 99, 1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_mac_cready_set_option(core, XCS_MC_AUTO, 2) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_mac_cready_set_option(core, XCS_MC_AUTO_MODE, 3) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_mac_cready_set_option(core, XCS_MC_AUTO_MODE, -1) == XCS_ERROR_INVALID_ARGUMENT);
+
+  ok1(xcs_mac_cready_set_option(core, XCS_MC_AUTO, 1) == XCS_OK);
+  ok1(xcs_mac_cready_get_option(core, XCS_MC_AUTO, &value) == XCS_OK && value == 1);
+  /* the pilot's MacCready turns it off, as in XCSoar */
+  ok1(xcs_set_mac_cready(core, 1.0) == XCS_OK);
+  ok1(xcs_mac_cready_get_option(core, XCS_MC_AUTO, &value) == XCS_OK && value == 0);
+
+  ok1(xcs_mac_cready_set_option(core, XCS_MC_AUTO_MODE, 2) == XCS_OK);
+  ok1(xcs_mac_cready_get_option(core, XCS_MC_AUTO_MODE, &value) == XCS_OK && value == 2);
+
+  ok1(xcs_mac_cready_set_option(core, XCS_MC_AUTO_MODE, mode) == XCS_OK);
+  ok1(xcs_mac_cready_set_option(core, XCS_MC_AUTO, auto_mc) == XCS_OK);
+}
+
+static void
 TestReplayControls(xcs_core *core)
 {
   ok1(xcs_replay_set_time_scale(nullptr, 1) == XCS_ERROR_INVALID_ARGUMENT);
@@ -1106,7 +1131,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 14);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -1129,6 +1154,7 @@ main()
   TestAirspaceOptions(core);
   TestSafety(core);
   TestWind(core);
+  TestAutoMacCready(core);
   TestPlanesAndCrew(core);
   TestTracking(core);
   TestWeather(core);

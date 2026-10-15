@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.xcsoar.mobile.core.AutoMacCreadyMode
 import org.xcsoar.mobile.core.FlightState
+import org.xcsoar.mobile.core.MacCreadyOption
 import org.xcsoar.mobile.core.XcsoarCore
 import org.xcsoar.mobile.ui.Format
 import kotlin.math.abs
@@ -29,10 +31,16 @@ data class FlightSetup(
     /** null without a barometer. */
     val staticPressure: Double? = null,
     val baroAltitude: Double? = null,
+    /** m/s */
+    val macCready: Double = 0.0,
+    val autoMacCready: Boolean = false,
+    /** null until read from the core. */
+    val autoMode: AutoMacCreadyMode? = null,
 )
 
 /**
- * Ballast, bugs and QNH, like XCSoar's flight setup dialog.  A value the
+ * MacCready, ballast, bugs and QNH, like XCSoar's flight setup dialog
+ * and its MacCready InfoBox panels.  A value the
  * pilot just set is shown until the core's snapshot has it, so quick
  * taps add up.
  */
@@ -42,18 +50,23 @@ class FlightSetupViewModel(private val core: XcsoarCore) : ViewModel() {
     private val pendingQnh = MutableStateFlow<Double?>(null)
     /** Not in the snapshot: read once, then what the pilot set. */
     private val crewMass = MutableStateFlow<Double?>(null)
+    private val pendingMacCready = MutableStateFlow<Double?>(null)
+    private val pendingAuto = MutableStateFlow<Boolean?>(null)
+    /** Not in the snapshot: read once, then what the pilot set. */
+    private val autoMode = MutableStateFlow<AutoMacCreadyMode?>(null)
 
     init {
         viewModelScope.launch {
             try {
                 crewMass.value = core.crewMass()
+                autoMode.value =
+                    AutoMacCreadyMode.fromCode(core.macCreadyOption(MacCreadyOption.AUTO_MODE))
             } catch (_: Exception) {
             }
         }
     }
 
-    /** `null` until the core has started. */
-    val setup: StateFlow<FlightSetup?> =
+    private val withoutMacCready =
         combine(core.flightState, pendingBallast, pendingBugs, pendingQnh, crewMass) {
                 state, ballast, bugs, qnh, crew ->
             state ?: return@combine null
@@ -68,7 +81,61 @@ class FlightSetupViewModel(private val core: XcsoarCore) : ViewModel() {
                         qnh ?: state.qnh, state.staticPressure,
                         // computed with the old QNH until the core has the new one
                         state.baroAltitude.takeIf { qnh == null })
+        }
+
+    /** `null` until the core has started. */
+    val setup: StateFlow<FlightSetup?> =
+        combine(withoutMacCready, core.flightState, pendingMacCready, pendingAuto, autoMode) {
+                setup, state, mc, auto, mode ->
+            setup ?: return@combine null
+            state ?: return@combine null
+            if (mc != null && same(mc, state.macCready))
+                pendingMacCready.value = null
+            if (auto != null && auto == state.autoMacCready)
+                pendingAuto.value = null
+            setup.copy(macCready = mc ?: state.macCready,
+                       autoMacCready = auto ?: state.autoMacCready, autoMode = mode)
         }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** MacCready one step up or down; like the pilot's change in XCSoar, it
+        turns the automatic MacCready off. */
+    fun changeMacCready(direction: Int) {
+        val s = setup.value ?: return
+        val value = Format.stepVerticalSpeed(s.macCready, direction).coerceIn(0.0, MAX_MC)
+        pendingMacCready.value = value
+        pendingAuto.value = false
+        viewModelScope.launch {
+            try {
+                core.setMacCready(value)
+            } catch (_: Exception) {
+                pendingMacCready.value = null
+                pendingAuto.value = null
+            }
+        }
+    }
+
+    fun setAutoMacCready(on: Boolean) {
+        pendingAuto.value = on
+        viewModelScope.launch {
+            try {
+                core.setMacCreadyOption(MacCreadyOption.AUTO, if (on) 1 else 0)
+            } catch (_: Exception) {
+                pendingAuto.value = null
+            }
+        }
+    }
+
+    fun setAutoMode(mode: AutoMacCreadyMode) {
+        val old = autoMode.value
+        autoMode.value = mode
+        viewModelScope.launch {
+            try {
+                core.setMacCreadyOption(MacCreadyOption.AUTO_MODE, mode.code)
+            } catch (_: Exception) {
+                autoMode.value = old
+            }
+        }
+    }
 
     /** Ballast ± [BALLAST_STEP] litres, clamped to the plane's maximum. */
     fun changeBallast(delta: Double) {
@@ -141,5 +208,7 @@ class FlightSetupViewModel(private val core: XcsoarCore) : ViewModel() {
         const val MAX_BUGS_PERCENT = 50
         /** xcs_set_crew_mass() */
         const val MAX_CREW_MASS = 300.0
+        /** xcs_set_mac_cready() */
+        const val MAX_MC = 5.0
     }
 }

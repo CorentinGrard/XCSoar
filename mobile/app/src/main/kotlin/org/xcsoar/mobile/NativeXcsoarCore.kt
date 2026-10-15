@@ -45,6 +45,7 @@ import org.xcsoar.mobile.core.MapOption
 import org.xcsoar.mobile.core.PlaneDetails
 import org.xcsoar.mobile.core.PolarInfo
 import org.xcsoar.mobile.core.ProfileInfo
+import org.xcsoar.mobile.core.MacCreadyOption
 import org.xcsoar.mobile.core.SafetyOption
 import org.xcsoar.mobile.core.WindInfo
 import org.xcsoar.mobile.core.WindOption
@@ -238,6 +239,15 @@ class NativeXcsoarCore(
 
     override suspend fun setSafetyOption(option: SafetyOption, value: Double) =
         command { NativeCore.nativeSafetySetOption(it, option.code, value) }
+
+    override suspend fun macCreadyOption(option: MacCreadyOption): Int? = lock.withLock {
+        if (handle == 0L) return@withLock null
+        withContext(Dispatchers.IO) { NativeCore.nativeMacCreadyGetOption(handle, option.code) }
+            .takeIf { it != Int.MIN_VALUE }
+    }
+
+    override suspend fun setMacCreadyOption(option: MacCreadyOption, value: Int) =
+        command { NativeCore.nativeMacCreadySetOption(it, option.code, value) }
 
     override suspend fun windOption(option: WindOption): Boolean? = lock.withLock {
         if (handle == 0L) return@withLock null

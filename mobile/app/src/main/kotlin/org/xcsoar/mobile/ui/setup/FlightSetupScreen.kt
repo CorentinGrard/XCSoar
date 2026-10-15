@@ -36,10 +36,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.xcsoar.mobile.core.AutoMacCreadyMode
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.UnitGroup
 import org.xcsoar.mobile.ui.Format
+import org.xcsoar.mobile.ui.SettingsGroup
+import org.xcsoar.mobile.ui.SwitchRow
 import org.xcsoar.mobile.ui.flight.Caption
+import org.xcsoar.mobile.ui.flight.Segmented
 import org.xcsoar.mobile.ui.flight.Stepper
 import org.xcsoar.mobile.ui.setup.FlightSetupViewModel.Companion.BALLAST_STEP
 import org.xcsoar.mobile.ui.setup.FlightSetupViewModel.Companion.BUGS_STEP
@@ -53,10 +57,14 @@ fun FlightSetupScreen(viewModel: FlightSetupViewModel, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     FlightSetupContent(setup, viewModel::changeBallast, viewModel::setBallast,
                        viewModel::changeBugs, viewModel::changeCrewMass, viewModel::changeQnh,
-                       onBack)
+                       onBack, viewModel::changeMacCready, viewModel::setAutoMacCready,
+                       viewModel::setAutoMode)
 }
 
-/** Crew mass, water ballast, bugs, the resulting wing loading, and QNH. */
+/**
+ * MacCready (by hand or XCSoar's automatic one), crew mass, water
+ * ballast, bugs, the resulting wing loading, and QNH.
+ */
 @Composable
 fun FlightSetupContent(
     setup: FlightSetup?,
@@ -66,6 +74,9 @@ fun FlightSetupContent(
     onChangeCrewMass: (Int) -> Unit,
     onChangeQnh: (Int) -> Unit,
     onBack: () -> Unit,
+    onChangeMacCready: (Int) -> Unit = {},
+    onAutoMacCready: (Boolean) -> Unit = {},
+    onAutoMode: (AutoMacCreadyMode) -> Unit = {},
 ) {
     val colors = XcsTheme.colors
     Column(
@@ -83,6 +94,8 @@ fun FlightSetupContent(
             Text("Flight setup", color = colors.text, fontSize = 24.sp,
                  fontWeight = FontWeight.Bold)
         }
+
+        MacCreadySection(setup, onChangeMacCready, onAutoMacCready, onAutoMode)
 
         Caption("Crew", Modifier.padding(start = 4.dp))
         val crew = setup?.crewMass
@@ -165,6 +178,60 @@ fun FlightSetupContent(
         }
     }
 }
+
+/**
+ * The MacCready the glide computer flies with, and XCSoar's automatic
+ * MacCready (MacCreadySetupPanel, GlideComputerConfigPanel).
+ */
+@Composable
+private fun MacCreadySection(
+    setup: FlightSetup?,
+    onChange: (Int) -> Unit,
+    onAuto: (Boolean) -> Unit,
+    onAutoMode: (AutoMacCreadyMode) -> Unit,
+) {
+    val colors = XcsTheme.colors
+    Caption("MacCready", Modifier.padding(start = 4.dp))
+    val mc = setup?.macCready
+    val unit = Format.unit(UnitGroup.VERTICAL_SPEED).name
+    val text = mc?.let { Format.macCready(it).text } ?: Format.INVALID
+    val auto = setup?.autoMacCready == true
+    Stepper("MacCready", if (auto) "Auto · $unit" else "MacCready · $unit", text,
+            if (auto) "automatic, $text $unit" else "$text $unit",
+            canDecrease = mc != null && mc > 0,
+            canIncrease = mc != null && mc < FlightSetupViewModel.MAX_MC,
+            onDecrease = { onChange(-1) },
+            onIncrease = { onChange(+1) },
+            modifier = Modifier.fillMaxWidth())
+    SettingsGroup {
+        SwitchRow("Auto MacCready",
+                  "XCSoar sets it as you fly; changing it by hand turns this off.",
+                  setup?.autoMacCready, enabled = setup != null, onChange = onAuto)
+    }
+    val mode = setup?.autoMode
+    Segmented(AUTO_MODES.map { it.second }, selected = AUTO_MODES.indexOfFirst { it.first == mode },
+              onSelect = { onAutoMode(AUTO_MODES[it].first) },
+              modifier = Modifier.fillMaxWidth().alpha(if (auto) 1f else 0.6f))
+    Text(when (mode) {
+             AutoMacCreadyMode.FINAL_GLIDE ->
+                 "On final glide: the highest MacCready that still gets you home."
+             AutoMacCreadyMode.CLIMB_AVERAGE ->
+                 "The average climb of your recent thermals."
+             AutoMacCreadyMode.BOTH ->
+                 "The average climb, then on final glide the highest MacCready that " +
+                     "still gets you home."
+             null -> ""
+         },
+         color = colors.textSecondary, fontSize = 15.sp,
+         modifier = Modifier.padding(horizontal = 4.dp))
+}
+
+/** XCSoar's auto MacCready modes, in its order, as the choice shows them. */
+private val AUTO_MODES = listOf(
+    AutoMacCreadyMode.FINAL_GLIDE to "Final glide",
+    AutoMacCreadyMode.CLIMB_AVERAGE to "Climbs",
+    AutoMacCreadyMode.BOTH to "Both",
+)
 
 /** A read-only value, like the wing loading. */
 @Composable

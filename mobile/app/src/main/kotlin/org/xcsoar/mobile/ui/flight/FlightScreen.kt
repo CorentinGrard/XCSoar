@@ -518,7 +518,7 @@ private fun Instruments(
                     onLongClick = if (tiles != null) ({ onEditTile(i) }) else null,
                     onClick = if (tiles != null) ({ onTapTile(i) }) else null)
         }
-        MacCreadyControl(macCready, onMacCreadyChange)
+        MacCreadyControl(macCready, onMacCreadyChange, auto = state?.autoMacCready == true)
         MenuTile(onMenu)
     }
 }
@@ -719,7 +719,7 @@ fun flightMenu(
     inFlight = listOf(
         MenuAction("Go to waypoint", "Nearest landable first", onClick = onOpenWaypoints),
         MenuAction("Task", "Edit, next, previous", onClick = onOpenTask),
-        MenuAction("Flight setup", "Ballast, bugs, QNH", onClick = onOpenFlightSetup),
+        MenuAction("Flight setup", "MacCready, ballast, bugs, QNH", onClick = onOpenFlightSetup),
         MenuAction("Analysis", "Barograph, thermals, polar, wind", onClick = onOpenAnalysis),
     ),
     sections = listOf(

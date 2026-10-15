@@ -98,6 +98,7 @@ object SnapshotDecoder {
     const val FLAG_CIRCLING = 1 shl 2
     const val FLAG_FINAL_GLIDE = 1 shl 3
     const val FLAG_REPLAY = 1 shl 4
+    const val FLAG_AUTO_MC = 1 shl 5
 
     /**
      * Decode one snapshot.  Reads [SIZE] bytes starting at the buffer's
@@ -175,6 +176,7 @@ object SnapshotDecoder {
             circling = flags and FLAG_CIRCLING != 0,
             aboveFinalGlide = flags and FLAG_FINAL_GLIDE != 0,
             replay = flags and FLAG_REPLAY != 0,
+            autoMacCready = flags and FLAG_AUTO_MC != 0,
         )
     }
 

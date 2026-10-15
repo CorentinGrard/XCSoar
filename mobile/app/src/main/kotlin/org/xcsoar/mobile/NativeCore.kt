@@ -133,6 +133,9 @@ internal object NativeCore {
     @JvmStatic external fun nativeSafetySetOption(core: Long, option: Int, value: Double): Int
     /** @return the value, or NaN on error */
     @JvmStatic external fun nativeSafetyGetOption(core: Long, option: Int): Double
+    @JvmStatic external fun nativeMacCreadySetOption(core: Long, option: Int, value: Int): Int
+    /** @return the value, or Int.MIN_VALUE on error */
+    @JvmStatic external fun nativeMacCreadyGetOption(core: Long, option: Int): Int
     @JvmStatic external fun nativeWindSetOption(core: Long, option: Int, value: Int): Int
     /** @return the value, or Int.MIN_VALUE on error */
     @JvmStatic external fun nativeWindGetOption(core: Long, option: Int): Int

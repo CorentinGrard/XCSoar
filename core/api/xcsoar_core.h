@@ -99,6 +99,8 @@ enum {
   /** Above final glide to the task finish. */
   XCS_FLAG_FINAL_GLIDE = 1u << 3,
   XCS_FLAG_REPLAY = 1u << 4,
+  /** XCSoar sets the MacCready itself (xcs_mac_cready_set_option()). */
+  XCS_FLAG_AUTO_MC = 1u << 5,
 };
 
 typedef struct xcs_flight_snapshot {
@@ -331,9 +333,28 @@ xcs_api_version(void);
  * Commands.  Require a started core.
  */
 
-/** Set the MacCready value (m/s, 0..5) and send it to the devices. */
+/** Set the MacCready value (m/s, 0..5) and send it to the devices.
+    Like a pilot's change in XCSoar, it turns the automatic MacCready
+    off. */
 XCS_EXPORT xcs_status
 xcs_set_mac_cready(xcs_core *core, double mac_cready);
+
+/** XCSoar's automatic MacCready (XCSoar's profile keys in brackets). */
+typedef enum xcs_mac_cready_option {
+  /** 0/1: XCSoar sets the MacCready [AutoMc] */
+  XCS_MC_AUTO = 1,
+  /** How: 0 for final glide, 1 the average climb, 2 for final glide
+      once above it, else the average climb [AutoMcMode] */
+  XCS_MC_AUTO_MODE = 2,
+} xcs_mac_cready_option;
+
+/** Set an automatic MacCready option; saved in the profile.
+    XCS_ERROR_INVALID_ARGUMENT for an unknown option or value. */
+XCS_EXPORT xcs_status
+xcs_mac_cready_set_option(xcs_core *core, uint32_t option, int32_t value);
+
+XCS_EXPORT xcs_status
+xcs_mac_cready_get_option(xcs_core *core, uint32_t option, int32_t *value_r);
 
 /** Set the water ballast (litres, 0..max_ballast of the snapshot) and
     send it to the devices. */

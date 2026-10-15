@@ -69,6 +69,7 @@ private const val STEP_MILLIS = 150
 /**
  * MacCready − value + stepper, in the pilot's vertical speed unit.
  *
+ * @param auto XCSoar sets it (a step turns that off)
  * @param onChange receives the new value, m/s
  */
 @Composable
@@ -76,10 +77,12 @@ fun MacCreadyControl(
     macCready: Double?,
     onChange: (Double) -> Unit,
     modifier: Modifier = Modifier,
+    auto: Boolean = false,
 ) {
     val unit = Format.unit(UnitGroup.VERTICAL_SPEED).name
     val text = macCready?.let { Format.macCready(it).text } ?: Format.INVALID
-    Stepper("MacCready", "MC · $unit", text, "$text $unit",
+    Stepper("MacCready", if (auto) "MC auto · $unit" else "MC · $unit", text,
+            if (auto) "automatic, $text $unit" else "$text $unit",
             canDecrease = macCready != null && macCready > 0,
             canIncrease = macCready != null && macCready < 5,
             onDecrease = { macCready?.let { onChange(Format.stepVerticalSpeed(it, -1)) } },

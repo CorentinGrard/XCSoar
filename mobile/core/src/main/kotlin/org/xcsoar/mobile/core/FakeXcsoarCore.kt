@@ -134,6 +134,16 @@ class FakeXcsoarCore(
         safety[option] = value
     }
 
+    private val macCreadyOptions = mutableMapOf(
+        MacCreadyOption.AUTO to 0, MacCreadyOption.AUTO_MODE to 0)
+
+    override suspend fun macCreadyOption(option: MacCreadyOption): Int? =
+        macCreadyOptions[option]
+
+    override suspend fun setMacCreadyOption(option: MacCreadyOption, value: Int) {
+        macCreadyOptions[option] = value
+    }
+
     private val windOptions = mutableMapOf(
         WindOption.CIRCLING to true, WindOption.ZIG_ZAG to true,
         WindOption.EXTERNAL to true, WindOption.TRAIL_DRIFT to false)

@@ -390,6 +390,8 @@ class MainActivity : ComponentActivity() {
                                 "alternates", "waypoints", "waypoint" -> screen = Screen.WAYPOINTS
                                 // QNH, as in upstream's altitude setup panel
                                 "altitude" -> screen = Screen.FLIGHT_SETUP
+                                // upstream's MacCready panels: the value and Auto
+                                "maccready" -> screen = Screen.FLIGHT_SETUP
                                 // upstream's wind settings dialog
                                 "wind" -> screen = Screen.WIND
                                 // the others have no page in the app yet

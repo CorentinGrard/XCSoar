@@ -462,6 +462,8 @@ FillSnapshot(xcs_flight_snapshot &s) noexcept
     flags |= XCS_FLAG_FLYING;
   if (calculated.circling)
     flags |= XCS_FLAG_CIRCLING;
+  if (CommonInterface::GetComputerSettings().task.auto_mc)
+    flags |= XCS_FLAG_AUTO_MC;
 
   s.flight_time = calculated.flight.flight_time.count();
   s.valid = valid;
@@ -717,6 +719,60 @@ xcs_set_mac_cready(xcs_core *core, double mac_cready)
   return RunOnMain(*core, [mac_cready]{
     ActionInterface::SetManualMacCready(mac_cready, true);
     return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_mac_cready_set_option(xcs_core *core, uint32_t option, int32_t value)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  /* like MacCreadySetupPanel and GlideComputerConfigPanel */
+  return RunOnMain(*core, [option, value]{
+    auto &task = CommonInterface::SetComputerSettings().task;
+    switch (option) {
+    case XCS_MC_AUTO:
+      if (value != 0 && value != 1)
+        return XCS_ERROR_INVALID_ARGUMENT;
+      task.auto_mc = value != 0;
+      Profile::Set(ProfileKeys::AutoMc, task.auto_mc);
+      break;
+
+    case XCS_MC_AUTO_MODE:
+      if (value < 0 || value > int(TaskBehaviour::AutoMCMode::BOTH))
+        return XCS_ERROR_INVALID_ARGUMENT;
+      task.auto_mc_mode = TaskBehaviour::AutoMCMode(value);
+      Profile::SetEnum(ProfileKeys::AutoMcMode, task.auto_mc_mode);
+      break;
+
+    default:
+      return XCS_ERROR_INVALID_ARGUMENT;
+    }
+
+    Profile::Save();
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_mac_cready_get_option(xcs_core *core, uint32_t option, int32_t *value_r)
+{
+  if (core == nullptr || value_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [option, value_r]{
+    const auto &task = CommonInterface::GetComputerSettings().task;
+    switch (option) {
+    case XCS_MC_AUTO:
+      *value_r = task.auto_mc;
+      return XCS_OK;
+    case XCS_MC_AUTO_MODE:
+      *value_r = int(task.auto_mc_mode);
+      return XCS_OK;
+    default:
+      return XCS_ERROR_INVALID_ARGUMENT;
+    }
   });
 }
 
