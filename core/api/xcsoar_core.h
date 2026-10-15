@@ -786,6 +786,16 @@ XCS_EXPORT xcs_status
 xcs_get_analysis(xcs_core *core, char *buffer, size_t size,
                  size_t *length_r);
 
+/**
+ * XCSoar's status dialog (flight, system, task, rules and times
+ * pages) as JSON: translated labels and values formatted in the
+ * pilot's units, as core/host/CoreStatus.hpp describes.  Buffer rules
+ * as for xcs_get_data_status().
+ */
+XCS_EXPORT xcs_status
+xcs_get_status_pages(xcs_core *core, char *buffer, size_t size,
+                     size_t *length_r);
+
 /*
  * The flight screen's tiles: XCSoar's InfoBoxes (JSON formats in
  * core/host/CoreInfoBoxes.hpp).  Buffer rules as for

@@ -437,8 +437,9 @@ the core already links but that has never run in this app:
       does (`xcs_tiles_click`: HandleClick() runs, the dialog seams record
       what it asked for, else its panels): analysis pages open Analysis
       on that page, alternates and waypoint lists open Go to, the
-      altitude and MacCready panels Flight setup, the wind panel Wind;
-      status, team code, airspace and radio panels have no page yet.  The Battery InfoBox shows the phone's charge
+      altitude and MacCready panels Flight setup, the wind panel Wind,
+      the status ones Status on their page; team code, airspace and
+      radio panels have no page yet.  The Battery InfoBox shows the phone's charge
       and "AC ON"/"AC Off": upstream's BatteryReceiver (copied, D13)
       feeds src/Android/Battery.cpp, now linked into the core; checked
       on a Pixel 7 (plugged in, and unplugged at 57 % with `dumpsys
@@ -494,6 +495,15 @@ the core already links but that has never run in this app:
       (`xcs_sound_option` 3–6).  Tone frequencies stay XCSoar's defaults
 - [ ] Settings screens backed by `xcs_settings_*` JSON sections: units, polar /
       plane, safety heights, airspace filters, audio, map, InfoBox pages
+- [x] Status (Menu → Status, or a status tile on its page): XCSoar's
+      status dialog, flight / system / task / rules / times, formatted
+      and translated by the core after each panel's Refresh()
+      (`core/host/CoreStatus.cpp`, `xcs_get_status_pages`), refreshed
+      every second; "Share position" on the flight page sends the
+      coordinates and an OpenStreetMap link (upstream opens a geo:
+      link).  Left out: the network row (no NativeView in the core) and
+      the task page's what-if MacCready.  Checked on a Pixel 7 (French).
+      Upstream fix: the rules page's untranslated "No"
 - [x] Profiles (Menu → Profiles): XCSoar's .prf files, the one in use
       first; Use (on the ground: the core saves the profile in use and
       the app restarts with the other one, kept in the app's
@@ -624,7 +634,8 @@ the core already links but that has never run in this app:
 
 - 2026-10-15 — First real flight with the app (2026-10-10, by the
   pilot): no bug seen, IGC logged on its own.  Wind page.  Fixed: a
-  replay reaching the end of its file froze the core.  Auto MacCready.
+  replay reaching the end of its file froze the core.  Auto MacCready,
+  Status page.
 
 
 - 2026-10-07 — Analysis: all of upstream's pages but the airspace

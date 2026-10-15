@@ -142,6 +142,9 @@ interface XcsoarCore {
      */
     suspend fun task(edited: Boolean): TaskInfo? = null
 
+    /** XCSoar's status pages; null if the core has not started. */
+    suspend fun statusPages(): StatusPages? = null
+
     /** XCSoar's analysis pages; null if the core has not started. */
     suspend fun analysis(): Analysis? = null
 

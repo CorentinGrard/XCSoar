@@ -753,6 +753,16 @@ Java_org_xcsoar_mobile_NativeCore_nativeTaskGet(JNIEnv *env, jclass,
   });
 }
 
+/** @return the JSON of xcs_get_status_pages(), or null */
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeGetStatusPages(JNIEnv *env, jclass,
+                                                       jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_get_status_pages(ToCore(core), buffer, size, length);
+  });
+}
+
 JNIEXPORT jstring JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeGetAnalysis(JNIEnv *env, jclass,
                                                     jlong core)

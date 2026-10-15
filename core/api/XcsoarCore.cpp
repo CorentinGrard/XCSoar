@@ -39,6 +39,7 @@
 #include "CoreReceive.hpp"
 #include "CoreTask.hpp"
 #include "CoreAnalysis.hpp"
+#include "CoreStatus.hpp"
 #include "CorePlanes.hpp"
 #include "CoreProfiles.hpp"
 #include "CoreInfoBoxes.hpp"
@@ -1229,6 +1230,18 @@ xcs_get_analysis(xcs_core *core, char *buffer, size_t size,
 
   return RunOnMain(*core, [buffer, size, length_r]{
     return CopyJson(CoreAnalysis::Describe(), buffer, size, length_r);
+  });
+}
+
+xcs_status
+xcs_get_status_pages(xcs_core *core, char *buffer, size_t size,
+                     size_t *length_r)
+{
+  if (core == nullptr || buffer == nullptr || length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [buffer, size, length_r]{
+    return CopyJson(CoreStatus::Describe(), buffer, size, length_r);
   });
 }
 

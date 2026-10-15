@@ -662,6 +662,22 @@ TestNotam(xcs_core *core)
 }
 
 static void
+TestStatusPages(xcs_core *core)
+{
+  char buffer[16];
+  size_t length;
+  ok1(xcs_get_status_pages(nullptr, buffer, sizeof(buffer), &length) ==
+      XCS_ERROR_INVALID_ARGUMENT);
+
+  const auto json = GetJson([core](char *b, size_t s, size_t *l){
+    return xcs_get_status_pages(core, b, s, l);
+  });
+  for (const char *page : {"flight", "system", "task", "rules", "times"})
+    ok1(Contains(json, std::string{"\"name\":\""} + page + "\""));
+  ok1(Contains(json, "{\"label\":\"GPS lock\",\"value\":"));
+}
+
+static void
 TestTiles(xcs_core *core)
 {
   using namespace InfoBoxFactory;
@@ -1131,7 +1147,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 14);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 14 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -1161,6 +1177,7 @@ main()
   TestRasp(core);
   TestNotam(core);
   TestTiles(core);
+  TestStatusPages(core);
   TestReplayControls(core);
   TestReplayToEnd(core, recorder);
   TestProfiles(core);

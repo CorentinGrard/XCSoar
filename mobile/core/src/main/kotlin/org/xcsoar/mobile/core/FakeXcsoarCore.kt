@@ -134,6 +134,17 @@ class FakeXcsoarCore(
         safety[option] = value
     }
 
+    override suspend fun statusPages() = StatusPages(listOf(
+        StatusPage("flight", "Flight", listOf(
+            StatusRow("Location", "N 45°12'34\" E 005°43'21\""), StatusRow("Altitude", "1646 m"),
+            StatusRow("Max. height gain", "1250 m"), StatusRow("Near", "Grenoble Le Versoud"),
+            StatusRow("Bearing", "062°"), StatusRow("Distance", "22.8 km"))),
+        StatusPage("system", "System", listOf(StatusRow("GPS lock", "3D fix"))),
+        StatusPage("task", "Task", listOf(StatusRow("Task distance", "302 km"))),
+        StatusPage("rules", "Rules", listOf(StatusRow("Valid start", "Yes"))),
+        StatusPage("times", "Times", listOf(StatusRow("Flight time", "02:19"))),
+    ), listOf(45.21, 5.72))
+
     private val macCreadyOptions = mutableMapOf(
         MacCreadyOption.AUTO to 0, MacCreadyOption.AUTO_MODE to 0)
 

@@ -74,6 +74,8 @@ internal object NativeCore {
     /** @param which 0 active, 1 edited; @return JSON or null */
     @JvmStatic external fun nativeTaskGet(core: Long, which: Int): String?
     @JvmStatic external fun nativeGetAnalysis(core: Long): String?
+    /** @return JSON or null */
+    @JvmStatic external fun nativeGetStatusPages(core: Long): String?
     @JvmStatic external fun nativeTilesTypes(core: Long): String?
     @JvmStatic external fun nativeTilesLayouts(core: Long): String?
     @JvmStatic external fun nativeTilesSet(core: Long, layout: Int, tile: Int, type: Int): Int

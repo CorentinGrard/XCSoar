@@ -80,6 +80,8 @@ import org.xcsoar.mobile.ui.settings.AirspaceAlertsViewModel
 import org.xcsoar.mobile.ui.settings.SafetyScreen
 import org.xcsoar.mobile.ui.settings.SafetyViewModel
 import org.xcsoar.mobile.ui.settings.WindScreen
+import org.xcsoar.mobile.ui.status.StatusScreen
+import org.xcsoar.mobile.ui.status.StatusViewModel
 import org.xcsoar.mobile.ui.settings.WindViewModel
 import org.xcsoar.mobile.ui.settings.VarioSoundScreen
 import org.xcsoar.mobile.ui.settings.NotamScreen
@@ -106,7 +108,7 @@ import java.io.File
 private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS,
                             TASK, TASK_FILES, TASK_ADD_POINT, UNITS, ANALYSIS,
                             CREW, PLANE_EDIT, PILOT, TILE_PICKER,
-                            AIRSPACE_ALERTS, SAFETY, WIND, VARIO_SOUND, TRACKING, WEATHER,
+                            AIRSPACE_ALERTS, SAFETY, WIND, STATUS, VARIO_SOUND, TRACKING, WEATHER,
                             NOTAMS, REPLAY, PROFILES }
 
 /** How deep a page is: pages further in slide in from the right. */
@@ -308,6 +310,8 @@ class MainActivity : ComponentActivity() {
                     factory = viewModelFactory { initializer { SafetyViewModel(app.anyCore) } })
                 val windViewModel: WindViewModel = viewModel(
                     factory = viewModelFactory { initializer { WindViewModel(app.anyCore) } })
+                val statusViewModel: StatusViewModel = viewModel(
+                    factory = viewModelFactory { initializer { StatusViewModel(app.anyCore) } })
                 val airspaceAlertsViewModel: AirspaceAlertsViewModel = viewModel(
                     factory = viewModelFactory {
                         initializer { AirspaceAlertsViewModel(app.anyCore) }
@@ -376,6 +380,7 @@ class MainActivity : ComponentActivity() {
                                             else null,
                         onOpenSafety = { screen = Screen.SAFETY },
                         onOpenWind = { screen = Screen.WIND },
+                        onOpenStatus = { screen = Screen.STATUS },
                         onOpenVarioSound = { screen = Screen.VARIO_SOUND },
                         onOpenTracking = { screen = Screen.TRACKING },
                         onOpenReplay = { screen = Screen.REPLAY },
@@ -394,6 +399,11 @@ class MainActivity : ComponentActivity() {
                                 "maccready" -> screen = Screen.FLIGHT_SETUP
                                 // upstream's wind settings dialog
                                 "wind" -> screen = Screen.WIND
+                                // upstream's status dialog, on the page it asks for
+                                "status" -> {
+                                    statusViewModel.show(action.page.ifEmpty { null })
+                                    screen = Screen.STATUS
+                                }
                                 // the others have no page in the app yet
                             }
                         },
@@ -463,6 +473,8 @@ class MainActivity : ComponentActivity() {
                                 varioSoundViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.SAFETY -> SafetyScreen(
                                 safetyViewModel, onBack = { screen = Screen.FLIGHT })
+                            Screen.STATUS -> StatusScreen(
+                                statusViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.WIND -> WindScreen(
                                 windViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.AIRSPACE_ALERTS -> AirspaceAlertsScreen(

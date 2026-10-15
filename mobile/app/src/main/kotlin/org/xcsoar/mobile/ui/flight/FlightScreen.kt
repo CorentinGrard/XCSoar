@@ -83,6 +83,7 @@ fun FlightScreen(
     onOpenMapSettings: (() -> Unit)? = null,
     onOpenSafety: () -> Unit = {},
     onOpenWind: () -> Unit = {},
+    onOpenStatus: () -> Unit = {},
     onOpenVarioSound: () -> Unit = {},
     onOpenTracking: () -> Unit = {},
     onOpenReplay: () -> Unit = {},
@@ -159,6 +160,7 @@ fun FlightScreen(
             onOpenMapSettings = onOpenMapSettings,
             onOpenSafety = onOpenSafety,
             onOpenWind = onOpenWind,
+            onOpenStatus = onOpenStatus,
             onOpenVarioSound = onOpenVarioSound,
             onOpenTracking = onOpenTracking,
             onOpenProfiles = onOpenProfiles,
@@ -699,6 +701,7 @@ fun flightMenu(
     onOpenMapSettings: (() -> Unit)? = {},
     onOpenSafety: () -> Unit = {},
     onOpenWind: () -> Unit = {},
+    onOpenStatus: () -> Unit = {},
     onOpenVarioSound: () -> Unit = {},
     onOpenTracking: () -> Unit = {},
     onOpenProfiles: () -> Unit = {},
@@ -729,6 +732,8 @@ fun flightMenu(
             MenuAction("Weather", "METAR, TAF, RASP", onClick = onOpenWeather),
             MenuAction("NOTAMs", "Download, filters, list", onClick = onOpenNotams),
             MenuAction("Flights", "Share, upload to WeGlide", onClick = onOpenFlights),
+            MenuAction("Status", "Flight times, GPS, task rules, share position",
+                       onClick = onOpenStatus),
             if (replay)
                 MenuAction("Stop replay", "Back to the GPS", closesMenu = true,
                            onClick = onStopReplay)

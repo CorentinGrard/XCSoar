@@ -47,6 +47,7 @@ import org.xcsoar.mobile.core.PolarInfo
 import org.xcsoar.mobile.core.ProfileInfo
 import org.xcsoar.mobile.core.MacCreadyOption
 import org.xcsoar.mobile.core.SafetyOption
+import org.xcsoar.mobile.core.StatusPages
 import org.xcsoar.mobile.core.WindInfo
 import org.xcsoar.mobile.core.WindOption
 import org.xcsoar.mobile.core.WindSource
@@ -294,6 +295,9 @@ class NativeXcsoarCore(
         withContext(Dispatchers.IO) { NativeCore.nativeGetAnalysis(handle) }
             ?.let(Analysis::parse)
     }
+
+    override suspend fun statusPages(): StatusPages? =
+        query(NativeCore::nativeGetStatusPages, StatusPages::parse)
 
     /** A JSON getter; null if the core has not started or it failed. */
     private suspend fun <T> query(get: (Long) -> String?, parse: (String) -> T): T? =
