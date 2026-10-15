@@ -41,10 +41,10 @@ RulesStatusPanel::Refresh() noexcept
 
   /// @todo proper task validity check
   SetText(ValidStart, start_stats.HasStarted()
-          ? _("Yes") : "No");
+          ? _("Yes") : _("No"));
 
   SetText(ValidFinish, task_stats.task_finished
-          ? _("Yes") : "No");
+          ? _("Yes") : _("No"));
 
   if (start_stats.HasStarted()) {
     SetText(StartTime,
