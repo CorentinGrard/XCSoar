@@ -16,6 +16,7 @@
 #include "ApplyExternalSettings.hpp"
 #include "Device/MultipleDevices.hpp"
 #include "Input/TaskEventObserver.hpp"
+#include "Monitor/WindMonitor.hpp"
 #include "Task/ProtectedTaskManager.hpp"
 #include "Components.hpp"
 #include "BackendComponents.hpp"
@@ -30,6 +31,7 @@
 #include <memory>
 
 static TaskEventObserver task_event_observer;
+static WindMonitor wind_monitor;
 
 void
 CoreReceiveSensorData(OperationEnvironment &env) noexcept
@@ -52,6 +54,9 @@ CoreReceiveCalculatedData() noexcept
     const ProtectedTaskManager::Lease lease{*backend_components->protected_task_manager};
     task_event_observer.Check(lease);
   }
+
+  /* the one monitor without UI: a newer wind clears the manual one */
+  wind_monitor.Check();
 }
 
 static void

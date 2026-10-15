@@ -82,6 +82,7 @@ fun FlightScreen(
     /** null when the core draws no map */
     onOpenMapSettings: (() -> Unit)? = null,
     onOpenSafety: () -> Unit = {},
+    onOpenWind: () -> Unit = {},
     onOpenVarioSound: () -> Unit = {},
     onOpenTracking: () -> Unit = {},
     onOpenReplay: () -> Unit = {},
@@ -143,6 +144,7 @@ fun FlightScreen(
         airspaceAlertsOff = !airspaceAlerts.warnings,
         onAcknowledge = viewModel::acknowledgeAirspace,
         onNextWaypoint = onOpenWaypoints,
+        onWind = onOpenWind,
         replay = ReplayControls(replaySpeed, viewModel::pauseReplay, viewModel::setReplaySpeed,
                                 viewModel::skipReplay, viewModel::stopReplay),
         menuOpen = menuOpen,
@@ -156,6 +158,7 @@ fun FlightScreen(
             onOpenUnits = onOpenUnits,
             onOpenMapSettings = onOpenMapSettings,
             onOpenSafety = onOpenSafety,
+            onOpenWind = onOpenWind,
             onOpenVarioSound = onOpenVarioSound,
             onOpenTracking = onOpenTracking,
             onOpenProfiles = onOpenProfiles,
@@ -254,6 +257,7 @@ fun FlightContent(
     airspaceAlertsOff: Boolean = false,
     onAcknowledge: (AirspaceWarningInfo, day: Boolean) -> Unit = { _, _ -> },
     onNextWaypoint: () -> Unit = {},
+    onWind: () -> Unit = {},
     tiles: List<TileValue>? = null,
     onEditTile: (Int) -> Unit = {},
     onTapTile: (Int) -> Unit = {},
@@ -273,7 +277,7 @@ fun FlightContent(
         val mapArea = @Composable { showNext: Boolean, modifier: Modifier,
                                     insets: WindowInsets ->
             MapArea(state, lastEvent, circling, map, warnings, airspaceHideTimer,
-                    airspaceAlertsOff, onAcknowledge, onNextWaypoint, onSetMacCready, showNext,
+                    airspaceAlertsOff, onAcknowledge, onNextWaypoint, onWind, onSetMacCready, showNext,
                     vario, replay, modifier, insets)
         }
 
@@ -339,6 +343,7 @@ private fun MapArea(
     alertsOff: Boolean,
     onAcknowledge: (AirspaceWarningInfo, day: Boolean) -> Unit,
     onNextWaypoint: () -> Unit,
+    onWind: () -> Unit,
     onSetMacCready: (Double) -> Unit,
     /** false in landscape, where the side panel shows it */
     showNext: Boolean,
@@ -410,7 +415,7 @@ private fun MapArea(
                 when {
                     state == null -> StatusChip("Starting…", colors.textSecondary)
                     else -> {
-                        WindChip(state.wind)
+                        WindChip(state.wind, onClick = onWind)
                         if (state.position == null) StatusChip("NO GPS", colors.caution)
                         if (alertsOff) StatusChip("AIRSPACE ALERTS OFF", colors.caution)
                         if (state.replay && replay == null)
@@ -693,6 +698,7 @@ fun flightMenu(
     /** null when the core draws no map */
     onOpenMapSettings: (() -> Unit)? = {},
     onOpenSafety: () -> Unit = {},
+    onOpenWind: () -> Unit = {},
     onOpenVarioSound: () -> Unit = {},
     onOpenTracking: () -> Unit = {},
     onOpenProfiles: () -> Unit = {},
@@ -733,6 +739,7 @@ fun flightMenu(
         MenuSection("Settings", listOfNotNull(
             MenuAction("Airspace", describe(airspaceAlerts), onClick = onOpenAirspaceAlerts),
             MenuAction("Safety heights", "Arrival, terrain, safety MC", onClick = onOpenSafety),
+            MenuAction("Wind", "Set by hand, estimates", onClick = onOpenWind),
             MenuAction("Vario sound", "Volume, mode, dead band", onClick = onOpenVarioSound),
             onOpenMapSettings?.let {
                 MenuAction("Map", "Terrain, topography, trail", onClick = it)

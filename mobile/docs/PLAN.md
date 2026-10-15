@@ -17,13 +17,13 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M1 | Headless core behind the C API, replay tests on the host | ☑ done |
 | M2 | Android skeleton: replay an IGC, see live InfoBoxes | ◐ demo works on the emulator |
 | M3 | Moving map in the new app | ◐ map, gestures, hold card on the phone |
-| M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ all features in; field test and L5 left |
+| M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ all features in, flown once (2026-10-10); L5 left |
 | M5 | External devices: Bluetooth / BLE / USB, drivers, declaration | ☐ on hold: no hardware ([not done](#not-done-no-external-hardware)) |
 | M6 | Settings, profiles, data management | ☐ |
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** M4 field test (IGC logging on a takeoff), L5 replay test.
+**Current focus:** M6 pages for the remaining tiles (wind done), L5 replay test.
 M5 is on hold: no external device to test with.
 
 ---
@@ -228,7 +228,12 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       core resets the glide computer and drops the goto task the
       replayed takeoff created (`TaskManager::ClearGoto()`): before, the
       live flight kept the replay's "(takeoff)" target 16,000 km away,
-      its thermals and its task progress.  Checked on a Pixel 7
+      its thermals and its task progress.  Checked on a Pixel 7.
+      Fixed 2026-10-15: a replay that reached the end of its file froze
+      the core (its watch timer destroyed itself from its own callback,
+      then locked a freed mutex in a loop): the flight screen stayed on
+      the last replayed values.  `EndReplay()` now cancels the timer;
+      TestCoreApi replays a flight to its end
 - [x] **L4** Roborazzi screenshot tests of the flight screen against the
       fake core (cruise, circling, night, no data, landscape); reference
       images in `app/src/test/screenshots`, checked in CI
@@ -334,14 +339,14 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       profile, off by default like XCSoar); the volume keys set the media
       volume.  Checked on a Pixel 7 during a replay.  Volume, mode
       (auto / vario / STF) and dead band settings: later (M6)
-- [~] IGC logging on by default; flight list with share/export.  The
+- [x] IGC logging on by default; flight list with share/export.  The
       core starts XCSoar's IGC logger on takeoff and stops it on landing
       like default.xci's "AutoLogger" events (profile setting, on by
       default; never for replays): `CoreProcessGlideComputerEvent()`.
       Menu → Flights lists `XCSoarData/logs/*.igc`, newest first, and
       shares one through a FileProvider.  List and share checked on a
-      Pixel 7; **auto start/stop not yet seen on a real takeoff** (needs
-      a car/walk test or test GPS fixes)
+      Pixel 7.  Auto start/stop seen on a real flight (2026-10-10, LS 4:
+      10:25–12:44 UTC, 2,837 fixes, plane and glider ID in the header)
 - [x] Analysis pages (Menu → Analysis): barograph, climb history, task
       speed and contest, from XCSoar's FlightStatistics and contest
       results (`xcs_get_analysis`, `core/host/CoreAnalysis.cpp`), charts
@@ -358,8 +363,10 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       parameter.  Not yet: the airspace cross-section, the task's
       observation zones, and the maps on terrain (plain background)
 - [ ] **L5** instrumented replay test on an emulator in CI (nightly)
-- [ ] **Demo / field test:** car or walk test, then a real flight *next to* a
-      certified instrument or the upstream XCSoar app
+- [~] **Demo / field test:** a real flight with the app open on the
+      phone (2026-10-10): no bug seen by the pilot, IGC recorded, "last
+      flown" plane kept.  Not yet compared with a certified instrument
+      or the upstream XCSoar app
 
 ## M5 — External devices
 - [ ] Port abstraction: `xcs_port_ops` (platform supplies a byte stream)
@@ -408,8 +415,8 @@ the core already links but that has never run in this app:
       does (`xcs_tiles_click`: HandleClick() runs, the dialog seams record
       what it asked for, else its panels): analysis pages open Analysis
       on that page, alternates and waypoint lists open Go to, the
-      altitude panels Flight setup (QNH); wind, status, team code,
-      airspace, radio and MacCready panels have no page yet.  The Battery InfoBox shows the phone's charge
+      altitude panels Flight setup (QNH), the wind panel Wind; status,
+      team code, airspace, radio and MacCready panels have no page yet.  The Battery InfoBox shows the phone's charge
       and "AC ON"/"AC Off": upstream's BatteryReceiver (copied, D13)
       feeds src/Android/Battery.cpp, now linked into the core; checked
       on a Pixel 7 (plugged in, and unplugged at 57 % with `dumpsys
@@ -448,6 +455,18 @@ the core already links but that has never run in this app:
       clearance, safety MacCready, speed-to-fly risk factor, alternates
       order, turn back marker (`xcs_safety_set_option` / `_get_option`,
       XCSoar's SafetyFactorsConfigPanel keys)
+- [x] Wind (Menu → Wind, a tap on the wind chip over the map or on a
+      wind tile), like upstream's wind settings dialog: the wind in use
+      and its source (circling, ZigZag, external, set by hand, none), the
+      wind set by hand (5° and one unit steps, in use at once until a
+      newer estimate replaces it: upstream's WindMonitor now runs in the
+      core), Clear, and the circling / ZigZag / external estimates and
+      trail drift switches (AutoWind, ExternalWind, TrailDrift).
+      `xcs_wind_get`, `xcs_wind_set_manual`, `xcs_wind_clear_manual`,
+      `xcs_wind_set_option` / `_get_option`.  Checked on a Pixel 7 on
+      the ground and in a replay of the 2026-10-10 flight (circling
+      estimate 271° 12 km/h, then a manual wind over it; a newer
+      estimate replacing it not seen yet)
 - [x] Vario sound (Settings → Vario sound): on/off, volume, Vario or Auto
       (speed to fly in cruise, needs airspeed), dead band and its edges
       (`xcs_sound_option` 3–6).  Tone frequencies stay XCSoar's defaults
@@ -522,7 +541,8 @@ the core already links but that has never run in this app:
   co-pilot is only in the IGC header
 - Automatic upload after landing (upstream's "WeGlideAutomaticUpload" is
   for flights downloaded from loggers)
-- "Last flown" is recorded at take-off: not yet seen on a real take-off
+- "Last flown" is recorded at take-off: seen on a real take-off
+  (2026-10-10)
 - Plane editor: no custom polar yet (upstream's PlanePolarDialog import
   / custom polar coefficients); masses, ballast, dump time, speed limit,
   wing area and handicap are editable (2026-10-03)
@@ -579,6 +599,11 @@ the core already links but that has never run in this app:
 ---
 
 ## Log
+
+- 2026-10-15 — First real flight with the app (2026-10-10, by the
+  pilot): no bug seen, IGC logged on its own.  Wind page.  Fixed: a
+  replay reaching the end of its file froze the core.
+
 
 - 2026-10-07 — Analysis: all of upstream's pages but the airspace
   cross-section.

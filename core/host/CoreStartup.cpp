@@ -278,7 +278,7 @@ CoreStartup(OperationEnvironment &operation, bool open_devices)
 
   /* no AllMonitors: they react to backend state by showing UI
      (task advance, airspace warnings, traffic); the core reports
-     events instead */
+     events instead; WindMonitor runs in CoreReceive.cpp */
 
   if (!is_simulator() && computer_settings.logger.enable_flight_logger) {
     backend_components->flight_logger =

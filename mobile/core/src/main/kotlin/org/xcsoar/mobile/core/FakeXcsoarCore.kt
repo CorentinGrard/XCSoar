@@ -134,6 +134,29 @@ class FakeXcsoarCore(
         safety[option] = value
     }
 
+    private val windOptions = mutableMapOf(
+        WindOption.CIRCLING to true, WindOption.ZIG_ZAG to true,
+        WindOption.EXTERNAL to true, WindOption.TRAIL_DRIFT to false)
+    private var manualWind: WindInfo? = null
+
+    override suspend fun windOption(option: WindOption): Boolean? = windOptions[option]
+
+    override suspend fun setWindOption(option: WindOption, value: Boolean) {
+        windOptions[option] = value
+    }
+
+    override suspend fun wind(): WindInfo =
+        manualWind ?: WindInfo(WindSource.CIRCLING, manual = false, speed = 4.5,
+                               bearing = 270.0)
+
+    override suspend fun setManualWind(speed: Double, bearing: Double) {
+        manualWind = WindInfo(WindSource.MANUAL, manual = true, speed, bearing)
+    }
+
+    override suspend fun clearManualWind() {
+        manualWind = null
+    }
+
     private var notamSettings = NotamSettings()
 
     override suspend fun notamSettings(): NotamSettings = notamSettings

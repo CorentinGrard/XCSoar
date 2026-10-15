@@ -49,6 +49,7 @@
 #include "CoreNotam.hpp"
 #include "util/Exception.hxx"
 #include "CoreUnits.hpp"
+#include "Units/Units.hpp"
 
 #ifdef ANDROID
 #include "CoreMap.hpp"
@@ -2340,6 +2341,155 @@ xcs_safety_get_option(xcs_core *core, uint32_t option, double *value_r)
       *value_r = task.turn_back_marker_enabled;
       break;
     }
+    return XCS_OK;
+  });
+}
+
+/** The setting behind a wind option; nullptr for an unknown option. */
+static bool *
+WindOption(uint32_t option) noexcept
+{
+  auto &wind = CommonInterface::SetComputerSettings().wind;
+  switch (option) {
+  case XCS_WIND_CIRCLING:
+    return &wind.circling_wind;
+  case XCS_WIND_ZIG_ZAG:
+    return &wind.zig_zag_wind;
+  case XCS_WIND_EXTERNAL:
+    return &wind.external_wind;
+  case XCS_WIND_TRAIL_DRIFT:
+    return &CommonInterface::SetMapSettings().trail.wind_drift_enabled;
+  default:
+    return nullptr;
+  }
+}
+
+xcs_status
+xcs_wind_set_option(xcs_core *core, uint32_t option, int32_t value)
+{
+  if (core == nullptr || (value != 0 && value != 1))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  /* like WindSettingsPanel::Save() */
+  return RunOnMain(*core, [option, value]{
+    bool *setting = WindOption(option);
+    if (setting == nullptr)
+      return XCS_ERROR_INVALID_ARGUMENT;
+
+    *setting = value != 0;
+
+    const auto &wind = CommonInterface::GetComputerSettings().wind;
+    switch (option) {
+    case XCS_WIND_CIRCLING:
+    case XCS_WIND_ZIG_ZAG:
+      Profile::Set(ProfileKeys::AutoWind, wind.GetLegacyAutoWindMode());
+      break;
+    case XCS_WIND_EXTERNAL:
+      Profile::Set(ProfileKeys::ExternalWind, wind.external_wind);
+      break;
+    case XCS_WIND_TRAIL_DRIFT:
+      Profile::Set(ProfileKeys::TrailDrift, *setting);
+      break;
+    }
+
+    Profile::Save();
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_wind_get_option(xcs_core *core, uint32_t option, int32_t *value_r)
+{
+  if (core == nullptr || value_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [option, value_r]{
+    const bool *setting = WindOption(option);
+    if (setting == nullptr)
+      return XCS_ERROR_INVALID_ARGUMENT;
+
+    *value_r = *setting;
+    return XCS_OK;
+  });
+}
+
+static constexpr xcs_wind_source
+ToWindSource(DerivedInfo::WindSource source) noexcept
+{
+  switch (source) {
+  case DerivedInfo::WindSource::NONE:
+    break;
+  case DerivedInfo::WindSource::MANUAL:
+    return XCS_WIND_SOURCE_MANUAL;
+  case DerivedInfo::WindSource::CIRCLING:
+    return XCS_WIND_SOURCE_CIRCLING;
+  case DerivedInfo::WindSource::EKF:
+    return XCS_WIND_SOURCE_ZIG_ZAG;
+  case DerivedInfo::WindSource::EXTERNAL:
+    return XCS_WIND_SOURCE_EXTERNAL;
+  }
+
+  return XCS_WIND_SOURCE_NONE;
+}
+
+xcs_status
+xcs_wind_get(xcs_core *core, xcs_wind *wind_r)
+{
+  if (core == nullptr || wind_r == nullptr ||
+      wind_r->struct_size < sizeof(xcs_wind))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [wind_r]{
+    const auto &calculated = CommonInterface::Calculated();
+    const auto &settings = CommonInterface::GetComputerSettings().wind;
+
+    /* a manual wind set since the last calculation is already in use,
+       as WindSettingsPanel shows it */
+    const bool pending = settings.manual_wind_available &&
+      settings.manual_wind_available.Modified(calculated.wind_available);
+    const SpeedVector wind = pending
+      ? settings.manual_wind
+      : calculated.GetWindOrZero();
+
+    wind_r->source = pending
+      ? XCS_WIND_SOURCE_MANUAL
+      : calculated.wind_available
+      ? ToWindSource(calculated.wind_source)
+      : XCS_WIND_SOURCE_NONE;
+    wind_r->manual = bool(settings.manual_wind_available);
+    wind_r->speed = wind.norm;
+    wind_r->bearing = wind.bearing.Degrees();
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_wind_set_manual(xcs_core *core, double speed, double bearing)
+{
+  if (core == nullptr ||
+      !(speed >= 0 &&
+        speed <= Units::ToSysUnit(200, Unit::KILOMETER_PER_HOUR) + 0.01) ||
+      !(bearing >= 0 && bearing <= 360))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  /* like WindSettingsPanel::OnModified() */
+  return RunOnMain(*core, [speed, bearing]{
+    auto &settings = CommonInterface::SetComputerSettings().wind;
+    settings.manual_wind.norm = speed;
+    settings.manual_wind.bearing = Angle::Degrees(bearing).AsBearing();
+    settings.manual_wind_available.Update(CommonInterface::Basic().clock);
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_wind_clear_manual(xcs_core *core)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, []{
+    CommonInterface::SetComputerSettings().wind.manual_wind_available.Clear();
     return XCS_OK;
   });
 }

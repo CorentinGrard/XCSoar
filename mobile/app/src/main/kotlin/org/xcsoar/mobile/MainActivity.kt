@@ -79,6 +79,8 @@ import org.xcsoar.mobile.ui.settings.AirspaceAlertsScreen
 import org.xcsoar.mobile.ui.settings.AirspaceAlertsViewModel
 import org.xcsoar.mobile.ui.settings.SafetyScreen
 import org.xcsoar.mobile.ui.settings.SafetyViewModel
+import org.xcsoar.mobile.ui.settings.WindScreen
+import org.xcsoar.mobile.ui.settings.WindViewModel
 import org.xcsoar.mobile.ui.settings.VarioSoundScreen
 import org.xcsoar.mobile.ui.settings.NotamScreen
 import org.xcsoar.mobile.ui.settings.NotamViewModel
@@ -104,7 +106,7 @@ import java.io.File
 private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS,
                             TASK, TASK_FILES, TASK_ADD_POINT, UNITS, ANALYSIS,
                             CREW, PLANE_EDIT, PILOT, TILE_PICKER,
-                            AIRSPACE_ALERTS, SAFETY, VARIO_SOUND, TRACKING, WEATHER,
+                            AIRSPACE_ALERTS, SAFETY, WIND, VARIO_SOUND, TRACKING, WEATHER,
                             NOTAMS, REPLAY, PROFILES }
 
 /** How deep a page is: pages further in slide in from the right. */
@@ -304,6 +306,8 @@ class MainActivity : ComponentActivity() {
                     })
                 val safetyViewModel: SafetyViewModel = viewModel(
                     factory = viewModelFactory { initializer { SafetyViewModel(app.anyCore) } })
+                val windViewModel: WindViewModel = viewModel(
+                    factory = viewModelFactory { initializer { WindViewModel(app.anyCore) } })
                 val airspaceAlertsViewModel: AirspaceAlertsViewModel = viewModel(
                     factory = viewModelFactory {
                         initializer { AirspaceAlertsViewModel(app.anyCore) }
@@ -371,6 +375,7 @@ class MainActivity : ComponentActivity() {
                                                 ({ screen = Screen.MAP_SETTINGS })
                                             else null,
                         onOpenSafety = { screen = Screen.SAFETY },
+                        onOpenWind = { screen = Screen.WIND },
                         onOpenVarioSound = { screen = Screen.VARIO_SOUND },
                         onOpenTracking = { screen = Screen.TRACKING },
                         onOpenReplay = { screen = Screen.REPLAY },
@@ -385,6 +390,8 @@ class MainActivity : ComponentActivity() {
                                 "alternates", "waypoints", "waypoint" -> screen = Screen.WAYPOINTS
                                 // QNH, as in upstream's altitude setup panel
                                 "altitude" -> screen = Screen.FLIGHT_SETUP
+                                // upstream's wind settings dialog
+                                "wind" -> screen = Screen.WIND
                                 // the others have no page in the app yet
                             }
                         },
@@ -454,6 +461,8 @@ class MainActivity : ComponentActivity() {
                                 varioSoundViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.SAFETY -> SafetyScreen(
                                 safetyViewModel, onBack = { screen = Screen.FLIGHT })
+                            Screen.WIND -> WindScreen(
+                                windViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.AIRSPACE_ALERTS -> AirspaceAlertsScreen(
                                 airspaceAlertsViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.PILOT -> PilotScreen(

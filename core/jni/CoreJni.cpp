@@ -34,6 +34,7 @@
 #include <jni.h>
 
 #include <cassert>
+#include <iterator>
 #include <limits>
 #include <string>
 
@@ -517,6 +518,60 @@ Java_org_xcsoar_mobile_NativeCore_nativeSafetyGetOption(JNIEnv *, jclass,
   return xcs_safety_get_option(ToCore(core), option, &value) == XCS_OK
     ? value
     : std::numeric_limits<double>::quiet_NaN();
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWindSetOption(JNIEnv *, jclass,
+                                                      jlong core, jint option,
+                                                      jint value)
+{
+  return xcs_wind_set_option(ToCore(core), option, value);
+}
+
+/** @return the value, or Integer.MIN_VALUE on error */
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWindGetOption(JNIEnv *, jclass,
+                                                      jlong core, jint option)
+{
+  int32_t value;
+  return xcs_wind_get_option(ToCore(core), option, &value) == XCS_OK
+    ? value
+    : INT32_MIN;
+}
+
+/** @return {source, manual, speed, bearing} of xcs_wind_get(), or null */
+JNIEXPORT jdoubleArray JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWindGet(JNIEnv *env, jclass,
+                                                jlong core)
+{
+  xcs_wind wind{};
+  wind.struct_size = sizeof(wind);
+  if (xcs_wind_get(ToCore(core), &wind) != XCS_OK)
+    return nullptr;
+
+  const jdouble values[] = {
+    double(wind.source), double(wind.manual), wind.speed, wind.bearing,
+  };
+  jdoubleArray array = env->NewDoubleArray(std::size(values));
+  if (array != nullptr)
+    env->SetDoubleArrayRegion(array, 0, std::size(values), values);
+  return array;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWindSetManual(JNIEnv *, jclass,
+                                                      jlong core,
+                                                      jdouble speed,
+                                                      jdouble bearing)
+{
+  return xcs_wind_set_manual(ToCore(core), speed, bearing);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWindClearManual(JNIEnv *, jclass,
+                                                        jlong core)
+{
+  return xcs_wind_clear_manual(ToCore(core));
 }
 
 /** @return the JSON of xcs_polar_get(), or null */

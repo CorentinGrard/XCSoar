@@ -13,6 +13,7 @@
 #include "TestUtil.hpp"
 
 #include <atomic>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -816,6 +817,45 @@ TestSafety(xcs_core *core)
 }
 
 static void
+TestWind(xcs_core *core)
+{
+  int32_t circling = -1, drift = -1, value = -1;
+  ok1(xcs_wind_get_option(core, XCS_WIND_CIRCLING, &circling) == XCS_OK);
+  ok1(xcs_wind_get_option(core, XCS_WIND_TRAIL_DRIFT, &drift) == XCS_OK);
+  ok1(xcs_wind_get_option(core, 99, &value) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_wind_set_option(core, 99, 1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_wind_set_option(core, XCS_WIND_CIRCLING, 2) == XCS_ERROR_INVALID_ARGUMENT);
+
+  ok1(xcs_wind_set_option(core, XCS_WIND_CIRCLING, !circling) == XCS_OK);
+  ok1(xcs_wind_get_option(core, XCS_WIND_CIRCLING, &value) == XCS_OK &&
+      value == !circling);
+  ok1(xcs_wind_set_option(core, XCS_WIND_TRAIL_DRIFT, !drift) == XCS_OK);
+  ok1(xcs_wind_get_option(core, XCS_WIND_TRAIL_DRIFT, &value) == XCS_OK &&
+      value == !drift);
+  ok1(xcs_wind_set_option(core, XCS_WIND_CIRCLING, circling) == XCS_OK);
+  ok1(xcs_wind_set_option(core, XCS_WIND_TRAIL_DRIFT, drift) == XCS_OK);
+
+  xcs_wind wind{};
+  ok1(xcs_wind_get(core, &wind) == XCS_ERROR_INVALID_ARGUMENT);
+  wind.struct_size = sizeof(wind);
+
+  ok1(xcs_wind_set_manual(core, -1, 0) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_wind_set_manual(core, 60, 0) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_wind_set_manual(core, 5, 361) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_wind_set_manual(core, std::numeric_limits<double>::quiet_NaN(), 0) ==
+      XCS_ERROR_INVALID_ARGUMENT);
+
+  /* in use at once, also before the next calculation */
+  ok1(xcs_wind_set_manual(core, 5, 270) == XCS_OK);
+  ok1(xcs_wind_get(core, &wind) == XCS_OK);
+  ok1(wind.manual == 1 && wind.source == XCS_WIND_SOURCE_MANUAL);
+  ok1(std::fabs(wind.speed - 5) < 0.01 && std::fabs(wind.bearing - 270) < 0.01);
+
+  ok1(xcs_wind_clear_manual(core) == XCS_OK);
+  ok1(xcs_wind_get(core, &wind) == XCS_OK && wind.manual == 0);
+}
+
+static void
 TestReplayControls(xcs_core *core)
 {
   ok1(xcs_replay_set_time_scale(nullptr, 1) == XCS_ERROR_INVALID_ARGUMENT);
@@ -1066,7 +1106,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 5);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -1088,6 +1128,7 @@ main()
   TestUnits(core);
   TestAirspaceOptions(core);
   TestSafety(core);
+  TestWind(core);
   TestPlanesAndCrew(core);
   TestTracking(core);
   TestWeather(core);

@@ -76,6 +76,22 @@ interface XcsoarCore {
     /** Set a safety margin; saved in the profile. */
     suspend fun setSafetyOption(option: SafetyOption, value: Double) {}
 
+    /** A wind setting; null if the core has none. */
+    suspend fun windOption(option: WindOption): Boolean? = null
+
+    /** Change a wind setting; saved in the profile. */
+    suspend fun setWindOption(option: WindOption, value: Boolean) {}
+
+    /** The wind in use and where it comes from; null if the core has none. */
+    suspend fun wind(): WindInfo? = null
+
+    /** Set the wind by hand (m/s, degrees it comes from), until a newer
+        estimate replaces it. */
+    suspend fun setManualWind(speed: Double, bearing: Double) {}
+
+    /** Forget the manual wind. */
+    suspend fun clearManualWind() {}
+
     /** XCSoar's airspace classes, drawn and warned of or not. */
     suspend fun airspaceClasses(): List<AirspaceClassInfo> = emptyList()
 
@@ -416,6 +432,32 @@ enum class SafetyOption(val code: Int) {
     /** 0/1: the turn back marker on the map */
     TURN_BACK_MARKER(6),
 }
+
+/** Values of `xcs_wind_option` (core/api/xcsoar_core.h). */
+enum class WindOption(val code: Int) {
+    /** estimate the wind while circling (GPS only) */
+    CIRCLING(1),
+    /** estimate the wind in glides (needs airspeed) */
+    ZIG_ZAG(2),
+    /** take the wind of other instruments */
+    EXTERNAL(3),
+    /** drift the snail trail with the wind when circling */
+    TRAIL_DRIFT(4),
+}
+
+/** Values of `xcs_wind_source`. */
+enum class WindSource(val code: Int) {
+    NONE(0), MANUAL(1), CIRCLING(2), ZIG_ZAG(3), EXTERNAL(4);
+
+    companion object {
+        fun fromCode(code: Int) = entries.firstOrNull { it.code == code } ?: NONE
+    }
+}
+
+/** The wind in use: m/s and the degrees it comes from (valid unless
+    [source] is NONE); [manual] while the pilot's wind is set. */
+data class WindInfo(val source: WindSource, val manual: Boolean, val speed: Double,
+                    val bearing: Double)
 
 /** Values of `xcs_map_option` (core/api/xcsoar_core.h). */
 enum class MapOption(val code: Int) {

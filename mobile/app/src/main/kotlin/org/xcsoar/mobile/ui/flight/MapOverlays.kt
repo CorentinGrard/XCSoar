@@ -145,12 +145,18 @@ fun NextWaypointCard(
 
 /** Wind: an arrow showing where it blows to, "270° · 16 km/h". */
 @Composable
-fun WindChip(wind: Wind?, modifier: Modifier = Modifier) {
+fun WindChip(wind: Wind?, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     val colors = XcsTheme.colors
     val from = Format.bearing(wind?.bearing)
     val speed = Format.windSpeed(wind?.speed)
     val text = "${from.text}${from.unit} · ${speed.text} ${speed.unit}"
-    FloatingCard(modifier.clearAndSetSemantics { contentDescription = "Wind from $text" },
+    FloatingCard(modifier
+                     // no clip: it would cut off the card's shadow
+                     .then(if (onClick != null)
+                         Modifier.clickable(role = Role.Button, onClickLabel = "Set the wind",
+                                            onClick = onClick)
+                     else Modifier)
+                     .clearAndSetSemantics { contentDescription = "Wind from $text" },
                  RoundedCornerShape(12.dp)) {
         Row(Modifier.padding(start = 6.dp, end = 10.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,

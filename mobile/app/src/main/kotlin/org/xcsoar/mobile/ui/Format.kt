@@ -103,6 +103,10 @@ object Format {
     fun stepSpeed(ms: Double, direction: Int) =
         step(UnitGroup.HORIZONTAL_SPEED, ms, 5.0, direction)
 
+    /** One wind speed step (1 unit) from [ms] in [direction] (±1), in m/s. */
+    fun stepWindSpeed(ms: Double, direction: Int) =
+        step(UnitGroup.WIND_SPEED, ms, 1.0, direction)
+
     private fun step(group: UnitGroup, si: Double, step: Double, direction: Int): Double {
         val unit = unit(group)
         return unit.toSi(round(unit.toUser(si) / step + direction) * step)

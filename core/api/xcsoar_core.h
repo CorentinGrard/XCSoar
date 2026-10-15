@@ -543,6 +543,69 @@ xcs_safety_set_option(xcs_core *core, uint32_t option, double value);
 XCS_EXPORT xcs_status
 xcs_safety_get_option(xcs_core *core, uint32_t option, double *value_r);
 
+/*
+ * Wind: how XCSoar estimates it (its "Wind Settings") and the wind the
+ * pilot sets by hand.
+ */
+
+typedef enum xcs_wind_option {
+  /** 0/1: estimate the wind while circling, needs a GPS only
+      [AutoWind, bit 0] */
+  XCS_WIND_CIRCLING = 1,
+  /** 0/1: estimate the wind in glides, needs an airspeed sensor
+      [AutoWind, bit 1] */
+  XCS_WIND_ZIG_ZAG = 2,
+  /** 0/1: take the wind of other instruments [ExternalWind] */
+  XCS_WIND_EXTERNAL = 3,
+  /** 0/1: drift the snail trail with the wind when circling
+      [TrailDrift] */
+  XCS_WIND_TRAIL_DRIFT = 4,
+} xcs_wind_option;
+
+/** Set a wind option; saved in the profile.  XCS_ERROR_INVALID_ARGUMENT
+    for an unknown option or a value other than 0 and 1. */
+XCS_EXPORT xcs_status
+xcs_wind_set_option(xcs_core *core, uint32_t option, int32_t value);
+
+XCS_EXPORT xcs_status
+xcs_wind_get_option(xcs_core *core, uint32_t option, int32_t *value_r);
+
+/** Where the wind in use comes from. */
+typedef enum xcs_wind_source {
+  XCS_WIND_SOURCE_NONE = 0,
+  XCS_WIND_SOURCE_MANUAL = 1,
+  XCS_WIND_SOURCE_CIRCLING = 2,
+  XCS_WIND_SOURCE_ZIG_ZAG = 3,
+  XCS_WIND_SOURCE_EXTERNAL = 4,
+} xcs_wind_source;
+
+typedef struct xcs_wind {
+  /** Must be sizeof(xcs_wind). */
+  uint32_t struct_size;
+  /** An xcs_wind_source; NONE when there is no wind. */
+  uint32_t source;
+  /** 1 while the pilot's manual wind is set: it is used until an
+      estimate newer than it comes in, which clears it */
+  uint32_t manual;
+  /** The wind in use, valid unless source is NONE: m/s, and degrees
+      it comes from */
+  double speed;
+  double bearing;
+} xcs_wind;
+
+/** The wind in use and where it comes from. */
+XCS_EXPORT xcs_status
+xcs_wind_get(xcs_core *core, xcs_wind *wind_r);
+
+/** Set the wind by hand: m/s (0..200 km/h) and the direction it comes
+    from (0..360 degrees).  Not saved; a newer estimate replaces it. */
+XCS_EXPORT xcs_status
+xcs_wind_set_manual(xcs_core *core, double speed, double bearing);
+
+/** Forget the manual wind; the estimates are used again. */
+XCS_EXPORT xcs_status
+xcs_wind_clear_manual(xcs_core *core);
+
 /**
  * XCSoar's airspace classes, in its numbering, with whether each is
  * drawn on the map and warned of, and how many the loaded airspace

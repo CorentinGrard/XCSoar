@@ -133,6 +133,13 @@ internal object NativeCore {
     @JvmStatic external fun nativeSafetySetOption(core: Long, option: Int, value: Double): Int
     /** @return the value, or NaN on error */
     @JvmStatic external fun nativeSafetyGetOption(core: Long, option: Int): Double
+    @JvmStatic external fun nativeWindSetOption(core: Long, option: Int, value: Int): Int
+    /** @return the value, or Int.MIN_VALUE on error */
+    @JvmStatic external fun nativeWindGetOption(core: Long, option: Int): Int
+    /** @return {source, manual, speed, bearing}, or null on error */
+    @JvmStatic external fun nativeWindGet(core: Long): DoubleArray?
+    @JvmStatic external fun nativeWindSetManual(core: Long, speed: Double, bearing: Double): Int
+    @JvmStatic external fun nativeWindClearManual(core: Long): Int
     /** @return JSON or null */
     @JvmStatic external fun nativePolarGet(core: Long, index: Int): String?
     @JvmStatic external fun nativePlaneSetDetails(core: Long, path: String, emptyMass: Double,

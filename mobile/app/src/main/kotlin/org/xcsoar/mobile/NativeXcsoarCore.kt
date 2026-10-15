@@ -46,6 +46,9 @@ import org.xcsoar.mobile.core.PlaneDetails
 import org.xcsoar.mobile.core.PolarInfo
 import org.xcsoar.mobile.core.ProfileInfo
 import org.xcsoar.mobile.core.SafetyOption
+import org.xcsoar.mobile.core.WindInfo
+import org.xcsoar.mobile.core.WindOption
+import org.xcsoar.mobile.core.WindSource
 import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.WaypointFilter
 import org.xcsoar.mobile.core.WaypointInfo
@@ -235,6 +238,28 @@ class NativeXcsoarCore(
 
     override suspend fun setSafetyOption(option: SafetyOption, value: Double) =
         command { NativeCore.nativeSafetySetOption(it, option.code, value) }
+
+    override suspend fun windOption(option: WindOption): Boolean? = lock.withLock {
+        if (handle == 0L) return@withLock null
+        withContext(Dispatchers.IO) { NativeCore.nativeWindGetOption(handle, option.code) }
+            .takeIf { it != Int.MIN_VALUE }?.let { it != 0 }
+    }
+
+    override suspend fun setWindOption(option: WindOption, value: Boolean) =
+        command { NativeCore.nativeWindSetOption(it, option.code, if (value) 1 else 0) }
+
+    override suspend fun wind(): WindInfo? = lock.withLock {
+        if (handle == 0L) return@withLock null
+        withContext(Dispatchers.IO) { NativeCore.nativeWindGet(handle) }?.let {
+            WindInfo(WindSource.fromCode(it[0].toInt()), manual = it[1] != 0.0,
+                     speed = it[2], bearing = it[3])
+        }
+    }
+
+    override suspend fun setManualWind(speed: Double, bearing: Double) =
+        command { NativeCore.nativeWindSetManual(it, speed, bearing) }
+
+    override suspend fun clearManualWind() = command { NativeCore.nativeWindClearManual(it) }
 
     override suspend fun airspaceClasses(): List<AirspaceClassInfo> = lock.withLock {
         if (handle == 0L) return@withLock emptyList()

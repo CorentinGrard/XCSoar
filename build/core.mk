@@ -51,7 +51,8 @@ CORE_UI_SOURCES = \
 	$(SRC)/DisplayMode.cpp
 
 # Kept although they live in UI directories: settings (the core owns
-# the profile, so existing profiles load unchanged) and the display
+# the profile, so existing profiles load unchanged), the wind monitor
+# (it only clears the manual wind) and the display
 # density used by the map (Renderer/ and Screen/ stay whole: the map
 # draws with them, D6).
 CORE_KEEP_SOURCES = \
@@ -59,6 +60,7 @@ CORE_KEEP_SOURCES = \
 	$(SRC)/Gauge/TrafficSettings.cpp \
 	$(SRC)/Dialogs/DialogSettings.cpp \
 	$(SRC)/Input/TaskEventObserver.cpp \
+	$(SRC)/Monitor/WindMonitor.cpp \
 	$(SRC)/Hardware/DisplayDPI.cpp \
 	$(SRC)/Gauge/ThermalAssistantRenderer.cpp
 
