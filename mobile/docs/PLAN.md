@@ -19,11 +19,14 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M3 | Moving map in the new app | ◐ map, gestures, hold card on the phone |
 | M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ all features in, flown once (2026-10-10); L5 left |
 | M5 | External devices: Bluetooth / BLE / USB, drivers, declaration | ☐ on hold: no hardware ([not done](#not-done-no-external-hardware)) |
-| M6 | Settings, profiles, data management | ☐ |
+| M6 | Settings, profiles, data management | ◐ most pages in; tiles: team code, airspace, radio left |
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** M6 pages for the remaining tiles (wind done), L5 replay test.
+**Current focus:** M6 pages for the remaining tiles (team code, airspace,
+radio), L5 replay test.  Open: the map that stopped drawing once
+(M3, not reproduced; next idea: screen off/on cycles during a replay,
+which locks the phone, so only with the pilot's OK).
 M5 is on hold: no external device to test with.
 
 ---
@@ -636,8 +639,13 @@ the core already links but that has never run in this app:
 
 - 2026-10-15 — First real flight with the app (2026-10-10, by the
   pilot): no bug seen, IGC logged on its own.  Wind page.  Fixed: a
-  replay reaching the end of its file froze the core.  Auto MacCready,
-  Status page.
+  replay reaching the end of its file froze the core (ASan catches
+  it), and a MacCready set by hand did not keep Auto off after Android
+  ended the app.  Auto MacCready, Status page, upstream "No" translated
+  in the rules status page.  Replay checks: a circling estimate
+  replaced a manual wind, Auto MacCready rose 0.5 → 0.9 in climbs.
+  The map stopped drawing once (not reproduced; xcsoar.log now records
+  its surface).  Next: team code / airspace / radio tiles, L5, the map.
 
 
 - 2026-10-07 — Analysis: all of upstream's pages but the airspace
