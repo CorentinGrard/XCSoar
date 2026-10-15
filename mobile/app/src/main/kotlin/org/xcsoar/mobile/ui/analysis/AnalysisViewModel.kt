@@ -5,6 +5,7 @@ package org.xcsoar.mobile.ui.analysis
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +32,9 @@ class AnalysisViewModel(private val core: XcsoarCore) : ViewModel() {
         while (true) {
             try {
                 core.analysis()?.let { analysisFlow.value = it }
+            } catch (e: CancellationException) {
+                // the page was left
+                throw e
             } catch (e: Exception) {
                 // keep the last pages; the next round tries again
                 Log.w("XCSoar", "analysis not read", e)

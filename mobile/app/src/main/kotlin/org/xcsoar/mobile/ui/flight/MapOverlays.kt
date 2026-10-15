@@ -52,12 +52,19 @@ import org.xcsoar.mobile.ui.theme.XcsTheme
 /**
  * A white card floating over the map; with [elevated] false, a flat
  * panel on the instrument sheet instead.
+ *
+ * @param onClick makes the card a button, its ripple inside the shape
+ * (after the shadow, which a clip in [modifier] would cut off)
+ * @param description what a screen reader says for the whole card
  */
 @Composable
 fun FloatingCard(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(16.dp),
     elevated: Boolean = true,
+    onClick: (() -> Unit)? = null,
+    onClickLabel: String? = null,
+    description: String? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
     val colors = XcsTheme.colors
@@ -68,7 +75,16 @@ fun FloatingCard(
                     .shadow(8.dp, shape, ambientColor = colors.text, spotColor = colors.text)
                     .background(colors.card, shape)
                     .border(1.dp, colors.panelBorder, shape)
-            else Modifier.background(colors.panel, shape)),
+            else Modifier.background(colors.panel, shape))
+            .then(if (onClick != null)
+                Modifier.clip(shape)
+                    .clickable(role = Role.Button, onClickLabel = onClickLabel,
+                               onClick = onClick)
+            else Modifier)
+            // last: it would clear the click's semantics before it
+            .then(if (description != null)
+                Modifier.clearAndSetSemantics { contentDescription = description }
+            else Modifier),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
@@ -93,18 +109,13 @@ fun NextWaypointCard(
     val name = next?.name?.ifEmpty { null } ?: if (next == null) "No target" else Format.INVALID
 
     FloatingCard(
-        modifier
-            .then(if (onClick != null)
-                Modifier.clip(RoundedCornerShape(16.dp))
-                    .clickable(role = Role.Button, onClickLabel = "Choose where to go",
-                               onClick = onClick)
-            else Modifier)
-            .clearAndSetSemantics {
-                contentDescription = if (next == null) "No target" else
-                    "Next $name, ${distance.text} ${distance.unit}, bearing ${bearing.text}, " +
-                        "arrival ${arrival.text} ${arrival.unit}"
-            },
+        modifier,
         elevated = elevated,
+        onClick = onClick,
+        onClickLabel = "Choose where to go",
+        description = if (next == null) "No target" else
+            "Next $name, ${distance.text} ${distance.unit}, bearing ${bearing.text}, " +
+                "arrival ${arrival.text} ${arrival.unit}",
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -150,14 +161,8 @@ fun WindChip(wind: Wind?, modifier: Modifier = Modifier, onClick: (() -> Unit)? 
     val from = Format.bearing(wind?.bearing)
     val speed = Format.windSpeed(wind?.speed)
     val text = "${from.text}${from.unit} · ${speed.text} ${speed.unit}"
-    FloatingCard(modifier
-                     // no clip: it would cut off the card's shadow
-                     .then(if (onClick != null)
-                         Modifier.clickable(role = Role.Button, onClickLabel = "Set the wind",
-                                            onClick = onClick)
-                     else Modifier)
-                     .clearAndSetSemantics { contentDescription = "Wind from $text" },
-                 RoundedCornerShape(12.dp)) {
+    FloatingCard(modifier, RoundedCornerShape(12.dp), onClick = onClick,
+                 onClickLabel = "Set the wind", description = "Wind from $text") {
         Row(Modifier.padding(start = 6.dp, end = 10.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
