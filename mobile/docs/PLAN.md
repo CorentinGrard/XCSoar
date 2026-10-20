@@ -146,9 +146,18 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       event loop wake flag, curl shutdown), suppressed with reasons in
       `core/test/tsan.supp`; none in core code. Golden replays also clean
       under ASan
-- [ ] Upstream TAP regression test for the `TriangleContest` fix (before
-      sending it upstream)
-- [ ] Run L1 + L2 under ASan/TSan in CI.  By hand on this Fedora host
+- [x] Upstream TAP regression test for the `TriangleContest` fix:
+      `TestTriangleContest` (2026-10-20), a heap-use-after-free under ASan
+      before the fix, clean after.  It needed the solver as
+      ContestComputer runs it (predicting, incremental).  On the way: an
+      upstream hang in `Trace::EraseDelta()` (ran past the end of its
+      list when a trace is smaller than its no-thin window), fixed with
+      a TestTraceBounds case.  Both ready to send upstream.  Upstream
+      `make check` here: 123 of 124 programs pass (11,610 checks);
+      `TestWrapText` does not link on this Fedora host (VirtualCanvas)
+- [~] Run L1 + L2 under ASan/TSan in CI.  ASan: job `core-asan`
+      (2026-10-20, not run yet).  TSan: not yet (Ubuntu 24.04 runners'
+      ASLR setting breaks it; to try here first).  By hand on this Fedora host
       (2026-10-15, 373 checks clean, `ASAN_OPTIONS=detect_leaks=0`):
       `make SANITIZE=address TARGET_OUTPUT_DIR=output/UNIX-asan
       output/UNIX-asan/bin/TestCoreApi` with the usual Fedora variables
