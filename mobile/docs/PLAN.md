@@ -658,7 +658,8 @@ the core already links but that has never run in this app:
       crew screens, first run, night theme review, FLARM alarm
 - [ ] Cockpit UX pass: touch targets ≥ 56 dp, sunlight contrast audit,
       one-handed quick actions, landscape + portrait, tablet layouts
-- [~] Screen always on (done), orientation lock, brightness shortcut
+- [x] Screen always on.  Orientation lock and a brightness shortcut: not
+      wanted, the phone does both (pilot, 2026-10-07)
 - [ ] Crash reporting (opt-in, privacy-friendly) + native crash symbolication
 - [ ] F-Droid / Play internal testing track
 - [ ] User docs: migration guide from XCSoar
