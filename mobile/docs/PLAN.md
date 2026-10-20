@@ -400,7 +400,11 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       -Pxcsoar.abis=arm64-v8a` (2 tests, ~40 s, pass).  CI: jobs `l5-build`
       (x86_64 core) and `l5` (API 36 emulator) on every push to `mobile`,
       not nightly: GitHub schedules only run from the default branch
-      (master).  **The CI jobs have not run yet.**  The tile test fails
+      (master).  First CI run (2026-10-20): l5-build passes, l5 fails on
+      the emulator ("no climb or sink on the vario within 120 s"; passes
+      on the phone).  The test now says what it saw and the job keeps
+      logcat and a screenshot; the emulator crashes on this Fedora host,
+      so the next clue comes from CI.  The tile test fails
       on the code before 616d42bde6 (panel seams folded by --icf=all,
       which the host tests cannot see)
 - [~] **Demo / field test:** a real flight with the app open on the
@@ -664,10 +668,12 @@ the core already links but that has never run in this app:
       Touch targets done (2026-10-20): the theme sets Compose's minimum
       touch target to 56 dp (smaller controls get a 56 dp touch area
       where there is room, unchanged look); Analysis page tabs 56 dp;
-      `TouchTargetsTest` checks 19 screens.  Left: tile long press
-      fires while the finger is down (XCSoar's rule: arm on hold, commit
-      on lift-off, doc/architecture.rst), sunlight contrast audit,
-      landscape / tablet review
+      `TouchTargetsTest` checks 19 screens.  Tiles take a tap or a hold
+      as XCSoar's InfoBoxes (doc/architecture.rst "Touch interaction"):
+      both commit on lift-off, sliding off cancels, a one-way fill from
+      150 to 500 ms and a haptic tick when the hold is armed
+      (`TileGestureTest`; not yet felt on the phone).  Left: sunlight
+      contrast audit, landscape / tablet review
 - [x] Screen always on.  Orientation lock and a brightness shortcut: not
       wanted, the phone does both (pilot, 2026-10-07)
 - [ ] Crash reporting (opt-in, privacy-friendly) + native crash symbolication

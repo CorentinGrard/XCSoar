@@ -332,4 +332,16 @@ jobs:
           script: |
             adb install -r $(find apk -name app-l5.apk)
             adb install -r $(find apk -name app-l5-androidTest.apk)
-            adb shell am instrument -w org.xcsoar.mobile.l5.test/androidx.test.runner.AndroidJUnitRunner | tee l5.txt; grep -q "^OK (" l5.txt || { grep -E "^[0-9]+\)|Error|Exception" l5.txt | head -20 | sed 's/^/::error::/'; exit 1; }
+            adb shell am instrument -w org.xcsoar.mobile.l5.test/androidx.test.runner.AndroidJUnitRunner | tee l5.txt; adb logcat -d > logcat.txt; adb exec-out screencap -p > l5.png; grep -q "^OK (" l5.txt || { grep -E "^[0-9]+\)|Error|Exception" l5.txt | head -20 | sed 's/^/::error::/'; exit 1; }
+
+      # what the emulator showed and logged, to read a failure
+      - name: Upload the test output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: xcsoar-mobile-l5-output
+          path: |
+            l5.txt
+            logcat.txt
+            l5.png
+          retention-days: 7

@@ -3,16 +3,26 @@
 
 package org.xcsoar.mobile.ui.flight
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -39,7 +49,6 @@ import org.xcsoar.mobile.ui.theme.XcsTheme
  * [valueColor] is an optional functional colour (lift/sink, safe/caution);
  * leave it `null` for plain data, which stays monochrome.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun InfoBox(
     title: String,
@@ -54,18 +63,47 @@ fun InfoBox(
 ) {
     val colors = XcsTheme.colors
     val spoken = "$title ${value.text} ${value.unit} $comment".trim()
+    val shape = RoundedCornerShape(12.dp)
+    val feedback = remember { HoldFeedback() }
+    val haptic = LocalHapticFeedback.current
+    val tap by rememberUpdatedState(onClick)
+    val hold by rememberUpdatedState(onLongClick)
     Column(
         modifier = modifier
-            .background(colors.panel, RoundedCornerShape(12.dp))
+            .background(colors.panel, shape)
             .then(if (onLongClick != null || onClick != null)
-                      Modifier.combinedClickable(onClickLabel = "Open".takeIf { onClick != null },
-                                                 onClick = onClick ?: {},
-                                                 onLongClickLabel = "Change tile"
-                                                     .takeIf { onLongClick != null },
-                                                 onLongClick = onLongClick)
+                      // tap or hold, committed on lift-off as XCSoar's InfoBoxes
+                      Modifier
+                          .pointerInput(Unit) {
+                              detectTapOrHold(feedback, onTap = { tap?.invoke() },
+                                              onHold = { hold?.invoke() },
+                                              onArmed = {
+                                                  if (hold != null)
+                                                      haptic.performHapticFeedback(
+                                                          HapticFeedbackType.LongPress)
+                                              })
+                          }
+                          .clip(shape)
+                          .drawWithContent {
+                              if (feedback.pressed)
+                                  drawRect(colors.text.copy(alpha = PRESSED_ALPHA))
+                              // the hold's one-way fill, left to right
+                              val fill = feedback.fill.value
+                              if (fill > 0f && hold != null)
+                                  drawRect(colors.selected.copy(alpha = FILL_ALPHA),
+                                           size = size.copy(width = size.width * fill))
+                              drawContent()
+                          }
                   else Modifier)
             .padding(horizontal = 10.dp, vertical = 8.dp)
-            .clearAndSetSemantics { contentDescription = spoken },
+            .clearAndSetSemantics {
+                contentDescription = spoken
+                if (onClick != null) {
+                    role = Role.Button
+                    onClick("Open") { onClick(); true }
+                }
+                if (onLongClick != null) onLongClick("Change tile") { onLongClick(); true }
+            },
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         CaptionLine(title, comment, commentColor ?: colors.textSecondary)
@@ -73,6 +111,10 @@ fun InfoBox(
              style = XcsTheme.numberStyle, maxLines = 1)
     }
 }
+
+/** The pressed look of a tile, and its hold fill, over the panel colour. */
+private const val PRESSED_ALPHA = 0.08f
+private const val FILL_ALPHA = 0.25f
 
 /**
  * The title, and the comment at the end of its line with what the

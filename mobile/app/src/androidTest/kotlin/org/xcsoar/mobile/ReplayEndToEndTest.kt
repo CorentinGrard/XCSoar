@@ -60,9 +60,13 @@ class ReplayEndToEndTest {
             exists(hasContentDescription("Skip 10 minutes"))
         }
 
-        // XCSoar sees the take-off a few minutes into the file
+        // XCSoar sees the take-off a few minutes into the file; "On ground"
+        // also goes when the core has no state ("Starting…"): not a take-off
         compose.onNodeWithContentDescription("Skip 10 minutes").performClick()
-        waitFor("the take-off", FLIGHT_MS) { !exists(hasText("On ground")) }
+        waitFor("the take-off", FLIGHT_MS) {
+            !exists(hasText("On ground")) && !exists(hasText("Starting…")) &&
+                exists(hasContentDescription("Stop replay"))
+        }
 
         waitFor("a climb or sink on the vario", FLIGHT_MS) {
             descriptions("Vario ").any { !it.startsWith("Vario 0.0,") &&
@@ -133,7 +137,11 @@ class ReplayEndToEndTest {
         try {
             compose.waitUntil(timeoutMs, condition)
         } catch (e: Throwable) {
-            throw AssertionError("no $what within ${timeoutMs / 1000} s", e)
+            // what the flight screen showed instead
+            val seen = (descriptions("Vario ") + descriptions("Wind from ") +
+                        listOf("On ground", "Starting…", "NO GPS", "REPLAY")
+                            .filter { exists(hasText(it)) }).joinToString(" | ")
+            throw AssertionError("$what: not within ${timeoutMs / 1000} s; seen: $seen", e)
         }
     }
 
