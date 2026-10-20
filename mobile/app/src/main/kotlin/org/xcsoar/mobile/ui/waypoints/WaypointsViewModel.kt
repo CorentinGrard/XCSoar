@@ -5,6 +5,7 @@ package org.xcsoar.mobile.ui.waypoints
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,7 +38,12 @@ class WaypointsViewModel(
 
     private var job: Job? = null
 
-    /** Shown: search now and again every few seconds (distances change in flight). */
+    /**
+     * Shown: search now, then refresh the distances and arrival heights
+     * every few seconds (they change in flight).  The order stays as the
+     * first search made it until the search or the filter changes, like
+     * upstream's list: a row never moves under the pilot's finger.
+     */
     fun open() {
         stateFlow.update { it.copy(done = false, error = null) }
         restart()
@@ -75,11 +81,18 @@ class WaypointsViewModel(
     private fun restart() {
         job?.cancel()
         job = viewModelScope.launch {
+            var first = true
             while (isActive) {
                 val s = stateFlow.value
                 try {
                     val found = core.searchWaypoints(s.query, s.filter, MAX_RESULTS)
-                    stateFlow.update { it.copy(waypoints = found) }
+                    stateFlow.update {
+                        it.copy(waypoints = if (first) found else keepOrder(it.waypoints, found))
+                    }
+                    first = false
+                } catch (e: CancellationException) {
+                    // a newer search replaced this one
+                    throw e
                 } catch (e: Exception) {
                     stateFlow.update { it.copy(waypoints = emptyList(), error = e.message) }
                 }
@@ -88,8 +101,24 @@ class WaypointsViewModel(
         }
     }
 
-    private companion object {
-        const val MAX_RESULTS = 50
-        const val REFRESH_MS = 5000L
+    companion object {
+        private const val MAX_RESULTS = 50
+        private const val REFRESH_MS = 5000L
+
+        /**
+         * The rows of [shown] in their order, with the newer values of
+         * [found]; a row [found] no longer has keeps its old values.  [found]
+         * as it is when nothing is shown, or when [shown] was sorted by
+         * name for want of a position and [found] has one: the first fix
+         * sorts the list once, nearest first.
+         */
+        fun keepOrder(shown: List<WaypointInfo>?, found: List<WaypointInfo>):
+                List<WaypointInfo> {
+            if (shown.isNullOrEmpty() ||
+                (shown.all { it.distance == null } && found.any { it.distance != null }))
+                return found
+            val newer = found.associateBy { it.id }
+            return shown.map { newer[it.id] ?: it }
+        }
     }
 }
