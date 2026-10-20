@@ -155,10 +155,10 @@ fun AirspaceDetailsContent(
                     onFrequency(RadioSlot.STANDBY)
                 }
             }
-            state.frequencySet?.let {
-                Explanation("${details.frequency} MHz is now the " +
-                            "${it.name.lowercase()} frequency.")
-            }
+            // one line either way: the button below does not move
+            Explanation(state.frequencySet?.let {
+                "${details.frequency} MHz is now the ${it.name.lowercase()} frequency."
+            } ?: "Sends ${details.frequency} MHz to the radio.")
         }
 
         ActionButton(if (details.acknowledged) "Enable" else "Ack Day", outlined = true,

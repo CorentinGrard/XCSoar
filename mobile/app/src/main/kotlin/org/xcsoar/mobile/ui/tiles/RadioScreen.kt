@@ -138,7 +138,7 @@ fun RadioContent(
         InputField(mhz, {
             mhz = it
             invalid = false
-        }, label = if (invalid) "118.000 to 136.990 MHz" else "Frequency · MHz",
+        }, label = if (invalid) "No channel: 118.000 to 136.990 MHz" else "Frequency · MHz",
                    keyboardType = KeyboardType.Decimal)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (slot in RadioSlot.entries)
@@ -184,7 +184,7 @@ private fun Frequency(slot: RadioSlot, radio: RadioInfo?) {
                 Text("MHz", color = colors.textSecondary, fontSize = 17.sp,
                      modifier = Modifier.padding(bottom = 6.dp))
         }
-        if (name.isNotEmpty())
-            Text(name, color = colors.textSecondary, fontSize = 15.sp)
+        // always a line: the buttons below do not move when it is empty
+        Text(name.ifEmpty { " " }, color = colors.textSecondary, fontSize = 15.sp)
     }
 }
