@@ -441,3 +441,21 @@ CoreTask::Deinitialise() noexcept
 {
   edit_task.reset();
 }
+
+bool
+CoreTask::Edit(std::unique_ptr<OrderedTask> task) noexcept
+{
+  if (GetTaskManager() == nullptr || task == nullptr)
+    return false;
+
+  task->SetTaskBehaviour(GetTaskBehaviour());
+  task->UpdateGeometry();
+  edit_task = std::move(task);
+  return true;
+}
+
+const TaskBehaviour &
+CoreTask::GetBehaviour() noexcept
+{
+  return GetTaskBehaviour();
+}

@@ -1220,6 +1220,36 @@ XCS_EXPORT xcs_status
 xcs_weglide_upload(xcs_core *core, const char *igc_path, char *buffer,
                    size_t size, size_t *length_r);
 
+/** WeGlide's task lists (xcs_weglide_tasks()). */
+typedef enum xcs_weglide_task_list {
+  /** the pilot's own tasks; needs the pilot ID */
+  XCS_WEGLIDE_TASKS_MINE = 0,
+  /** every pilot's declared task */
+  XCS_WEGLIDE_TASKS_DECLARED = 1,
+  /** today's daily competitions */
+  XCS_WEGLIDE_TASKS_TODAY = 2,
+  /** recently scored tasks */
+  XCS_WEGLIDE_TASKS_SCORES = 3,
+} xcs_weglide_task_list;
+
+/**
+ * A WeGlide task list as JSON (core/host/CoreWeGlide.hpp ListTasks()).
+ * Blocks; not on the core main thread.  XCS_ERROR_FAILED with
+ * {"error": "..."} on a network or WeGlide error.
+ */
+XCS_EXPORT xcs_status
+xcs_weglide_tasks(xcs_core *core, uint32_t which, char *buffer, size_t size,
+                  size_t *length_r);
+
+/**
+ * Download a WeGlide task into the task editor, with its own turn
+ * points; the pilot reviews it and commits it as with xcs_task_load().
+ * Writes {"points": 4}.  Blocks; XCS_ERROR_FAILED as xcs_weglide_tasks().
+ */
+XCS_EXPORT xcs_status
+xcs_weglide_task_load(xcs_core *core, uint64_t task_id, char *buffer,
+                      size_t size, size_t *length_r);
+
 /**
  * Describe the configured data files and what was loaded from them, as
  * a JSON object (UTF-8, null-terminated):

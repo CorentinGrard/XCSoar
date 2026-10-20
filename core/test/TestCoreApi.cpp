@@ -497,6 +497,14 @@ TestPlanesAndCrew(xcs_core *core)
   char answer[512];
   ok1(xcs_weglide_upload(core, FLIGHT, answer, sizeof(answer), &length) == XCS_ERROR_FAILED &&
       Contains(answer, "\"error\":"));
+
+  /* task lists: an unknown one, and the pilot's own without an ID */
+  ok1(xcs_weglide_tasks(core, 4, answer, sizeof(answer), &length) ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_weglide_set(core, 0, 0, "") == XCS_OK &&
+      xcs_weglide_tasks(core, XCS_WEGLIDE_TASKS_MINE, answer, sizeof(answer),
+                        &length) == XCS_ERROR_FAILED &&
+      Contains(answer, "pilot ID"));
 }
 
 static void
@@ -1290,7 +1298,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2);
 
   Recorder recorder;
   TestCreateArguments(recorder);

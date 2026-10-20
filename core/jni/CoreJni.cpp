@@ -975,6 +975,29 @@ Java_org_xcsoar_mobile_NativeCore_nativePlaneSave(JNIEnv *env, jclass,
   });
 }
 
+/** @return the JSON of xcs_weglide_tasks() or its {"error": ...}; null on
+    a bad argument */
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWeGlideTasks(JNIEnv *env, jclass,
+                                                     jlong core, jint which)
+{
+  return GetNetworkJson(env, [&](char *buffer, size_t size, size_t *length){
+    return xcs_weglide_tasks(ToCore(core), which, buffer, size, length);
+  });
+}
+
+/** @return {"points": n} or {"error": ...}; null on a bad argument */
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeWeGlideTaskLoad(JNIEnv *env, jclass,
+                                                        jlong core,
+                                                        jlong task_id)
+{
+  return GetNetworkJson(env, [&](char *buffer, size_t size, size_t *length){
+    return xcs_weglide_task_load(ToCore(core), uint64_t(task_id), buffer,
+                                 size, length);
+  });
+}
+
 /** @return the JSON of xcs_polar_parse(), or null */
 JNIEXPORT jstring JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativePolarParse(JNIEnv *env, jclass,

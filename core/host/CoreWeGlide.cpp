@@ -14,6 +14,10 @@
 #include "net/client/WeGlide/AircraftList.hpp"
 #include "net/client/WeGlide/Error.hpp"
 #include "net/client/WeGlide/UploadFlight.hpp"
+#include "net/client/WeGlide/ListTasks.hpp"
+#include "net/client/WeGlide/DownloadTask.hpp"
+#include "Engine/Task/Ordered/OrderedTask.hpp"
+#include "Engine/Task/TaskBehaviour.hpp"
 #include "net/http/Init.hpp"
 #include "lib/curl/CoStreamRequest.hxx"
 #include "lib/curl/Easy.hxx"
@@ -249,4 +253,71 @@ CoreWeGlide::Upload(const char *igc_path, const UploadRequest &request)
     {"registration", string(flight, "registration")},
     {"competition_id", string(flight, "competition_id")},
   });
+}
+
+static Co::Task<std::vector<WeGlide::TaskInfo>>
+DownloadTaskList(CoreWeGlide::TaskList which, const WeGlideSettings &settings,
+                 ProgressListener &progress)
+{
+  switch (which) {
+  case CoreWeGlide::TaskList::MINE:
+    return WeGlide::ListTasksByUser(*Net::curl, settings, settings.pilot_id,
+                                    progress);
+  case CoreWeGlide::TaskList::DECLARED:
+    return WeGlide::ListDeclaredTasks(*Net::curl, settings, progress);
+  case CoreWeGlide::TaskList::TODAY:
+    return WeGlide::ListDailyCompetitions(*Net::curl, settings, progress);
+  case CoreWeGlide::TaskList::SCORES:
+    break;
+  }
+  return WeGlide::ListRecentTaskScores(*Net::curl, settings, progress);
+}
+
+std::string
+CoreWeGlide::ListTasks(TaskList which, const WeGlideSettings &settings)
+{
+  if (which == TaskList::MINE && settings.pilot_id == 0)
+    throw std::runtime_error("Set your WeGlide pilot ID first");
+
+  NullOperationEnvironment env;
+  const auto tasks = RunNetworkTask(DownloadTaskList(which, settings, env));
+
+  boost::json::array a;
+  for (const auto &task : tasks) {
+    boost::json::array turnpoints;
+    for (const auto &tp : task.turnpoints)
+      turnpoints.emplace_back(tp.name.c_str());
+
+    boost::json::array scores;
+    for (const auto &score : task.scores)
+      scores.emplace_back(boost::json::object{
+        {"user", score.user_name.c_str()},
+        {"points", score.points},
+        /* km/h in WeGlide's answer */
+        {"speed", score.speed / 3.6},
+      });
+
+    a.emplace_back(boost::json::object{
+      {"id", task.id},
+      {"name", task.name.c_str()},
+      {"user_name", task.user_name.c_str()},
+      {"distance", task.distance},
+      {"kind", WeGlide::ToString(task.kind)},
+      {"ruleset", task.ruleset.c_str()},
+      {"scoring_date", task.scoring_date.c_str()},
+      {"turnpoints", std::move(turnpoints)},
+      {"scores", std::move(scores)},
+    });
+  }
+  return Serialize(a);
+}
+
+std::unique_ptr<OrderedTask>
+CoreWeGlide::DownloadTask(uint64_t id, const TaskBehaviour &behaviour)
+{
+  WeGlideSettings settings;
+  settings.SetDefaults();
+  NullOperationEnvironment env;
+  return RunNetworkTask(WeGlide::DownloadTask(*Net::curl, settings, id,
+                                              behaviour, nullptr, env));
 }

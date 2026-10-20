@@ -40,6 +40,8 @@
 #include "CoreTask.hpp"
 #include "CoreAnalysis.hpp"
 #include "CoreStatus.hpp"
+#include "Engine/Task/TaskBehaviour.hpp"
+#include "Engine/Task/Ordered/OrderedTask.hpp"
 #include "Polar/Shape.hpp"
 #include "CoreTilePages.hpp"
 #include "CorePlanes.hpp"
@@ -1793,6 +1795,64 @@ xcs_weglide_upload(xcs_core *core, const char *igc_path, char *buffer,
       throw std::runtime_error("Choose the WeGlide aircraft type of "
                                "this plane first");
     return CoreWeGlide::Upload(igc_path, request);
+  });
+}
+
+xcs_status
+xcs_weglide_tasks(xcs_core *core, uint32_t which, char *buffer, size_t size,
+                  size_t *length_r)
+{
+  if (core == nullptr || which > XCS_WEGLIDE_TASKS_SCORES)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  WeGlideSettings settings;
+  settings.SetDefaults();
+  if (!core->IsMainThread()) {
+    const auto status = RunOnMain(*core, [&settings]{
+      settings = CommonInterface::GetComputerSettings().weglide;
+      return XCS_OK;
+    });
+    if (status != XCS_OK)
+      return status;
+  }
+
+  return RunNetwork(core, buffer, size, length_r, [&]{
+    return CoreWeGlide::ListTasks(CoreWeGlide::TaskList(which), settings);
+  });
+}
+
+xcs_status
+xcs_weglide_task_load(xcs_core *core, uint64_t task_id, char *buffer,
+                      size_t size, size_t *length_r)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  /* the pilot's task rules, read on the core main thread */
+  std::optional<TaskBehaviour> behaviour;
+  if (!core->IsMainThread()) {
+    const auto status = RunOnMain(*core, [&behaviour]{
+      behaviour = CoreTask::GetBehaviour();
+      return XCS_OK;
+    });
+    if (status != XCS_OK)
+      return status;
+  }
+
+  std::unique_ptr<OrderedTask> task;
+  const auto status = RunNetwork(core, buffer, size, length_r, [&]{
+    task = CoreWeGlide::DownloadTask(task_id, *behaviour);
+    if (task == nullptr)
+      throw std::runtime_error("WeGlide has no such task");
+    StringOutputStream os;
+    Json::Serialize(os, boost::json::object{{"points", task->TaskSize()}});
+    return std::move(os).GetValue();
+  });
+  if (status != XCS_OK)
+    return status;
+
+  return RunOnMain(*core, [&task]{
+    return CoreTask::Edit(std::move(task)) ? XCS_OK : XCS_ERROR_STATE;
   });
 }
 

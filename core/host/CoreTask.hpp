@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 
 /**
@@ -16,6 +17,9 @@
  * allowed (e.g. no edit in progress, a point type the task type does
  * not accept).
  */
+class OrderedTask;
+struct TaskBehaviour;
+
 namespace CoreTask {
 
 /**
@@ -105,6 +109,15 @@ ListFiles() noexcept;
 /** Load a task from a file into the editor (editing starts). */
 bool
 Load(const char *path, unsigned index) noexcept;
+
+/** A task from elsewhere (e.g. WeGlide) into the editor (editing
+    starts); false without a task manager. */
+bool
+Edit(std::unique_ptr<OrderedTask> task) noexcept;
+
+/** The pilot's task rules, for a task built elsewhere. */
+const TaskBehaviour &
+GetBehaviour() noexcept;
 
 /**
  * Save the edited task as XCSoarData/tasks/<name>.tsk.

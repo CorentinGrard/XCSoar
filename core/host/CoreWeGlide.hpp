@@ -5,7 +5,12 @@
 
 #include "net/client/WeGlide/Settings.hpp"
 
+#include <cstdint>
+#include <memory>
 #include <string>
+
+class OrderedTask;
+struct TaskBehaviour;
 
 /**
  * WeGlide (https://www.weglide.org) without the UI: the settings of
@@ -78,5 +83,38 @@ PrepareUpload(const char *igc_path, UploadRequest &request) noexcept;
  */
 std::string
 Upload(const char *igc_path, const UploadRequest &request);
+
+/** WeGlide's task lists, as upstream's WeGlideTasksPanel offers them. */
+enum class TaskList : unsigned {
+  /** the pilot's own tasks (needs the pilot ID) */
+  MINE,
+  /** every pilot's declared task */
+  DECLARED,
+  /** today's daily competitions */
+  TODAY,
+  /** recently scored tasks */
+  SCORES,
+};
+
+/**
+ * Download a task list.  Blocks.
+ *
+ * @return [{"id": 123, "name": "...", "user_name": "...",
+ * "distance": 312000.0, "kind": "triangle", "ruleset": "D",
+ * "scoring_date": "2026-10-20", "turnpoints": ["Start", ...],
+ * "scores": [{"user": "...", "points": 812.0, "speed": 25.1}]}, ...]
+ * (m, m/s)
+ */
+std::string
+ListTasks(TaskList which, const WeGlideSettings &settings);
+
+/**
+ * Download one task with its own turn points (not matched to the
+ * waypoint database, which belongs to the core main thread).  Blocks.
+ *
+ * @return nullptr if WeGlide has no such task
+ */
+std::unique_ptr<OrderedTask>
+DownloadTask(uint64_t id, const TaskBehaviour &behaviour);
 
 } // namespace CoreWeGlide
