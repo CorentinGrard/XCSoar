@@ -20,6 +20,21 @@
 #include "Atmosphere/CuSonde.hpp"
 #include "Computer/Wind/Store.hpp"
 #include "Computer/Settings.hpp"
+#include "DataComponents.hpp"
+#include "MapSettings.hpp"
+#include "Airspace/AirspaceIntersectionVisitor.hpp"
+#include "Airspace/AirspaceVisibility.hpp"
+#include "Engine/Airspace/AbstractAirspace.hpp"
+#include "Engine/Airspace/Airspaces.hpp"
+#include "Engine/GlideSolvers/MacCready.hpp"
+#include "Engine/GlideSolvers/GlideState.hpp"
+#include "Engine/GlideSolvers/GlideResult.hpp"
+#include "Formatter/AirspaceFormatter.hpp"
+#include "NMEA/Aircraft.hpp"
+#include "Terrain/RasterTerrain.hpp"
+#include "Geo/GeoVector.hpp"
+#include "Formatter/HexColor.hpp"
+#include "ui/canvas/PortableColor.hpp"
 #include "NMEA/Derived.hpp"
 #include "NMEA/MoreData.hpp"
 #include "Math/LeastSquares.hpp"
@@ -564,6 +579,132 @@ TaskChart(const TaskManager &task_manager,
   return o;
 }
 
+/** "#RRGGBB" */
+static std::string
+HexColor(RGB8Color color) noexcept
+{
+  char buffer[8];
+  FormatHexColor(buffer, sizeof(buffer), color);
+  return buffer;
+}
+
+/**
+ * The airspaces on the cross-section, as AirspaceIntersectionVisitorSlice
+ * collects them: each visible airspace the line crosses, with its limits
+ * and where along the line it is.
+ */
+class CrossSectionAirspaces final : public AirspaceIntersectionVisitor {
+  const AirspaceRendererSettings &settings;
+  const GeoPoint start;
+  const double range;
+  const AltitudeState &state;
+
+public:
+  boost::json::array airspaces;
+
+  CrossSectionAirspaces(const AirspaceRendererSettings &_settings,
+                        GeoPoint _start, double _range,
+                        const AltitudeState &_state) noexcept
+    :settings(_settings), start(_start), range(_range), state(_state) {}
+
+  void Visit(ConstAirspacePtr airspace) noexcept override {
+    const AbstractAirspace &as = *airspace;
+    if (intersections.empty() || !IsAirspaceTypeOrClassVisible(as, settings))
+      return;
+
+    boost::json::array spans;
+    for (const auto &[from, to] : intersections)
+      /* only one edge: the next one is beyond the line */
+      spans.emplace_back(boost::json::array{
+        start.Distance(from), from == to ? range : start.Distance(to)});
+
+    const auto &look = settings.classes[as.GetTypeOrClass()];
+    airspaces.emplace_back(boost::json::object{
+      {"name", as.GetName()},
+      {"class", AirspaceFormatter::GetClassOrType(as)},
+      {"top", as.GetTopAltitude(state)},
+      {"base", as.IsBaseTerrain() ? 0. : as.GetBaseAltitude(state)},
+      {"fill", HexColor(look.fill_color)},
+      {"border", HexColor(look.border_color)},
+      {"spans", std::move(spans)},
+    });
+  }
+};
+
+/**
+ * The analysis dialog's airspace page (CrossSectionRenderer, as
+ * ChartControl::UpdateCrossSection() sets it up): 50 km along the
+ * track, the terrain under it in 64 slices, the airspaces it crosses
+ * and the glide line at the task polar.  null when not moving.
+ */
+static boost::json::value
+CrossSection(const MoreData &basic, const DerivedInfo &calculated,
+             const ComputerSettings &settings) noexcept
+{
+  if (!basic.location_available || !basic.track_available)
+    return nullptr;
+
+  static constexpr unsigned NUM_SLICES = 64;
+  const GeoPoint start = basic.location;
+  const GeoVector vec{50000, basic.track};
+
+  const double nav_altitude = basic.NavAltitudeAvailable()
+    ? basic.nav_altitude : 0.;
+  boost::json::object o{
+    {"range", vec.distance},
+    {"heights", boost::json::array{fdim(nav_altitude, 3300.),
+                                   std::max(3300., nav_altitude + 1000.)}},
+  };
+  if (basic.NavAltitudeAvailable())
+    o["altitude"] = basic.nav_altitude;
+
+  /* CrossSectionRenderer::UpdateTerrain() */
+  boost::json::array terrain;
+  if (data_components != nullptr && data_components->terrain != nullptr) {
+    const GeoPoint diff = vec.EndPoint(start) - start;
+    RasterTerrain::Lease map{*data_components->terrain};
+    for (unsigned i = 0; i < NUM_SLICES; ++i) {
+      const auto h = map->GetHeight(start + diff * (double(i) / (NUM_SLICES - 1)));
+      if (h.IsSpecial())
+        terrain.emplace_back(nullptr);
+      else
+        terrain.emplace_back(h.GetValue());
+    }
+  }
+  o["terrain"] = std::move(terrain);
+
+  if (data_components != nullptr && data_components->airspaces != nullptr) {
+    const AircraftState aircraft = ToAircraftState(basic, calculated);
+    CrossSectionAirspaces visitor{CommonInterface::GetMapSettings().airspace,
+                                  start, vec.distance, aircraft};
+    data_components->airspaces->VisitIntersecting(start, vec.EndPoint(start),
+                                                  true, visitor);
+    o["airspaces"] = std::move(visitor.airspaces);
+  }
+
+  /* CrossSectionRenderer::PaintGlide() */
+  const GlidePolar &polar = settings.polar.glide_polar_task;
+  if (basic.NavAltitudeAvailable() && polar.IsValid()) {
+    const class MacCready mc(settings.task.glide, polar);
+    const GlideState task(vec, 0, nav_altitude, calculated.GetWindOrZero());
+    const GlideResult result = mc.SolveStraight(task);
+    if (result.IsOk()) {
+      const double arrival = result.GetArrivalAltitude();
+      if (arrival > 0)
+        o["glide"] = boost::json::array{
+          boost::json::array{0., nav_altitude},
+          boost::json::array{result.vector.distance, arrival}};
+      else if (nav_altitude - arrival > 0)
+        /* down to zero, where the line meets the ground */
+        o["glide"] = boost::json::array{
+          boost::json::array{0., nav_altitude},
+          boost::json::array{result.vector.distance * nav_altitude /
+                             (nav_altitude - arrival), 0.}};
+    }
+  }
+  return o;
+}
+
 std::string
 CoreAnalysis::Describe() noexcept
 {
@@ -620,6 +761,7 @@ CoreAnalysis::Describe() noexcept
                                        settings);
   o["polar"] = Polar(polar, calculated.climb_history);
   o["mac_cready"] = MacCready(polar);
+  o["airspace"] = CrossSection(CommonInterface::Basic(), calculated, settings);
 
   StringOutputStream os;
   Json::Serialize(os, o);

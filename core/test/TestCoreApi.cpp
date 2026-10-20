@@ -1223,6 +1223,10 @@ TestStarted(xcs_core *core, Recorder &recorder)
         json.find("\"speeds\":[[0") != std::string::npos);
     /* no temperature probe in the IGC file */
     ok1(json.find("\"temperature\":{\"levels\":[]}") != std::string::npos);
+    /* the airspace cross-section: 50 km along the track, or none when
+       the replay's last fix has no track */
+    ok1(json.find("\"airspace\":{\"range\":5E4,\"heights\":[") != std::string::npos ||
+        json.find("\"airspace\":null") != std::string::npos);
   }
 
   ok1(recorder.HasEvent(XCS_GCE_TAKEOFF));
@@ -1298,7 +1302,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1);
 
   Recorder recorder;
   TestCreateArguments(recorder);
