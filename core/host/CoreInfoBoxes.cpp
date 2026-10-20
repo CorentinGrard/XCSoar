@@ -5,6 +5,13 @@
 #include "InfoBoxes/Content/Base.hpp"
 #include "InfoBoxes/Content/Factory.hpp"
 #include "InfoBoxes/Data.hpp"
+#include "Math/Angle.hpp"
+#include "Engine/Navigation/TraceHistory.hpp"
+#include "FlightStatistics.hpp"
+#include "Computer/GlideComputer.hpp"
+#include "BackendComponents.hpp"
+#include "Components.hpp"
+#include "Interface.hpp"
 #include "InfoBoxes/Panel/Panel.hpp"
 #include "Widget/Widget.hpp"
 #include "Language/Language.hpp"
@@ -19,6 +26,7 @@
 #include <algorithm>
 #include <array>
 #include <memory>
+#include <mutex>
 #include <string_view>
 #include <vector>
 
@@ -38,11 +46,11 @@ static constexpr Type DEFAULT_LAYOUTS[CoreInfoBoxes::LAYOUT_COUNT]
    e_WindSpeed_Est},
 };
 
-/** Types that only draw (OnCustomPaint()): no text to show in a tile. */
+/** Types that only draw (OnCustomPaint()) and whose drawing the app
+    does not have yet (Graphic()): not offered for a tile. */
 static constexpr Type GRAPHIC_TYPES[] = {
-  e_Barogram, e_Vario_spark, e_NettoVario_spark, e_CirclingAverage_spark,
-  e_ThermalBand, e_TaskProgress, e_Horizon, WIND_ARROW, THERMAL_ASSISTANT,
-  NEXT_ARROW, e_Climb_Perc_Chart,
+  e_ThermalBand, e_TaskProgress, e_Horizon, THERMAL_ASSISTANT,
+  e_Climb_Perc_Chart,
 };
 
 static bool
@@ -161,6 +169,114 @@ CoreInfoBoxes::SetTile(unsigned layout, unsigned tile, unsigned type) noexcept
   return true;
 }
 
+static boost::json::array
+History(const TraceVariableHistory &history) noexcept
+{
+  boost::json::array a;
+  for (double v : history)
+    a.emplace_back(v);
+  return a;
+}
+
+/** InfoBoxContentSpark::Paint(), TraceHistoryRenderer::RenderVario()'s
+    data: the last 30 values, oldest first (m/s). */
+static boost::json::object
+Spark(const TraceVariableHistory &history, bool center) noexcept
+{
+  const auto &calculated = CommonInterface::Calculated();
+  return {
+    {"kind", "spark"},
+    {"values", History(history)},
+    {"capacity", history.capacity()},
+    {"center", center},
+    {"mac_cready",
+     CommonInterface::GetComputerSettings().polar.glide_polar_task.GetMC()},
+    {"scale", boost::json::array{
+        calculated.common_stats.vario_scale_negative * (center ? 1 : 0),
+        calculated.common_stats.vario_scale_positive}},
+  };
+}
+
+/** A tile is a few dozen pixels wide: enough points for that. */
+static constexpr std::size_t SPARK_POINTS = 64;
+
+/** [[x, y], ...] of a data store, thinned to [SPARK_POINTS], with its
+    last point. */
+static boost::json::array
+Points(const LeastSquares &store) noexcept
+{
+  boost::json::array points;
+  if (!store.HasResult())
+    return points;
+
+  const auto slots = store.GetSlots();
+  const std::size_t step = (slots.size() + SPARK_POINTS - 1) / SPARK_POINTS;
+  for (std::size_t i = 0; i < slots.size(); i += step)
+    points.emplace_back(boost::json::array{slots[i].x, slots[i].y});
+  if ((slots.size() - 1) % step != 0)
+    points.emplace_back(boost::json::array{slots.back().x, slots.back().y});
+  return points;
+}
+
+/**
+ * What a graphical InfoBox's OnCustomPaint() draws, as data for the app
+ * to draw; null when it would draw nothing (no SetCustom()) or for a
+ * type the app does not draw.
+ */
+static boost::json::value
+Graphic(Type type, const InfoBoxData &data) noexcept
+{
+  if (data.GetCustom() == 0)
+    return nullptr;
+
+  const auto &basic = CommonInterface::Basic();
+  const auto &calculated = CommonInterface::Calculated();
+  const auto &trace = calculated.trace_history;
+
+  switch (type) {
+  case e_Vario_spark:
+    return Spark(trace.BruttoVario, true);
+  case e_NettoVario_spark:
+    return Spark(trace.NettoVario, true);
+  case e_CirclingAverage_spark:
+    return Spark(trace.CirclingAverage, false);
+
+  case e_Barogram: {
+    /* RenderBarographSpark(): the flight's altitude over time */
+    if (backend_components == nullptr || !backend_components->glide_computer)
+      return nullptr;
+    const auto &fs = backend_components->glide_computer->GetFlightStats();
+    const std::lock_guard lock{fs.mutex};
+    if (!fs.altitude.HasResult())
+      return nullptr;
+    return boost::json::object{
+      {"kind", "barogram"},
+      {"points", Points(fs.altitude)},
+      {"terrain", Points(fs.altitude_terrain)},
+    };
+  }
+
+  case WIND_ARROW:
+    /* where the wind blows to, relative to the heading */
+    return boost::json::object{
+      {"kind", "wind_arrow"},
+      {"angle", (calculated.wind.bearing - basic.attitude.heading +
+                 Angle::HalfCircle()).AsBearing().Degrees()},
+    };
+
+  case NEXT_ARROW:
+    /* where the next waypoint is, relative to the track */
+    return boost::json::object{
+      {"kind", "next_arrow"},
+      {"angle", (calculated.task_stats.current_leg.vector_remaining.bearing -
+                 basic.track).AsBearing().Degrees()},
+    };
+
+  default:
+    return nullptr;
+  }
+}
+
 /** A new type: a new content object, as
     InfoBoxManager::DisplayInfoBox() does. */
 static void
@@ -203,6 +319,7 @@ CoreInfoBoxes::Update(unsigned layout) noexcept
       {"comment", d.comment.c_str()},
       {"color", d.value_color},
       {"comment_color", d.comment_color},
+      {"graphic", Graphic(tile.type, d)},
     });
   }
   return Serialize(a);

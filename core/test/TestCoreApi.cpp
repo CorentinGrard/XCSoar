@@ -732,8 +732,9 @@ TestTiles(xcs_core *core)
     return xcs_tiles_types(core, b, s, l);
   });
   ok1(Contains(types, "{\"id\":" + std::to_string(e_Speed_GPS) + ",\"name\":"));
-  /* graphics only: no text for a tile */
-  ok1(!Contains(types, "{\"id\":" + std::to_string(e_Barogram) + ","));
+  /* graphics the app does not draw yet: not offered; the barogram is */
+  ok1(!Contains(types, "{\"id\":" + std::to_string(e_Horizon) + ",") &&
+      Contains(types, "{\"id\":" + std::to_string(e_Barogram) + ","));
 
   auto layouts = [core]{
     return GetJson([core](char *b, size_t s, size_t *l){
@@ -747,7 +748,7 @@ TestTiles(xcs_core *core)
 
   ok1(xcs_tiles_set(core, 2, 0, e_Speed_GPS) == XCS_ERROR_INVALID_ARGUMENT);
   ok1(xcs_tiles_set(core, XCS_TILES_CRUISE, 6, e_Speed_GPS) == XCS_ERROR_INVALID_ARGUMENT);
-  ok1(xcs_tiles_set(core, XCS_TILES_CRUISE, 0, e_Barogram) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_tiles_set(core, XCS_TILES_CRUISE, 0, e_Horizon) == XCS_ERROR_INVALID_ARGUMENT);
   ok1(xcs_tiles_set(core, XCS_TILES_CRUISE, 0, e_Speed_GPS) == XCS_OK);
   ok1(Contains(layouts(), "{\"layouts\":[[" + std::to_string(e_Speed_GPS) + "," +
                           std::to_string(e_HeightAGL) + ","));
@@ -762,6 +763,21 @@ TestTiles(xcs_core *core)
   });
   ok1(Contains(tiles, "{\"type\":" + std::to_string(e_Speed_GPS) + ",\"title\":\"V GND\""));
   ok1(Contains(tiles, "\"title\":\"Vopt\"") && Contains(tiles, "\"unit\":\"km/h\""));
+  ok1(Contains(tiles, "\"graphic\":null"));
+
+  /* a graphical InfoBox: what it draws, as data */
+  const auto graphic = [core](Type type){
+    xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, type);
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_tiles_update(core, XCS_TILES_CIRCLING, b, s, l);
+    });
+  };
+  ok1(Contains(graphic(e_Vario_spark),
+               "\"graphic\":{\"kind\":\"spark\",\"values\":["));
+  ok1(Contains(graphic(WIND_ARROW), "\"graphic\":{\"kind\":\"wind_arrow\",\"angle\":"));
+  /* nothing to draw without GPS, as upstream */
+  ok1(Contains(graphic(e_Barogram), "\"title\":\"Barogram\",\"value\":\"\"") &&
+      Contains(graphic(e_Barogram), "\"graphic\":null}]"));
 
   /* a tap: what upstream's InfoBox opens, as a page for the app */
   const auto click = [core](Type type){
@@ -1058,6 +1074,19 @@ TestReplayControls(xcs_core *core)
 
   ok1(xcs_replay_start(core, FLIGHT, 1) == XCS_OK);
   ok1(xcs_replay_fast_forward(core, 600) == XCS_OK);
+
+  /* in flight: the barogram tile has the flight's altitude to draw */
+  xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, InfoBoxFactory::e_Barogram);
+  bool barogram = false;
+  for (unsigned i = 0; i < 50 && !barogram; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    barogram = Contains(GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_tiles_update(core, XCS_TILES_CIRCLING, b, s, l);
+    }), "\"graphic\":{\"kind\":\"barogram\",\"points\":[[");
+  }
+  ok1(barogram);
+  xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, InfoBoxFactory::e_WindSpeed_Est);
+
   /* 0 pauses */
   ok1(xcs_replay_set_time_scale(core, 0) == XCS_OK);
   ok1(xcs_replay_set_time_scale(core, 20) == XCS_OK);
@@ -1302,7 +1331,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 5);
 
   Recorder recorder;
   TestCreateArguments(recorder);
