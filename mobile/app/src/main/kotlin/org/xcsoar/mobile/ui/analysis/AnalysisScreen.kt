@@ -160,7 +160,7 @@ private fun PageTabs(page: AnalysisPage, onPage: (AnalysisPage) -> Unit) {
         for (p in AnalysisPage.entries) {
             val selected = p == page
             Box(Modifier
-                    .height(48.dp)
+                    .height(56.dp)
                     .background(if (selected) colors.selected else Color.Transparent,
                                 RoundedCornerShape(9.dp))
                     .selectable(selected, role = Role.Tab) { onPage(p) }

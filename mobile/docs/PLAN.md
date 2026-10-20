@@ -480,7 +480,10 @@ the core already links but that has never run in this app:
       ballast, dump time, speed limit, wing area, handicap; the polar
       fills them in, `xcs_plane_set_details`) and the crew mass on the
       Flight setup page (`xcs_set_crew_mass`, also the default for the
-      next start): screenshot tests only, not yet on the phone
+      next start).  Checked on a Pixel 7 in the l5 app (2026-10-20): LS-4
+      fills in 235 / 361 kg, 121 l, 120 s, 10.5 m², 104 %; empty mass
+      +10 kg saved in the .xcp; crew mass 90 → 105 kg kept after a
+      restart
 - [~] WeGlide: Menu → Pilot & WeGlide (pilot name, pilot ID, date of
       birth, XCSoar's own profile keys); aircraft types downloaded from
       WeGlide; Flights → "Upload to WeGlide" with upstream's UploadFlight,
@@ -656,8 +659,15 @@ the core already links but that has never run in this app:
       page with "Soon" rows, Go to with a button per row; Roborazzi
       screenshots re-recorded.  Not yet: the task editor, aircraft and
       crew screens, first run, night theme review, FLARM alarm
-- [ ] Cockpit UX pass: touch targets ≥ 56 dp, sunlight contrast audit,
-      one-handed quick actions, landscape + portrait, tablet layouts
+- [~] Cockpit UX pass: touch targets ≥ 56 dp, sunlight contrast audit,
+      one-handed quick actions, landscape + portrait, tablet layouts.
+      Touch targets done (2026-10-20): the theme sets Compose's minimum
+      touch target to 56 dp (smaller controls get a 56 dp touch area
+      where there is room, unchanged look); Analysis page tabs 56 dp;
+      `TouchTargetsTest` checks 19 screens.  Left: tile long press
+      fires while the finger is down (XCSoar's rule: arm on hold, commit
+      on lift-off, doc/architecture.rst), sunlight contrast audit,
+      landscape / tablet review
 - [x] Screen always on.  Orientation lock and a brightness shortcut: not
       wanted, the phone does both (pilot, 2026-10-07)
 - [ ] Crash reporting (opt-in, privacy-friendly) + native crash symbolication

@@ -4,6 +4,7 @@
 package org.xcsoar.mobile.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
@@ -11,12 +12,17 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
 import org.xcsoar.mobile.R
 
 /**
@@ -163,9 +169,24 @@ fun XcsTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> U
         titleMedium = base.titleMedium.copy(fontFamily = barlowFonts.text),
     )
 
-    CompositionLocalProvider(LocalXcsColors provides colors) {
+    val system = LocalViewConfiguration.current
+    val viewConfiguration = remember(system) { CockpitViewConfiguration(system) }
+    CompositionLocalProvider(LocalXcsColors provides colors,
+                             LocalViewConfiguration provides viewConfiguration,
+                             LocalMinimumInteractiveComponentSize provides MIN_TOUCH_TARGET) {
         MaterialTheme(colorScheme = scheme, typography = typography, content = content)
     }
+}
+
+/**
+ * The smallest touch target in the cockpit (gloves, turbulence): Compose
+ * extends the touch area of a smaller control to it where there is room,
+ * without changing how it looks; Material's controls take that space.
+ */
+val MIN_TOUCH_TARGET = 56.dp
+
+private class CockpitViewConfiguration(base: ViewConfiguration) : ViewConfiguration by base {
+    override val minimumTouchTargetSize = DpSize(MIN_TOUCH_TARGET, MIN_TOUCH_TARGET)
 }
 
 object XcsTheme {
