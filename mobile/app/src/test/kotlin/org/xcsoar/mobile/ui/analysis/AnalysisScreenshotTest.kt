@@ -86,4 +86,16 @@ class AnalysisScreenshotTest {
 
     @Test
     fun noData() = capture("no_data", AnalysisPage.BAROGRAPH, null)
+
+    /* made up: a CTR ahead over rising ground, a restricted area beyond */
+    @Test
+    fun airspace() = capture("airspace", AnalysisPage.AIRSPACE, Analysis.parse(
+        """{"legs":[],"airspace":{"range":5E4,"heights":[0,3300],"altitude":1450,
+            "terrain":[300,320,350,400,480,560,650,700,760,820,900,950,1000,980,940,900],
+            "airspaces":[
+              {"name":"CTR Grenoble","class":"D","top":1981,"base":0,"fill":"#1F5BD6",
+               "border":"#1F5BD6","spans":[[8000,21000]]},
+              {"name":"LF-R 46","class":"Restricted","top":2900,"base":1200,
+               "fill":"#B42A30","border":"#B42A30","spans":[[30000,50000]]}],
+            "glide":[[0,1450],[50000,620]]}}"""))
 }

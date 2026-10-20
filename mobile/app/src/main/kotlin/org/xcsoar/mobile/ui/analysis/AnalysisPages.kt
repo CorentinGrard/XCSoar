@@ -27,6 +27,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.xcsoar.mobile.core.AirspaceCrossSection
 import org.xcsoar.mobile.core.Analysis
 import org.xcsoar.mobile.core.ChartPoint
 import org.xcsoar.mobile.core.LatLon
@@ -349,4 +350,66 @@ internal fun DrawScope.flatProjection(all: List<LatLon>): (LatLon) -> Offset {
 internal fun path(points: List<LatLon>, at: (LatLon) -> Offset) = Path().apply {
     moveTo(at(points[0]).x, at(points[0]).y)
     for (p in points.drop(1)) lineTo(at(p).x, at(p).y)
+}
+
+/** "#RRGGBB" as a colour; [fallback] if it is not one. */
+private fun hexColor(text: String, fallback: Color): Color =
+    text.removePrefix("#").toLongOrNull(16)?.takeIf { text.length == 7 }
+        ?.let { Color(0xFF000000 or it) } ?: fallback
+
+/**
+ * Upstream's airspace analysis page (CrossSectionRenderer): 50 km ahead
+ * along the track, the airspaces in their map colours, the terrain and
+ * the glide at MacCready from the aircraft (left).
+ */
+@Composable
+internal fun AirspacePage(xs: AirspaceCrossSection?) {
+    val colors = XcsTheme.colors
+    if (xs == null || xs.heights.size != 2) {
+        Hint("Not moving: the cross-section follows the track.")
+        return
+    }
+    val ground = Color(0xFFA1887F)
+    val terrain = xs.terrain.withIndex()
+        .mapNotNull { (i, h) -> h?.let { ChartPoint(xs.range * i / (xs.terrain.size - 1), it) } }
+
+    XYChart("Airspace and terrain ahead along the track", hasData = true,
+            xMin = 0.0, xMax = xs.range, yMin = xs.heights[0], yMax = xs.heights[1],
+            xUnit = Format.unit(UnitGroup.DISTANCE), yUnit = Format.unit(UnitGroup.ALTITUDE),
+            xName = axisName("D", UnitGroup.DISTANCE), yName = axisName("h", UnitGroup.ALTITUDE),
+            labels = xs.airspaces.mapNotNull { a ->
+                a.spans.firstOrNull()?.let { span ->
+                    a.name to ChartPoint(span.getOrElse(1) { xs.range }, (a.base + a.top) / 2)
+                }
+            }) { m ->
+        for (a in xs.airspaces) {
+            val fill = hexColor(a.fill, colors.neutralSafe)
+            val border = hexColor(a.border, colors.text)
+            for (span in a.spans) {
+                if (span.size != 2) continue
+                val topLeft = Offset(m.x(span[0]), m.y(a.top))
+                val size = androidx.compose.ui.geometry.Size(m.x(span[1]) - topLeft.x,
+                                                             m.y(a.base) - topLeft.y)
+                drawRect(fill.copy(alpha = 0.35f), topLeft, size)
+                drawRect(border, topLeft, size, style = Stroke(1.5.dp.toPx()))
+            }
+        }
+        area(m, terrain, ground)
+        if (xs.glide.size == 2 && xs.glide.all { it.size == 2 })
+            line(m, xs.glide.map { ChartPoint(it[0], it[1]) }, colors.neutralSafe)
+        xs.altitude?.let {
+            drawCircle(colors.text, 5.dp.toPx(), Offset(m.x(0.0), m.y(it)))
+        }
+    }
+    if (xs.airspaces.isEmpty())
+        Hint("No airspace on the next ${Format.distance(xs.range).let { "${it.text} ${it.unit}" }} " +
+             "along the track.")
+    else for (a in xs.airspaces) {
+        val base = if (a.base <= 0) "GND" else Format.altitude(a.base).let { "${it.text} ${it.unit}" }
+        val top = Format.altitude(a.top).let { "${it.text} ${it.unit}" }
+        val from = Format.distance(a.spans.firstOrNull()?.firstOrNull() ?: 0.0)
+        ValueRow(a.name, Format.Value("${a.airspaceClass} · $base–$top · ${from.text}",
+                                      from.unit))
+    }
+    Hint("Blue: the glide at MacCready; brown: the terrain.")
 }

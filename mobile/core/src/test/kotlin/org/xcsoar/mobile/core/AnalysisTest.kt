@@ -111,4 +111,18 @@ class AnalysisTest {
     fun trendIsALine() {
         assertEquals(3.0, Trend(y0 = 1.0, gradient = 0.5).at(4.0), 0.0)
     }
+
+    @Test
+    fun parsesAirspaceCrossSection() {
+        // as CoreAnalysis writes it; null when not moving
+        val a = Analysis.parse("""{"airspace":{"range":5E4,"heights":[0,3300],"altitude":1450,
+            "terrain":[300,null,350],"airspaces":[{"name":"CTR","class":"D","top":1981,
+            "base":0,"fill":"#1F5BD6","border":"#1F5BD6","spans":[[8000,21000]]}],
+            "glide":[[0,1450],[50000,620]]}}""")
+        val xs = a.airspace!!
+        assertEquals(50_000.0, xs.range, 0.0)
+        assertEquals(null, xs.terrain[1])
+        assertEquals("D", xs.airspaces.single().airspaceClass)
+        assertEquals(null, Analysis.parse("""{"airspace":null}""").airspace)
+    }
 }

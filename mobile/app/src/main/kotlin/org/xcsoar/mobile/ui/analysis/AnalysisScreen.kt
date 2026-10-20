@@ -69,7 +69,8 @@ enum class AnalysisPage(val label: String, val core: String) {
     MAC_CREADY("MacCready", "maccready"),
     TEMPERATURE("Temperature", "temptrace"),
     TASK("Task", "task"),
-    CONTEST("Contest", "contest");
+    CONTEST("Contest", "contest"),
+    AIRSPACE("Airspace", "airspace");
 
     companion object {
         /** The page a tapped tile asks for; null if the app has none. */
@@ -134,6 +135,7 @@ fun AnalysisContent(
             AnalysisPage.TEMPERATURE -> TemperaturePage(a)
             AnalysisPage.TASK -> TaskPage(a)
             AnalysisPage.CONTEST -> ContestPage(a.contest)
+            AnalysisPage.AIRSPACE -> AirspacePage(a.airspace)
         }
     }
 }

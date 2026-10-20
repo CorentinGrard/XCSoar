@@ -399,8 +399,12 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       renderer), the app draws them (XYChart); checked on a Pixel 7
       during a replay (wind, polar, MacCready, thermal band, vario).
       Upstream fix: WindStore::GetWind() was [[gnu::pure]] with an out
-      parameter.  Not yet: the airspace cross-section, the task's
-      observation zones, and the maps on terrain (plain background)
+      parameter.  The airspace cross-section (2026-10-20):
+      50 km along the track, the airspaces in their map colours, terrain
+      and the glide line, from CrossSectionRenderer's data in the core;
+      screenshot and parser tests, not yet seen in flight.  Not yet: the
+      task's observation zones, and the maps on terrain (plain
+      background)
 - [~] **L5** instrumented tests (`app/src/androidTest`, 2026-10-20): the
       demo flight replays through the app and the flight screen shows it
       flying, with a vario and a wind estimate; each panel tile asks for

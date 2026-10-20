@@ -265,8 +265,40 @@ data class Analysis(
     @SerialName("mac_cready") val macCready: MacCreadyChart = MacCreadyChart(),
     val temperature: TemperatureTrace = TemperatureTrace(),
     val task: TaskChart = TaskChart(),
+    /** null when not moving (no track). */
+    val airspace: AirspaceCrossSection? = null,
 ) {
     companion object {
         fun parse(text: String): Analysis = json.decodeFromString(serializer(), text)
     }
 }
+
+/**
+ * The airspace page (upstream's CrossSectionRenderer): [range] m along
+ * the track, the [heights] shown, the terrain in slices (null: unknown),
+ * the airspaces crossed and the glide line at MacCready.
+ */
+@Serializable
+data class AirspaceCrossSection(
+    val range: Double = 0.0,
+    val heights: List<Double> = emptyList(),
+    val altitude: Double? = null,
+    val terrain: List<Double?> = emptyList(),
+    val airspaces: List<CrossSectionAirspace> = emptyList(),
+    /** [distance, height] from the aircraft to where the glide ends */
+    val glide: List<List<Double>> = emptyList(),
+)
+
+/** One airspace on the cross-section; [spans] are [from, to] m along it. */
+@Serializable
+data class CrossSectionAirspace(
+    val name: String = "",
+    @SerialName("class") val airspaceClass: String = "",
+    val top: Double = 0.0,
+    /** 0 when it starts at the ground */
+    val base: Double = 0.0,
+    /** XCSoar's colours for its class, "#RRGGBB" */
+    val fill: String = "",
+    val border: String = "",
+    val spans: List<List<Double>> = emptyList(),
+)
