@@ -763,6 +763,106 @@ Java_org_xcsoar_mobile_NativeCore_nativeGetStatusPages(JNIEnv *env, jclass,
   });
 }
 
+/** @return the JSON of xcs_team_code_get(), or null */
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTeamCodeGet(JNIEnv *env, jclass,
+                                                    jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_team_code_get(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTeamCodeSetMate(JNIEnv *env, jclass,
+                                                        jlong core,
+                                                        jstring code)
+{
+  const auto c = Java::String::GetUTFChars(env, code);
+  return xcs_team_code_set_mate(ToCore(core), c.c_str());
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeTeamCodeSetReference(JNIEnv *, jclass,
+                                                             jlong core,
+                                                             jint waypoint)
+{
+  return xcs_team_code_set_reference(ToCore(core), waypoint);
+}
+
+/** @return the JSON of xcs_radio_get(), or null */
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeRadioGet(JNIEnv *env, jclass,
+                                                 jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_radio_get(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeRadioSet(JNIEnv *env, jclass,
+                                                 jlong core, jint slot,
+                                                 jstring mhz, jstring name)
+{
+  const auto m = Java::String::GetUTFChars(env, mhz);
+  const auto n = OptionalUTFChars(env, name);
+  return xcs_radio_set(ToCore(core), slot, m.c_str(), n.c_str());
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeRadioOffset(JNIEnv *, jclass,
+                                                    jlong core, jint slot,
+                                                    jint khz)
+{
+  return xcs_radio_offset(ToCore(core), slot, khz);
+}
+
+/** @return the JSON of xcs_atc_get(), or null */
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeAtcGet(JNIEnv *env, jclass,
+                                               jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_atc_get(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeAtcSetReference(JNIEnv *, jclass,
+                                                        jlong core,
+                                                        jint waypoint)
+{
+  return xcs_atc_set_reference(ToCore(core), waypoint);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeAtcSetDeclination(JNIEnv *, jclass,
+                                                          jlong core,
+                                                          jdouble degrees)
+{
+  return xcs_atc_set_declination(ToCore(core), degrees);
+}
+
+/** @return the JSON of xcs_airspace_details(), or null */
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeAirspaceDetails(JNIEnv *env, jclass,
+                                                        jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_airspace_details(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jint JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeAirspaceDetailsAcknowledge(JNIEnv *,
+                                                                   jclass,
+                                                                   jlong core,
+                                                                   jint ack)
+{
+  return xcs_airspace_details_acknowledge(ToCore(core), ack);
+}
+
 JNIEXPORT jstring JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeGetAnalysis(JNIEnv *env, jclass,
                                                     jlong core)

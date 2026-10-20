@@ -145,6 +145,40 @@ interface XcsoarCore {
     /** XCSoar's status pages; null if the core has not started. */
     suspend fun statusPages(): StatusPages? = null
 
+    /** XCSoar's team code dialog; null if the core has not started. */
+    suspend fun teamCode(): TeamCodeInfo? = null
+
+    /** The team mate's code: up to 7 letters and digits ("" forgets it). */
+    suspend fun setTeamMateCode(code: String) {}
+
+    /** The waypoint team codes count from (null: none); saved in the profile. */
+    suspend fun setTeamReference(waypointId: Int?) {}
+
+    /** The radio frequencies; null if the core has not started. */
+    suspend fun radio(): RadioInfo? = null
+
+    /** Set a frequency ("122.5", MHz) and its name; fails unless it is a
+        VHF voice channel. */
+    suspend fun setRadioFrequency(slot: RadioSlot, mhz: String, name: String = "") {}
+
+    /** Move a frequency by [khz] (5 kHz and 1 MHz steps). */
+    suspend fun offsetRadioFrequency(slot: RadioSlot, khz: Int) {}
+
+    /** The ATC radial's reference; null if the core has not started. */
+    suspend fun atc(): AtcInfo? = null
+
+    /** Move the ATC reference to a waypoint (null clears it). */
+    suspend fun setAtcReference(waypointId: Int?) {}
+
+    /** The magnetic declination, -30..30 degrees, east positive. */
+    suspend fun setMagneticDeclination(degrees: Double) {}
+
+    /** The airspace the last tapped tile asked for; null if none. */
+    suspend fun airspaceDetails(): AirspaceDetails? = null
+
+    /** Acknowledge that airspace for the day, or warn of it again. */
+    suspend fun acknowledgeAirspaceDetails(acknowledge: Boolean) {}
+
     /** XCSoar's analysis pages; null if the core has not started. */
     suspend fun analysis(): Analysis? = null
 

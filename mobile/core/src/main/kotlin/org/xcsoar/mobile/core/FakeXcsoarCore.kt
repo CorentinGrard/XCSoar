@@ -145,6 +145,45 @@ class FakeXcsoarCore(
         StatusPage("times", "Times", listOf(StatusRow("Flight time", "02:19"))),
     ), listOf(45.21, 5.72))
 
+    private var teamCode = TeamCodeInfo(own = "4A2C", mate = "8B1D",
+                                        reference = WaypointRef(1, "Grenoble Le Versoud"),
+                                        range = "12.4 km", bearing = "238°",
+                                        relativeBearing = "<14°")
+
+    override suspend fun teamCode() = teamCode
+
+    override suspend fun setTeamMateCode(code: String) {
+        teamCode = teamCode.copy(mate = code.uppercase())
+    }
+
+    private var radio = RadioInfo(RadioChannel("120.505", "Grenoble Info"), RadioChannel())
+
+    override suspend fun radio() = radio
+
+    override suspend fun setRadioFrequency(slot: RadioSlot, mhz: String, name: String) {
+        val channel = RadioChannel("%.3f".format(java.util.Locale.ROOT, mhz.toDouble()), name)
+        radio = if (slot == RadioSlot.ACTIVE) radio.copy(active = channel)
+                else radio.copy(standby = channel)
+    }
+
+    private var atc = AtcInfo()
+
+    override suspend fun atc() = atc
+
+    override suspend fun setMagneticDeclination(degrees: Double) {
+        atc = atc.copy(declination = degrees)
+    }
+
+    private var airspaceDetails = AirspaceDetails(
+        name = "CTR Grenoble", airspaceClass = "D", type = "CTR", top = "1981 m",
+        base = "GND", frequency = "120.505", station = "Grenoble Info", distance = "3.2 km")
+
+    override suspend fun airspaceDetails() = airspaceDetails
+
+    override suspend fun acknowledgeAirspaceDetails(acknowledge: Boolean) {
+        airspaceDetails = airspaceDetails.copy(acknowledged = acknowledge)
+    }
+
     private val macCreadyOptions = mutableMapOf(
         MacCreadyOption.AUTO to 0, MacCreadyOption.AUTO_MODE to 0)
 

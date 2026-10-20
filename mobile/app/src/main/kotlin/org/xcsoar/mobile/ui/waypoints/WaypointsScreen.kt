@@ -63,6 +63,8 @@ fun WaypointsScreen(
     onBack: () -> Unit = onDone,
     title: String = "Go to",
     onPick: ((WaypointInfo) -> Unit)? = null,
+    /** The rows' button when picking. */
+    pickLabel: String = "Add",
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     DisposableEffect(Unit) {
@@ -74,7 +76,7 @@ fun WaypointsScreen(
     val onTap: (WaypointInfo) -> Unit =
         if (onPick != null) { waypoint -> onPick(waypoint); onDone() } else viewModel::goto
     WaypointsContent(state, viewModel::search, viewModel::filter, onTap, onBack, title,
-                     action = if (onPick != null) "Add" else "Go")
+                     action = if (onPick != null) pickLabel else "Go")
 }
 
 /**

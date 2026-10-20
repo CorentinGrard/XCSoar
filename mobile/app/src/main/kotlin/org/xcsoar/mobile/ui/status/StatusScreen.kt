@@ -6,26 +6,14 @@ package org.xcsoar.mobile.ui.status
 import android.content.Intent
 import android.util.Log
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -41,6 +29,7 @@ import org.xcsoar.mobile.ui.ActionButton
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.PageLayout
 import org.xcsoar.mobile.ui.ScreenHeader
+import org.xcsoar.mobile.ui.ValueList
 import org.xcsoar.mobile.ui.flight.Segmented
 import org.xcsoar.mobile.ui.theme.XcsTheme
 import java.util.Locale
@@ -123,17 +112,7 @@ fun StatusContent(
                       modifier = Modifier.fillMaxWidth())
 
             val page = list[index]
-            Column(Modifier
-                       .fillMaxWidth()
-                       .background(XcsTheme.colors.panel, RoundedCornerShape(14.dp))
-                       .padding(vertical = 4.dp)) {
-                page.rows.forEachIndexed { i, row ->
-                    if (i > 0)
-                        HorizontalDivider(Modifier.padding(horizontal = 14.dp),
-                                          color = XcsTheme.colors.panelBorder)
-                    StatusLine(row.label, row.value)
-                }
-            }
+            ValueList(page.rows.map { it.label to it.value })
 
             val lat = pages?.latitude
             val lon = pages?.longitude
@@ -144,27 +123,6 @@ fun StatusContent(
             Text("Reading…", color = XcsTheme.colors.textSecondary, fontSize = 15.sp,
                  modifier = Modifier.padding(horizontal = 4.dp))
         }
-    }
-}
-
-@Composable
-private fun StatusLine(label: String, value: String) {
-    val colors = XcsTheme.colors
-    val shown = value.ifEmpty { Format.INVALID }
-    Row(Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-            .clearAndSetSemantics {
-                contentDescription = "$label: ${value.ifEmpty { "unknown" }}"
-            },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(label, color = colors.textSecondary, fontSize = 16.sp,
-             modifier = Modifier.weight(1f))
-        Text(shown, color = colors.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
-             style = XcsTheme.numberStyle, textAlign = TextAlign.End,
-             modifier = Modifier.weight(1.4f))
     }
 }
 

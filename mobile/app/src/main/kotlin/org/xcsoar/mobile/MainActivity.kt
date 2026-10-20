@@ -63,6 +63,14 @@ import org.xcsoar.mobile.ui.crew.PlaneEditScreen
 import org.xcsoar.mobile.ui.crew.PlaneEditViewModel
 import org.xcsoar.mobile.ui.analysis.AnalysisViewModel
 import org.xcsoar.mobile.ui.flight.FlightScreen
+import org.xcsoar.mobile.ui.tiles.AirspaceDetailsScreen
+import org.xcsoar.mobile.ui.tiles.AirspaceDetailsViewModel
+import org.xcsoar.mobile.ui.tiles.AtcScreen
+import org.xcsoar.mobile.ui.tiles.AtcViewModel
+import org.xcsoar.mobile.ui.tiles.RadioScreen
+import org.xcsoar.mobile.ui.tiles.RadioViewModel
+import org.xcsoar.mobile.ui.tiles.TeamCodeScreen
+import org.xcsoar.mobile.ui.tiles.TeamCodeViewModel
 import org.xcsoar.mobile.ui.tiles.TilePickerScreen
 import org.xcsoar.mobile.ui.tiles.TilePickerViewModel
 import org.xcsoar.mobile.ui.map.MapSettingsScreen
@@ -109,13 +117,15 @@ private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINT
                             TASK, TASK_FILES, TASK_ADD_POINT, UNITS, ANALYSIS,
                             CREW, PLANE_EDIT, PILOT, TILE_PICKER,
                             AIRSPACE_ALERTS, SAFETY, WIND, STATUS, VARIO_SOUND, TRACKING, WEATHER,
-                            NOTAMS, REPLAY, PROFILES }
+                            NOTAMS, REPLAY, PROFILES, TEAM_CODE, TEAM_REFERENCE, RADIO,
+                            ATC, ATC_REFERENCE, AIRSPACE_DETAILS }
 
 /** How deep a page is: pages further in slide in from the right. */
 private val Screen.depth: Int
     get() = when (this) {
         Screen.FLIGHT -> 0
-        Screen.DOWNLOAD, Screen.PLANE_EDIT, Screen.TASK_FILES, Screen.TASK_ADD_POINT -> 2
+        Screen.DOWNLOAD, Screen.PLANE_EDIT, Screen.TASK_FILES, Screen.TASK_ADD_POINT,
+        Screen.TEAM_REFERENCE, Screen.ATC_REFERENCE -> 2
         else -> 1
     }
 
@@ -310,6 +320,16 @@ class MainActivity : ComponentActivity() {
                     factory = viewModelFactory { initializer { SafetyViewModel(app.anyCore) } })
                 val windViewModel: WindViewModel = viewModel(
                     factory = viewModelFactory { initializer { WindViewModel(app.anyCore) } })
+                val teamCodeViewModel: TeamCodeViewModel = viewModel(
+                    factory = viewModelFactory { initializer { TeamCodeViewModel(app.anyCore) } })
+                val radioViewModel: RadioViewModel = viewModel(
+                    factory = viewModelFactory { initializer { RadioViewModel(app.anyCore) } })
+                val atcViewModel: AtcViewModel = viewModel(
+                    factory = viewModelFactory { initializer { AtcViewModel(app.anyCore) } })
+                val airspaceDetailsViewModel: AirspaceDetailsViewModel = viewModel(
+                    factory = viewModelFactory {
+                        initializer { AirspaceDetailsViewModel(app.anyCore) }
+                    })
                 val statusViewModel: StatusViewModel = viewModel(
                     factory = viewModelFactory { initializer { StatusViewModel(app.anyCore) } })
                 val airspaceAlertsViewModel: AirspaceAlertsViewModel = viewModel(
@@ -404,7 +424,18 @@ class MainActivity : ComponentActivity() {
                                     statusViewModel.show(action.page.ifEmpty { null })
                                     screen = Screen.STATUS
                                 }
-                                // the others have no page in the app yet
+                                // upstream's team code dialog
+                                "team_code" -> screen = Screen.TEAM_CODE
+                                // upstream's radio frequency panels
+                                "radio" -> screen = Screen.RADIO
+                                // upstream's ATC reference and setup panels
+                                "atc" -> screen = Screen.ATC
+                                // upstream's details of the nearest airspace
+                                "airspace" -> {
+                                    airspaceDetailsViewModel.reset()
+                                    screen = Screen.AIRSPACE_DETAILS
+                                }
+                                // "simulator": XCSoar's simulator mode only
                             }
                         },
                         onEditTile = { layout, tile ->
@@ -475,6 +506,25 @@ class MainActivity : ComponentActivity() {
                                 safetyViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.STATUS -> StatusScreen(
                                 statusViewModel, onBack = { screen = Screen.FLIGHT })
+                            Screen.TEAM_CODE -> TeamCodeScreen(
+                                teamCodeViewModel,
+                                onPickReference = { screen = Screen.TEAM_REFERENCE },
+                                onBack = { screen = Screen.FLIGHT })
+                            Screen.TEAM_REFERENCE -> WaypointsScreen(
+                                pickViewModel, onDone = { screen = Screen.TEAM_CODE },
+                                title = "Reference", pickLabel = "Set",
+                                onPick = { teamCodeViewModel.setReference(it.id) })
+                            Screen.RADIO -> RadioScreen(
+                                radioViewModel, onBack = { screen = Screen.FLIGHT })
+                            Screen.ATC -> AtcScreen(
+                                atcViewModel, onRelocate = { screen = Screen.ATC_REFERENCE },
+                                onBack = { screen = Screen.FLIGHT })
+                            Screen.ATC_REFERENCE -> WaypointsScreen(
+                                pickViewModel, onDone = { screen = Screen.ATC },
+                                title = "Relocate", pickLabel = "Set",
+                                onPick = { atcViewModel.setReference(it.id) })
+                            Screen.AIRSPACE_DETAILS -> AirspaceDetailsScreen(
+                                airspaceDetailsViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.WIND -> WindScreen(
                                 windViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.AIRSPACE_ALERTS -> AirspaceAlertsScreen(

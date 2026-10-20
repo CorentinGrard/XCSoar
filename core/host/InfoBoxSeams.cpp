@@ -34,6 +34,7 @@
 #include "UIGlobals.hpp"
 #include "Widget/Widget.hpp"
 #include "CoreInfoBoxes.hpp"
+#include "CoreTilePages.hpp"
 
 #include <cstdlib>
 #include <iterator>
@@ -91,9 +92,10 @@ ShowAnalysis(AnalysisPage page) noexcept
 }
 
 void
-dlgAirspaceDetails([[maybe_unused]] ConstAirspacePtr airspace,
+dlgAirspaceDetails(ConstAirspacePtr airspace,
                    [[maybe_unused]] ProtectedAirspaceWarningManager *warnings)
 {
+  CoreTilePages::ShowAirspace(std::move(airspace));
   CoreInfoBoxes::RequestAction("airspace");
 }
 

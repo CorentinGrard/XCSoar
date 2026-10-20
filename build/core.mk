@@ -137,6 +137,7 @@ CORE_HOST_SOURCES = \
 	$(CORE_SRC_DIR)/host/CoreTask.cpp \
 	$(CORE_SRC_DIR)/host/CoreAnalysis.cpp \
 	$(CORE_SRC_DIR)/host/CoreStatus.cpp \
+	$(CORE_SRC_DIR)/host/CoreTilePages.cpp \
 	$(CORE_SRC_DIR)/host/CorePlanes.cpp \
 	$(CORE_SRC_DIR)/host/CoreProfiles.cpp \
 	$(CORE_SRC_DIR)/host/CoreWeGlide.cpp \

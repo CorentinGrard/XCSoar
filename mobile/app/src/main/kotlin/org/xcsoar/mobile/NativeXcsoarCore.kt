@@ -48,6 +48,11 @@ import org.xcsoar.mobile.core.ProfileInfo
 import org.xcsoar.mobile.core.MacCreadyOption
 import org.xcsoar.mobile.core.SafetyOption
 import org.xcsoar.mobile.core.StatusPages
+import org.xcsoar.mobile.core.AirspaceDetails
+import org.xcsoar.mobile.core.AtcInfo
+import org.xcsoar.mobile.core.RadioInfo
+import org.xcsoar.mobile.core.RadioSlot
+import org.xcsoar.mobile.core.TeamCodeInfo
 import org.xcsoar.mobile.core.WindInfo
 import org.xcsoar.mobile.core.WindOption
 import org.xcsoar.mobile.core.WindSource
@@ -298,6 +303,36 @@ class NativeXcsoarCore(
 
     override suspend fun statusPages(): StatusPages? =
         query(NativeCore::nativeGetStatusPages, StatusPages::parse)
+
+    override suspend fun teamCode() = query(NativeCore::nativeTeamCodeGet, TeamCodeInfo::parse)
+
+    override suspend fun setTeamMateCode(code: String) =
+        command { NativeCore.nativeTeamCodeSetMate(it, code) }
+
+    override suspend fun setTeamReference(waypointId: Int?) =
+        command { NativeCore.nativeTeamCodeSetReference(it, waypointId ?: -1) }
+
+    override suspend fun radio() = query(NativeCore::nativeRadioGet, RadioInfo::parse)
+
+    override suspend fun setRadioFrequency(slot: RadioSlot, mhz: String, name: String) =
+        command { NativeCore.nativeRadioSet(it, slot.code, mhz, name) }
+
+    override suspend fun offsetRadioFrequency(slot: RadioSlot, khz: Int) =
+        command { NativeCore.nativeRadioOffset(it, slot.code, khz) }
+
+    override suspend fun atc() = query(NativeCore::nativeAtcGet, AtcInfo::parse)
+
+    override suspend fun setAtcReference(waypointId: Int?) =
+        command { NativeCore.nativeAtcSetReference(it, waypointId ?: -1) }
+
+    override suspend fun setMagneticDeclination(degrees: Double) =
+        command { NativeCore.nativeAtcSetDeclination(it, degrees) }
+
+    override suspend fun airspaceDetails() =
+        query(NativeCore::nativeAirspaceDetails, AirspaceDetails::parse)
+
+    override suspend fun acknowledgeAirspaceDetails(acknowledge: Boolean) =
+        command { NativeCore.nativeAirspaceDetailsAcknowledge(it, if (acknowledge) 1 else 0) }
 
     /** A JSON getter; null if the core has not started or it failed. */
     private suspend fun <T> query(get: (Long) -> String?, parse: (String) -> T): T? =

@@ -40,6 +40,7 @@
 #include "CoreTask.hpp"
 #include "CoreAnalysis.hpp"
 #include "CoreStatus.hpp"
+#include "CoreTilePages.hpp"
 #include "CorePlanes.hpp"
 #include "CoreProfiles.hpp"
 #include "CoreInfoBoxes.hpp"
@@ -2565,6 +2566,125 @@ xcs_wind_clear_manual(xcs_core *core)
   return RunOnMain(*core, []{
     CommonInterface::SetComputerSettings().wind.manual_wind_available.Clear();
     return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_team_code_get(xcs_core *core, char *buffer, size_t size,
+                  size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r,
+                       CoreTilePages::DescribeTeamCode);
+}
+
+xcs_status
+xcs_team_code_set_mate(xcs_core *core, const char *code)
+{
+  if (core == nullptr || code == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [code]{
+    return CoreTilePages::SetTeamMateCode(code)
+      ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_team_code_set_reference(xcs_core *core, int32_t waypoint_id)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [waypoint_id]{
+    return CoreTilePages::SetTeamReference(waypoint_id)
+      ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_radio_get(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r,
+                       CoreTilePages::DescribeRadio);
+}
+
+xcs_status
+xcs_radio_set(xcs_core *core, uint32_t slot, const char *mhz,
+              const char *name)
+{
+  if (core == nullptr || slot > XCS_RADIO_STANDBY || mhz == nullptr ||
+      (name != nullptr && !ValidateUTF8(name)))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [slot, mhz, name]{
+    return CoreTilePages::SetRadioFrequency(slot == XCS_RADIO_STANDBY,
+                                            mhz, name)
+      ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_radio_offset(xcs_core *core, uint32_t slot, int32_t khz)
+{
+  /* within the band: anything larger never lands on a channel */
+  if (core == nullptr || slot > XCS_RADIO_STANDBY ||
+      khz < -20000 || khz > 20000)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [slot, khz]{
+    CoreTilePages::OffsetRadioFrequency(slot == XCS_RADIO_STANDBY, khz);
+    return XCS_OK;
+  });
+}
+
+xcs_status
+xcs_atc_get(xcs_core *core, char *buffer, size_t size, size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r,
+                       CoreTilePages::DescribeAtc);
+}
+
+xcs_status
+xcs_atc_set_reference(xcs_core *core, int32_t waypoint_id)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [waypoint_id]{
+    return CoreTilePages::SetAtcReference(waypoint_id)
+      ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_atc_set_declination(xcs_core *core, double degrees)
+{
+  if (core == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [degrees]{
+    return CoreTilePages::SetMagneticDeclination(degrees)
+      ? XCS_OK : XCS_ERROR_INVALID_ARGUMENT;
+  });
+}
+
+xcs_status
+xcs_airspace_details(xcs_core *core, char *buffer, size_t size,
+                     size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r,
+                       CoreTilePages::DescribeAirspace);
+}
+
+xcs_status
+xcs_airspace_details_acknowledge(xcs_core *core, int32_t acknowledge)
+{
+  if (core == nullptr || (acknowledge != 0 && acknowledge != 1))
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  return RunOnMain(*core, [acknowledge]{
+    return CoreTilePages::AcknowledgeAirspaceDay(acknowledge != 0)
+      ? XCS_OK : XCS_ERROR_STATE;
   });
 }
 

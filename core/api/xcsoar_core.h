@@ -627,6 +627,74 @@ xcs_wind_set_manual(xcs_core *core, double speed, double bearing);
 XCS_EXPORT xcs_status
 xcs_wind_clear_manual(xcs_core *core);
 
+/*
+ * The pages some tiles open (xcs_tiles_click() actions "team_code",
+ * "radio", "atc" and "airspace"): their JSON is described in
+ * core/host/CoreTilePages.hpp.  Buffer rules as for
+ * xcs_get_data_status().
+ */
+
+/** The team code dialog: own and mate codes, the mate's range and
+    bearing, the reference waypoint. */
+XCS_EXPORT xcs_status
+xcs_team_code_get(xcs_core *core, char *buffer, size_t size,
+                  size_t *length_r);
+
+/** The team mate's code: up to 7 letters and digits ("" forgets it).
+    XCS_ERROR_INVALID_ARGUMENT for anything else. */
+XCS_EXPORT xcs_status
+xcs_team_code_set_mate(xcs_core *core, const char *code);
+
+/** The waypoint team codes count from (a waypoint id, -1 for none);
+    saved in the profile [TeamcodeRefWaypoint]. */
+XCS_EXPORT xcs_status
+xcs_team_code_set_reference(xcs_core *core, int32_t waypoint_id);
+
+/** The active and standby radio frequencies and their names. */
+XCS_EXPORT xcs_status
+xcs_radio_get(xcs_core *core, char *buffer, size_t size, size_t *length_r);
+
+typedef enum xcs_radio_slot {
+  XCS_RADIO_ACTIVE = 0,
+  XCS_RADIO_STANDBY = 1,
+} xcs_radio_slot;
+
+/** Set a frequency in MHz ("122.5") and its name (nullptr or ""
+    for none); sent to the radios.  XCS_ERROR_INVALID_ARGUMENT unless
+    it is a VHF voice channel (118.000 to 136.990). */
+XCS_EXPORT xcs_status
+xcs_radio_set(xcs_core *core, uint32_t slot, const char *mhz,
+              const char *name);
+
+/** Move a frequency by @p khz (the radio panel's 5 kHz and 1 MHz
+    steps); nothing happens without a frequency or beyond the band. */
+XCS_EXPORT xcs_status
+xcs_radio_offset(xcs_core *core, uint32_t slot, int32_t khz);
+
+/** The ATC radial's reference and magnetic declination. */
+XCS_EXPORT xcs_status
+xcs_atc_get(xcs_core *core, char *buffer, size_t size, size_t *length_r);
+
+/** Move the ATC reference to a waypoint (-1 clears it).  Not saved,
+    as in XCSoar. */
+XCS_EXPORT xcs_status
+xcs_atc_set_reference(xcs_core *core, int32_t waypoint_id);
+
+/** The magnetic declination, -30..30 degrees, east positive; rounded
+    to whole degrees.  Not saved, as in XCSoar. */
+XCS_EXPORT xcs_status
+xcs_atc_set_declination(xcs_core *core, double degrees);
+
+/** The airspace the last tapped tile asked for ("{}" if none). */
+XCS_EXPORT xcs_status
+xcs_airspace_details(xcs_core *core, char *buffer, size_t size,
+                     size_t *length_r);
+
+/** Acknowledge that airspace for the day (1) or warn of it again (0).
+    XCS_ERROR_STATE without one. */
+XCS_EXPORT xcs_status
+xcs_airspace_details_acknowledge(xcs_core *core, int32_t acknowledge);
+
 /**
  * XCSoar's airspace classes, in its numbering, with whether each is
  * drawn on the map and warned of, and how many the loaded airspace

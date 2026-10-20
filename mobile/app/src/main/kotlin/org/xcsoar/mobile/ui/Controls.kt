@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +46,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.xcsoar.mobile.ui.theme.XcsTheme
@@ -127,6 +129,40 @@ fun InputField(
             focusedTextColor = colors.text, unfocusedTextColor = colors.text,
             cursorColor = colors.text),
     )
+}
+
+/**
+ * Read-only rows on one panel: a label and its value, "---" when the
+ * value is "" (as XCSoar's dialogs show them).
+ */
+@Composable
+fun ValueList(rows: List<Pair<String, String>>, modifier: Modifier = Modifier) {
+    val colors = XcsTheme.colors
+    Column(modifier
+               .fillMaxWidth()
+               .background(colors.panel, RoundedCornerShape(14.dp))
+               .padding(vertical = 4.dp)) {
+        rows.forEachIndexed { i, (label, value) ->
+            if (i > 0)
+                HorizontalDivider(Modifier.padding(horizontal = 14.dp),
+                                  color = colors.panelBorder)
+            Row(Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    .clearAndSetSemantics {
+                        contentDescription = "$label: ${value.ifEmpty { "unknown" }}"
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(label, color = colors.textSecondary, fontSize = 16.sp,
+                     modifier = Modifier.weight(1f))
+                Text(value.ifEmpty { Format.INVALID }, color = colors.text, fontSize = 18.sp,
+                     fontWeight = FontWeight.SemiBold, style = XcsTheme.numberStyle,
+                     textAlign = TextAlign.End, modifier = Modifier.weight(1.4f))
+            }
+        }
+    }
 }
 
 /** Rows of settings on one panel. */

@@ -76,6 +76,17 @@ internal object NativeCore {
     @JvmStatic external fun nativeGetAnalysis(core: Long): String?
     /** @return JSON or null */
     @JvmStatic external fun nativeGetStatusPages(core: Long): String?
+    @JvmStatic external fun nativeTeamCodeGet(core: Long): String?
+    @JvmStatic external fun nativeTeamCodeSetMate(core: Long, code: String): Int
+    @JvmStatic external fun nativeTeamCodeSetReference(core: Long, waypoint: Int): Int
+    @JvmStatic external fun nativeRadioGet(core: Long): String?
+    @JvmStatic external fun nativeRadioSet(core: Long, slot: Int, mhz: String, name: String?): Int
+    @JvmStatic external fun nativeRadioOffset(core: Long, slot: Int, khz: Int): Int
+    @JvmStatic external fun nativeAtcGet(core: Long): String?
+    @JvmStatic external fun nativeAtcSetReference(core: Long, waypoint: Int): Int
+    @JvmStatic external fun nativeAtcSetDeclination(core: Long, degrees: Double): Int
+    @JvmStatic external fun nativeAirspaceDetails(core: Long): String?
+    @JvmStatic external fun nativeAirspaceDetailsAcknowledge(core: Long, ack: Int): Int
     @JvmStatic external fun nativeTilesTypes(core: Long): String?
     @JvmStatic external fun nativeTilesLayouts(core: Long): String?
     @JvmStatic external fun nativeTilesSet(core: Long, layout: Int, tile: Int, type: Int): Int

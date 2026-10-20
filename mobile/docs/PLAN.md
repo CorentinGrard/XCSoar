@@ -19,12 +19,12 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M3 | Moving map in the new app | ◐ map, gestures, hold card on the phone |
 | M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ all features in, flown once (2026-10-10); L5 left |
 | M5 | External devices: Bluetooth / BLE / USB, drivers, declaration | ☐ on hold: no hardware ([not done](#not-done-no-external-hardware)) |
-| M6 | Settings, profiles, data management | ◐ most pages in; tiles: team code, airspace, radio left |
+| M6 | Settings, profiles, data management | ◐ most pages in; tile pages done (phone check left) |
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** M6 pages for the remaining tiles (team code, airspace,
-radio), L5 replay test.  Open: the map that stopped drawing once
+**Current focus:** check the new tile pages (team code, radio, ATC,
+nearest airspace) on the phone, L5 replay test.  Open: the map that stopped drawing once
 (M3, not reproduced; next idea: screen off/on cycles during a replay,
 which locks the phone, so only with the pilot's OK).
 M5 is on hold: no external device to test with.
@@ -442,8 +442,9 @@ the core already links but that has never run in this app:
       what it asked for, else its panels): analysis pages open Analysis
       on that page, alternates and waypoint lists open Go to, the
       altitude and MacCready panels Flight setup, the wind panel Wind,
-      the status ones Status on their page; team code, airspace and
-      radio panels have no page yet.  The Battery InfoBox shows the phone's charge
+      the status ones Status on their page, team code, radio, ATC and
+      nearest airspace their own pages (below); the speed simulator
+      panel is for XCSoar's simulator mode, which the app has not.  The Battery InfoBox shows the phone's charge
       and "AC ON"/"AC Off": upstream's BatteryReceiver (copied, D13)
       feeds src/Android/Battery.cpp, now linked into the core; checked
       on a Pixel 7 (plugged in, and unplugged at 57 % with `dumpsys
@@ -500,6 +501,19 @@ the core already links but that has never run in this app:
       (`xcs_sound_option` 3–6).  Tone frequencies stay XCSoar's defaults
 - [ ] Settings screens backed by `xcs_settings_*` JSON sections: units, polar /
       plane, safety heights, airspace filters, audio, map, InfoBox pages
+- [~] Tile pages (2026-10-20), like upstream's dialogs, in
+      `core/host/CoreTilePages.cpp`: Team code (own code, mate code, range
+      and bearings, "Set code", "Set WP" saved as TeamcodeRefWaypoint;
+      no "Flarm Lock" button: no FLARM yet), Radio (active / standby,
+      ±5 kHz and ±1 MHz, typed in MHz; sent to radios once there are
+      devices, M5), ATC radial (reference waypoint, Relocate / Clear,
+      magnetic declination; not saved, as upstream), Airspace (the
+      nearest airspace's class, limits, distance, radio and squawk;
+      "Set active / standby" frequency, "Ack Day" / "Enable").
+      `xcs_team_code_*`, `xcs_radio_*`, `xcs_atc_*`,
+      `xcs_airspace_details*`; TestCoreApi (38 checks), screenshot tests.
+      **Not yet checked on the phone** (it disconnected after the
+      install); the airspace page needs an airspace within 30 km
 - [x] Status (Menu → Status, or a status tile on its page): XCSoar's
       status dialog, flight / system / task / rules / times, formatted
       and translated by the core after each panel's Refresh()
@@ -636,6 +650,11 @@ the core already links but that has never run in this app:
 ---
 
 ## Log
+
+- 2026-10-20 — Tile pages: team code, radio, ATC radial and nearest
+  airspace, like upstream's dialogs.  Core tests and screenshots pass;
+  the phone disconnected after the install, so not checked on it yet.
+  Next: that check (a replay near airspace for the airspace page), L5.
 
 - 2026-10-15 — First real flight with the app (2026-10-10, by the
   pilot): no bug seen, IGC logged on its own.  Wind page.  Fixed: a

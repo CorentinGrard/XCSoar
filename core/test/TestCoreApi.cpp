@@ -741,6 +741,105 @@ TestTiles(xcs_core *core)
   xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, e_WindSpeed_Est);
 }
 
+/* the pages of the team code, radio, ATC and nearest airspace tiles */
+static void
+TestTilePages(xcs_core *core)
+{
+  using namespace InfoBoxFactory;
+
+  const auto click = [core](Type type){
+    xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, type);
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_tiles_click(core, XCS_TILES_CIRCLING, 5, b, s, l);
+    });
+  };
+  ok1(click(e_Team_Code) == "{\"action\":\"team_code\"}");
+  ok1(click(e_Team_Range) == "{\"action\":\"team_code\"}");
+  ok1(click(e_ActiveRadio) == "{\"action\":\"radio\"}");
+  ok1(click(ATC_RADIAL) == "{\"action\":\"atc\"}");
+
+  /* waypoints from the map, the airspace around them */
+  const auto map = std::filesystem::absolute(MAP).string();
+  const auto airspace = std::filesystem::absolute(AIRSPACE).string();
+  xcs_set_data_file(core, XCS_DATA_MAP, map.c_str());
+  xcs_set_data_file(core, XCS_DATA_AIRSPACE, airspace.c_str());
+  const auto ids = WaypointIds(core, 1);
+  const int id = ids.empty() ? 0 : int(ids.front());
+
+  /* team code */
+  const auto team = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_team_code_get(core, b, s, l);
+    });
+  };
+  ok1(xcs_team_code_set_mate(core, "ab12 ") == XCS_OK);
+  ok1(Contains(team(), "\"mate\":\"AB12\""));
+  ok1(xcs_team_code_set_mate(core, "AB 12") == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_team_code_set_mate(core, "ABCDEFGH") == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_team_code_set_mate(core, "") == XCS_OK);
+  ok1(Contains(team(), "\"mate\":\"\""));
+  ok1(xcs_team_code_set_reference(core, -5) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_team_code_set_reference(core, id) == XCS_OK);
+  ok1(Contains(team(), "\"reference\":{\"id\":" + std::to_string(id) + ","));
+  ok1(xcs_team_code_set_reference(core, -1) == XCS_OK);
+  ok1(!Contains(team(), "\"reference\""));
+
+  /* radio */
+  const auto radio = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_radio_get(core, b, s, l);
+    });
+  };
+  ok1(xcs_radio_set(core, XCS_RADIO_ACTIVE, "122.5", "Tower") == XCS_OK);
+  ok1(Contains(radio(), "\"active\":{\"frequency\":\"122.500\",\"name\":\"Tower\"}"));
+  ok1(xcs_radio_offset(core, XCS_RADIO_ACTIVE, 5) == XCS_OK);
+  ok1(xcs_radio_offset(core, XCS_RADIO_ACTIVE, 1000) == XCS_OK);
+  ok1(Contains(radio(), "\"frequency\":\"123.505\""));
+  /* an 8.33 kHz step that is no channel is skipped */
+  ok1(xcs_radio_set(core, XCS_RADIO_STANDBY, "118.015", nullptr) == XCS_OK);
+  ok1(xcs_radio_offset(core, XCS_RADIO_STANDBY, 5) == XCS_OK);
+  ok1(Contains(radio(), "\"standby\":{\"frequency\":\"118.025\",\"name\":\"\"}"));
+  ok1(xcs_radio_set(core, XCS_RADIO_ACTIVE, "118.020", nullptr) ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_radio_set(core, XCS_RADIO_ACTIVE, "145.0", nullptr) ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_radio_set(core, 2, "122.5", nullptr) == XCS_ERROR_INVALID_ARGUMENT);
+
+  /* ATC reference */
+  const auto atc = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_atc_get(core, b, s, l);
+    });
+  };
+  ok1(xcs_atc_set_declination(core, 31) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_atc_set_declination(core, std::numeric_limits<double>::quiet_NaN()) ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_atc_set_declination(core, -2.4) == XCS_OK);
+  ok1(Contains(atc(), "\"declination\":-2"));
+  ok1(xcs_atc_set_reference(core, id) == XCS_OK);
+  /* the waypoint itself is within 100 m */
+  ok1(Contains(atc(), "\"location\":") && !Contains(atc(), "\"waypoint\":\"\""));
+  ok1(xcs_atc_set_reference(core, -1) == XCS_OK);
+  ok1(!Contains(atc(), "\"location\":"));
+  ok1(xcs_atc_set_declination(core, 0) == XCS_OK);
+
+  /* nearest airspace: its details and "Ack Day" */
+  ok1(xcs_airspace_details_acknowledge(core, 2) == XCS_ERROR_INVALID_ARGUMENT);
+  const auto details = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_airspace_details(core, b, s, l);
+    });
+  };
+  /* none yet: the replay ends 30 km from the nearest airspace, the
+     limit of upstream's search (checked on a phone instead) */
+  ok1(details() == "{}");
+  ok1(xcs_airspace_details_acknowledge(core, 1) == XCS_ERROR_STATE);
+
+  xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, e_WindSpeed_Est);
+  xcs_set_data_file(core, XCS_DATA_AIRSPACE, nullptr);
+  xcs_set_data_file(core, XCS_DATA_MAP, nullptr);
+}
+
 static void
 TestUnits(xcs_core *core)
 {
@@ -1155,7 +1254,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -1185,6 +1284,7 @@ main()
   TestRasp(core);
   TestNotam(core);
   TestTiles(core);
+  TestTilePages(core);
   TestStatusPages(core);
   TestReplayControls(core);
   TestReplayToEnd(core, recorder);
