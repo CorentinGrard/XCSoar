@@ -43,6 +43,7 @@ import org.xcsoar.mobile.core.AirspaceClassInfo
 import org.xcsoar.mobile.core.AirspaceOption
 import org.xcsoar.mobile.core.MapOption
 import org.xcsoar.mobile.core.PlaneDetails
+import org.xcsoar.mobile.core.ImportedPolar
 import org.xcsoar.mobile.core.PolarInfo
 import org.xcsoar.mobile.core.ProfileInfo
 import org.xcsoar.mobile.core.MacCreadyOption
@@ -398,11 +399,19 @@ class NativeXcsoarCore(
     override suspend fun savePlane(plane: PlaneEdit): String = lock.withLock {
         check(handle != 0L) { "core not started" }
         withContext(Dispatchers.IO) {
+            val shape = plane.customPolar?.let { points ->
+                (points.flatMap { listOf(it.speed, it.sink) } + plane.customReferenceMass)
+                    .toDoubleArray()
+            }
             NativeCore.nativePlaneSave(handle, plane.path, plane.registration,
                                        plane.competitionId, plane.type, plane.polar,
+                                       shape, plane.customPolarName.takeIf { shape != null },
                                        plane.weGlideType, plane.doubleSeater)
         } ?: error("xcs_plane_save failed")
     }
+
+    override suspend fun parsePolar(text: String) =
+        query({ NativeCore.nativePolarParse(it, text) }, ImportedPolar::parse)
 
     override suspend fun activatePlane(path: String) =
         command { NativeCore.nativePlaneActivate(it, path) }

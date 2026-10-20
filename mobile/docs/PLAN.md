@@ -156,8 +156,9 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       `make check` here: 123 of 124 programs pass (11,610 checks);
       `TestWrapText` does not link on this Fedora host (VirtualCanvas)
 - [~] Run L1 + L2 under ASan/TSan in CI.  ASan: job `core-asan`
-      (2026-10-20, not run yet).  TSan: not yet (Ubuntu 24.04 runners'
-      ASLR setting breaks it; to try here first).  By hand on this Fedora host
+      (2026-10-20, not run yet).  TSan: not yet; this host lacks the
+      runtime (`sudo dnf install libtsan`, the pilot's call), and Ubuntu
+      24.04 runners' ASLR setting breaks it in CI.  By hand on this Fedora host
       (2026-10-15, 373 checks clean, `ASAN_OPTIONS=detect_leaks=0`):
       `make SANITIZE=address TARGET_OUTPUT_DIR=output/UNIX-asan
       output/UNIX-asan/bin/TestCoreApi` with the usual Fedora variables
@@ -631,9 +632,13 @@ the core already links but that has never run in this app:
   for flights downloaded from loggers)
 - "Last flown" is recorded at take-off: seen on a real take-off
   (2026-10-10)
-- Plane editor: no custom polar yet (upstream's PlanePolarDialog import
-  / custom polar coefficients); masses, ballast, dump time, speed limit,
-  wing area and handicap are editable (2026-10-03)
+- Plane editor: the polar's three points are editable in the pilot's
+  units and a WinPilot .plr file can be imported (upstream's
+  PlanePolarDialog "Import"), 2026-10-20; `xcs_plane_save` takes a
+  custom shape, `xcs_polar_parse`.  Tested in TestCoreApi and the
+  screenshots; the import's file picker not yet tried on the phone (it
+  locked); masses, ballast, dump time, speed limit, wing area and
+  handicap are editable (2026-10-03)
 - Plane editor (2026-10-03): the pilot picks one model from WeGlide's
   types and XCSoar's built-in polars together; it sets the type, the
   polar (matched by name: 134 of the 201 polars have a WeGlide type),

@@ -90,4 +90,26 @@ class PlanesTest {
                                    date = "2026-10-02", registration = "F-CGXB")
         assertEquals(flight, WeGlideFlight.parse(flight.encode()))
     }
+
+    @Test
+    fun parsesPolarPoints() {
+        // as xcs_planes_list writes them, m/s
+        val plane = PlaneList.parse("""{"planes":[{"path":"/p/D-1.xcp","registration":"D-1",
+            "points":[[27.8,-0.69],[33.3,-0.87],[41.7,-1.44]]}]}""").planes.single()
+        assertEquals(PolarPoint(33.3, -0.87), plane.polar[1])
+        // anything but three points: none
+        assertEquals(emptyList<PolarPoint>(), PlaneList.parse(
+            """{"planes":[{"path":"p","registration":"D","points":[[1,2]]}]}""")
+            .planes.single().polar)
+    }
+
+    @Test
+    fun parsesImportedPolar() {
+        // xcs_polar_parse of an LS-3 .plr
+        val polar = ImportedPolar.parse("""{"reference_mass":4.03E2,"max_ballast":1.01E2,
+            "wing_area":0E0,"max_speed":0E0,"points":[[31.95,-0.86],[48.34,-1.76],[59.09,-3.4]]}""")
+        assertEquals(403.0, polar.referenceMass, 0.0)
+        assertEquals(3, polar.polar.size)
+        assertEquals(-3.4, polar.polar[2].sink, 0.0)
+    }
 }

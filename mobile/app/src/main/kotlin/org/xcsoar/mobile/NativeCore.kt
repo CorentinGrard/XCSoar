@@ -95,9 +95,13 @@ internal object NativeCore {
     @JvmStatic external fun nativePlanesList(core: Long): String?
     @JvmStatic external fun nativePolarsList(core: Long): String?
     /** @return the plane's path, or null on error */
+    /** [shape]: {speed1, sink1, speed2, sink2, speed3, sink3, reference mass}, or null */
     @JvmStatic external fun nativePlaneSave(core: Long, path: String, registration: String,
                                             competitionId: String, type: String, polar: Int,
+                                            shape: DoubleArray?, polarName: String?,
                                             weGlideType: Int, doubleSeater: Boolean): String?
+    /** @return JSON, or null if the text has no valid polar */
+    @JvmStatic external fun nativePolarParse(core: Long, text: String): String?
     @JvmStatic external fun nativePlaneActivate(core: Long, path: String): Int
     @JvmStatic external fun nativePlaneDelete(core: Long, path: String): Int
     @JvmStatic external fun nativeProfilesList(core: Long): String?

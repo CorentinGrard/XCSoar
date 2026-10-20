@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import org.xcsoar.mobile.core.PlaneDetails
 import org.xcsoar.mobile.core.PlaneEdit
 import org.xcsoar.mobile.core.PlaneInfo
+import org.xcsoar.mobile.core.PolarPoint
 import org.xcsoar.mobile.core.XcsoarCore
 
 /** A plane being created or changed. */
@@ -31,6 +32,14 @@ data class PlaneEditState(
     val doubleSeater: Boolean = false,
     /** Masses, ballast and limits; null until the plane has a polar. */
     val details: PlaneDetails? = null,
+    /** The polar's three points (m/s); empty until the plane has a polar. */
+    val points: List<PolarPoint> = emptyList(),
+    /** The pilot changed [points] or imported a polar file: saved as
+        theirs, under [polarName]. */
+    val customPolar: Boolean = false,
+    /** Bumped when [points] come from elsewhere (a polar, a file), so the
+        fields being typed in start over. */
+    val pointsRevision: Int = 0,
     val polars: List<String> = emptyList(),
     /** WeGlide's types and XCSoar's polars ([aircraftModels]). */
     val models: List<AircraftModel> = emptyList(),
@@ -60,7 +69,8 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
             polarName = plane?.polarName.orEmpty(),
             weGlideType = plane?.weGlideType ?: 0,
             doubleSeater = plane?.doubleSeater ?: false,
-            details = plane?.details)
+            details = plane?.details,
+            points = plane?.polar.orEmpty())
         viewModelScope.launch {
             val polars = core.polars()
             val all = core.searchWeGlideAircraft("", Int.MAX_VALUE)
@@ -109,7 +119,9 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
             stateFlow.update { s ->
                 if (s.polar != index) return@update s
                 val old = s.details
-                s.copy(details = PlaneDetails(
+                s.copy(points = info.polar, customPolar = false,
+                       pointsRevision = s.pointsRevision + 1,
+                       details = PlaneDetails(
                     emptyMass = info.emptyMass,
                     referenceMass = info.referenceMass,
                     maxBallast = info.maxBallast,
@@ -117,6 +129,45 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
                     maxSpeed = info.maxSpeed.takeIf { it > 0 } ?: old?.maxSpeed ?: 0.0,
                     wingArea = info.wingArea.takeIf { it > 0 } ?: old?.wingArea ?: 0.0,
                     handicap = info.handicap.takeIf { it > 0 } ?: old?.handicap ?: 100))
+            }
+        }
+    }
+
+    /** One point of the polar, typed by the pilot (m/s). */
+    fun setPoint(index: Int, point: PolarPoint) = stateFlow.update { s ->
+        if (index !in s.points.indices) return@update s
+        s.copy(points = s.points.toMutableList().also { it[index] = point },
+               customPolar = true, error = null)
+    }
+
+    /**
+     * A WinPilot polar file (.plr), as upstream's "Import": its points,
+     * reference mass, ballast, wing area and speed limit, named after the
+     * file.
+     */
+    fun importPolar(text: String, fileName: String) {
+        viewModelScope.launch {
+            val imported = try {
+                core.parsePolar(text)
+            } catch (_: Exception) {
+                null
+            }
+            stateFlow.update { s ->
+                if (imported == null || imported.polar.isEmpty())
+                    return@update s.copy(error = "$fileName: no polar in it")
+                val old = s.details
+                val name = fileName.substringBeforeLast('.').ifBlank { "Imported" }
+                s.copy(points = imported.polar, customPolar = true, polar = -1,
+                       polarName = name, type = s.type.ifBlank { name },
+                       pointsRevision = s.pointsRevision + 1, error = null,
+                       details = PlaneDetails(
+                           emptyMass = old?.emptyMass ?: 0.0,
+                           referenceMass = imported.referenceMass,
+                           maxBallast = imported.maxBallast,
+                           dumpTime = old?.dumpTime ?: 120,
+                           maxSpeed = imported.maxSpeed.takeIf { it > 0 } ?: old?.maxSpeed ?: 0.0,
+                           wingArea = imported.wingArea.takeIf { it > 0 } ?: old?.wingArea ?: 0.0,
+                           handicap = old?.handicap ?: 100))
             }
         }
     }
@@ -179,12 +230,21 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
             try {
                 val path = core.savePlane(PlaneEdit(
                     s.path, s.registration.trim(), s.competitionId.trim(), s.type.trim(),
-                    s.polar, s.weGlideType, s.doubleSeater))
+                    if (s.customPolar) -1 else s.polar, s.weGlideType, s.doubleSeater,
+                    customPolar = s.points.takeIf { s.customPolar },
+                    customPolarName = s.polarName,
+                    customReferenceMass = s.details?.referenceMass ?: 0.0))
                 s.details?.let { core.setPlaneDetails(path, it) }
                 stateFlow.update { it.copy(busy = false) }
                 onSaved(path)
             } catch (e: Exception) {
-                stateFlow.update { it.copy(busy = false, error = "Could not save the aircraft") }
+                stateFlow.update {
+                    it.copy(busy = false,
+                            error = if (s.customPolar)
+                                "Not saved: the three points make no polar (the sink " +
+                                    "grows with speed, slowest point first)"
+                            else "Could not save the aircraft")
+                }
             }
         }
     }

@@ -11,6 +11,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.xcsoar.mobile.core.PlaneDetails
 import org.xcsoar.mobile.core.PlaneInfo
+import org.xcsoar.mobile.core.PolarPoint
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 /** L4: aircraft and crew picker, plane editor, pilot and WeGlide. */
@@ -45,7 +46,7 @@ class CrewScreenshotTest {
 
     /** Tall enough for the masses and limits under the model. */
     @Test
-    @Config(qualifiers = "w390dp-h1700dp-xxhdpi")
+    @Config(qualifiers = "w390dp-h1900dp-xxhdpi")
     fun planeEditor() = captureRoboImage("src/test/screenshots/plane_edit.png") {
         XcsTheme(dark = false) {
             PlaneEditContent(
@@ -53,6 +54,9 @@ class CrewScreenshotTest {
                                type = "Duo Discus", polarName = "Duo Discus",
                                weGlideType = 61, weGlideName = "Duo Discus",
                                doubleSeater = true,
+                               points = listOf(PolarPoint(100 / 3.6, -0.64),
+                                               PolarPoint(120 / 3.6, -0.75),
+                                               PolarPoint(150 / 3.6, -1.15)),
                                details = PlaneDetails(emptyMass = 420.0, referenceMass = 700.0,
                                                       maxBallast = 200.0, dumpTime = 120,
                                                       maxSpeed = 75.0, wingArea = 16.4,

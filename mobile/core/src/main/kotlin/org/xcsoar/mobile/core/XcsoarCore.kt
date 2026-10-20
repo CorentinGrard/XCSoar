@@ -206,8 +206,12 @@ interface XcsoarCore {
     /** One built-in polar and the plane values it brings. */
     suspend fun polar(index: Int): PolarInfo? = null
 
-    /** Create or change a plane; @return its path. */
+    /** Create or change a plane; @return its path.  Fails for a
+        [PlaneEdit.customPolar] that is no polar. */
     suspend fun savePlane(plane: PlaneEdit): String = error("no planes")
+
+    /** A WinPilot polar file's text; null if it has no valid polar. */
+    suspend fun parsePolar(text: String): ImportedPolar? = null
 
     /** Change a plane's masses, ballast and limits. */
     suspend fun setPlaneDetails(path: String, details: PlaneDetails) {}

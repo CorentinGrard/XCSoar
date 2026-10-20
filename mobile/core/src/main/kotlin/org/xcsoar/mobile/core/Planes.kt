@@ -26,6 +26,8 @@ data class PlaneInfo(
     @SerialName("double_seater") val doubleSeater: Boolean = false,
     @SerialName("empty_mass") val emptyMass: Double = 0.0,
     @SerialName("reference_mass") val referenceMass: Double = 0.0,
+    /** The polar's three points: [speed, sink], m/s. */
+    private val points: List<List<Double>> = emptyList(),
     /** litres */
     @SerialName("max_ballast") val maxBallast: Double = 0.0,
     /** s to dump full ballast */
@@ -39,6 +41,34 @@ data class PlaneInfo(
 ) {
     val details get() = PlaneDetails(emptyMass, referenceMass, maxBallast, dumpTime, maxSpeed,
                                      wingArea, handicap)
+
+    val polar get() = PolarPoint.listOf(points)
+}
+
+/** One point of a polar: the sink rate (m/s, negative) at a speed (m/s). */
+data class PolarPoint(val speed: Double, val sink: Double) {
+    companion object {
+        /** From the core's [[speed, sink], ...]; empty unless three points. */
+        fun listOf(points: List<List<Double>>): List<PolarPoint> =
+            points.takeIf { p -> p.size == 3 && p.all { it.size == 2 } }
+                ?.map { PolarPoint(it[0], it[1]) }.orEmpty()
+    }
+}
+
+/** A WinPilot polar file (.plr) as the core reads it (`xcs_polar_parse`). */
+@Serializable
+data class ImportedPolar(
+    @SerialName("reference_mass") val referenceMass: Double,
+    @SerialName("max_ballast") val maxBallast: Double = 0.0,
+    @SerialName("wing_area") val wingArea: Double = 0.0,
+    @SerialName("max_speed") val maxSpeed: Double = 0.0,
+    private val points: List<List<Double>> = emptyList(),
+) {
+    val polar get() = PolarPoint.listOf(points)
+
+    companion object {
+        fun parse(text: String): ImportedPolar = json.decodeFromString(serializer(), text)
+    }
 }
 
 /** A plane's masses, ballast and limits (`xcs_plane_details`), SI units. */
@@ -62,7 +92,10 @@ data class PolarInfo(
     @SerialName("wing_area") val wingArea: Double = 0.0,
     @SerialName("max_speed") val maxSpeed: Double = 0.0,
     val handicap: Int = 0,
+    private val points: List<List<Double>> = emptyList(),
 ) {
+    val polar get() = PolarPoint.listOf(points)
+
     companion object {
         fun parse(text: String): PolarInfo = json.decodeFromString(serializer(), text)
     }
@@ -101,6 +134,11 @@ data class PlaneEdit(
     val polar: Int,
     val weGlideType: Int,
     val doubleSeater: Boolean,
+    /** A polar of the pilot's (three points) and its name, replacing it. */
+    val customPolar: List<PolarPoint>? = null,
+    val customPolarName: String = "",
+    /** kg, with [customPolar]; 0 keeps the plane's. */
+    val customReferenceMass: Double = 0.0,
 )
 
 /** The names written to the IGC file (`xcs_crew_get`). */

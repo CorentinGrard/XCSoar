@@ -3,6 +3,15 @@
 
 package org.xcsoar.mobile.ui.crew
 
+import org.xcsoar.mobile.core.UnitGroup
+import org.xcsoar.mobile.core.PolarPoint
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import android.provider.OpenableColumns
+import android.net.Uri
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -68,6 +77,14 @@ fun PlaneEditScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var picker by rememberSaveable { mutableStateOf(Picker.NONE) }
+    val context = LocalContext.current
+    // upstream's "Import": a WinPilot polar file the pilot picks
+    val importPolar = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) readPolarFile(context, uri)?.let { (name, text) ->
+            viewModel.importPolar(text, name)
+        }
+    }
 
     when (picker) {
         Picker.NONE -> {
@@ -80,6 +97,8 @@ fun PlaneEditScreen(
                 onDetails = viewModel::setDetails,
                 onPickModel = { picker = Picker.MODEL },
                 onPickPolar = { picker = Picker.POLAR },
+                onPoint = viewModel::setPoint,
+                onImportPolar = { importPolar.launch(arrayOf("*/*")) },
                 onSave = { viewModel.save(onSaved) },
                 onDelete = { viewModel.delete(onDeleted) },
                 onBack = onBack)
@@ -115,6 +134,8 @@ fun PlaneEditContent(
     onSave: () -> Unit,
     onDelete: () -> Unit,
     onBack: () -> Unit,
+    onPoint: (Int, PolarPoint) -> Unit = { _, _ -> },
+    onImportPolar: () -> Unit = {},
 ) {
     val colors = XcsTheme.colors
     PageLayout(bottom = {
@@ -139,6 +160,10 @@ fun PlaneEditContent(
             else
                 ChoiceRow("No polar for this model: choose one", onPickPolar,
                           color = colors.caution)
+            if (state.points.size == 3)
+                PolarPoints(state.points, state.pointsRevision, onPoint)
+            ActionButton("Import a polar file (.plr)", outlined = true,
+                         modifier = Modifier.fillMaxWidth(), onClick = onImportPolar)
             Text(if (state.weGlideType != 0)
                      "WeGlide: ${state.weGlideName.ifEmpty { "type ${state.weGlideType}" }}"
                  else "Not a WeGlide type: flights upload without one",
@@ -173,6 +198,69 @@ fun PlaneEditContent(
                          onClick = onDelete)
     }
 }
+
+/**
+ * The polar's three points, as XCSoar's plane polar dialog edits them:
+ * speed and sink in the pilot's units.  The sink is typed without its
+ * sign (number pads often have no minus) and kept negative.
+ */
+@Composable
+private fun PolarPoints(points: List<PolarPoint>, revision: Int,
+                        onPoint: (Int, PolarPoint) -> Unit) {
+    val speedUnit = Format.unit(UnitGroup.HORIZONTAL_SPEED)
+    val sinkUnit = Format.unit(UnitGroup.VERTICAL_SPEED)
+    val sinkDecimals = if (sinkUnit.name == "fpm") 0 else 2
+    Caption("Polar points", Modifier.padding(start = 4.dp, top = 4.dp))
+    points.forEachIndexed { i, point ->
+        // typed text, kept while the pilot types; new when the polar changes
+        var speed by rememberSaveable(revision, i) {
+            mutableStateOf(decimal(speedUnit.toUser(point.speed), 0))
+        }
+        var sink by rememberSaveable(revision, i) {
+            mutableStateOf(decimal(-sinkUnit.toUser(point.sink), sinkDecimals))
+        }
+        fun commit() {
+            val v = speed.replace(',', '.').toDoubleOrNull()
+            val w = sink.replace(',', '.').toDoubleOrNull()
+            if (v != null && v > 0 && w != null)
+                onPoint(i, PolarPoint(speedUnit.toSi(v), -sinkUnit.toSi(kotlin.math.abs(w))))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            InputField(speed, { speed = it; commit() }, "Speed ${i + 1} · ${speedUnit.name}",
+                       Modifier.weight(1f), keyboardType = KeyboardType.Decimal)
+            InputField(sink, { sink = it; commit() }, "Sink ${i + 1} · ${sinkUnit.name}",
+                       Modifier.weight(1f), keyboardType = KeyboardType.Decimal)
+        }
+    }
+    Explanation("Three points of the sink rate over speed, slowest first.")
+}
+
+private fun decimal(value: Double, decimals: Int) =
+    String.format(Locale.ROOT, "%.${decimals}f", value)
+
+/** A picked polar file's name and text; null if unreadable or too big. */
+private fun readPolarFile(context: Context, uri: Uri): Pair<String, String>? = try {
+    val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME),
+                                             null, null, null)?.use { c ->
+        if (c.moveToFirst()) c.getString(0) else null
+    } ?: "polar.plr"
+    // a .plr file is a few lines
+    val text = context.contentResolver.openInputStream(uri)?.use { input ->
+        val buffer = ByteArray(MAX_POLAR_FILE)
+        var length = 0
+        while (length < buffer.size) {
+            val n = input.read(buffer, length, buffer.size - length)
+            if (n < 0) break
+            length += n
+        }
+        String(buffer, 0, length, Charsets.UTF_8)
+    }
+    text?.let { name to it }
+} catch (_: Exception) {
+    null
+}
+
+private const val MAX_POLAR_FILE = 64 * 1024
 
 /**
  * XCSoar's plane details and polar masses; the polar fills them in, the
