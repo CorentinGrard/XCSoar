@@ -48,8 +48,9 @@ over USB. The folders inside are XCSoar's (`maps`, `airspace`,
   GPS and barometer are used.
 - Your own menus and input events (`.xci` files), InfoBox page sets, and
   more or fewer than six tiles.
-- Some graphical InfoBoxes (barogram, thermal assistant, horizon,
-  arrows).
+- Some graphical InfoBoxes (thermal assistant, thermal band, task
+  progress, horizon, climb percentage chart). The barogram, the vario
+  traces and the wind and next waypoint arrows are there.
 - XCSoar's simulator mode.
 - Translations of the app's own words: XCSoar's parts (tile names,
   airspace classes, status pages) follow the phone's language, the

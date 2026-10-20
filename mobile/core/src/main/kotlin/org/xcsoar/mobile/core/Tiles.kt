@@ -54,6 +54,9 @@ data class TileValue(
     /** InfoBoxLook's colours: 0 none, 1 red, 2 blue, 3 green, 4 yellow, 5 magenta. */
     val color: Int = 0,
     @SerialName("comment_color") val commentColor: Int = 0,
+    /** What a graphical InfoBox draws in place of its value; null for
+        the others, and when it has nothing to draw. */
+    val graphic: TileGraphic? = null,
 ) {
     companion object {
         const val COLOR_NONE = 0
@@ -65,6 +68,41 @@ data class TileValue(
 
         fun parseList(text: String): List<TileValue> =
             json.decodeFromString(ListSerializer(serializer()), text)
+    }
+}
+
+/**
+ * A graphical InfoBox's drawing, as data ([kind]):
+ *  - "spark": the last [values] of a vario (m/s, oldest first) on a
+ *    chart [capacity] values wide, [center]ed on zero or not, with the
+ *    [macCready] line; [scale] is the vario gauge's range (negative,
+ *    positive) the chart spans at least.
+ *  - "barogram": the flight's altitude and the terrain under it
+ *    ([ChartPoint]s, hours and m).
+ *  - "wind_arrow", "next_arrow": where the wind blows to, relative to
+ *    the heading, or where the next waypoint is, relative to the track
+ *    ([angle], degrees clockwise).
+ */
+@Serializable
+data class TileGraphic(
+    val kind: String,
+    val values: List<Double> = emptyList(),
+    val capacity: Int = 0,
+    val center: Boolean = false,
+    @SerialName("mac_cready") val macCready: Double = 0.0,
+    val scale: List<Double> = emptyList(),
+    @SerialName("points") private val pointsRaw: List<List<Double>> = emptyList(),
+    @SerialName("terrain") private val terrainRaw: List<List<Double>> = emptyList(),
+    val angle: Double = 0.0,
+) {
+    val points get() = pointsRaw.map { ChartPoint(it[0], it[1]) }
+    val terrain get() = terrainRaw.map { ChartPoint(it[0], it[1]) }
+
+    companion object {
+        const val SPARK = "spark"
+        const val BAROGRAM = "barogram"
+        const val WIND_ARROW = "wind_arrow"
+        const val NEXT_ARROW = "next_arrow"
     }
 }
 

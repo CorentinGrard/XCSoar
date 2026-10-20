@@ -59,6 +59,7 @@ import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.TileAction
 import org.xcsoar.mobile.core.TileLayout
+import org.xcsoar.mobile.core.TileGraphic
 import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.ThemeChoice
@@ -526,7 +527,8 @@ private fun Instruments(
         boxes.forEachIndexed { i, box ->
             InfoBox(box.title, box.value, Modifier, box.color, box.comment, box.commentColor,
                     onLongClick = if (tiles != null) ({ onEditTile(i) }) else null,
-                    onClick = if (tiles != null) ({ onTapTile(i) }) else null)
+                    onClick = if (tiles != null) ({ onTapTile(i) }) else null,
+                    graphic = box.graphic)
         }
         MacCreadyControl(macCready, onMacCreadyChange, auto = state?.autoMacCready == true)
         MenuTile(onMenu)
@@ -584,7 +586,8 @@ private fun VarioSlot(vario: (() -> VarioValues?)?, state: FlightState?, modifie
 
 private class InfoBoxValue(val title: String, val value: Format.Value,
                            val color: Color? = null, val comment: String = "",
-                           val commentColor: Color? = null)
+                           val commentColor: Color? = null,
+                           val graphic: TileGraphic? = null)
 
 /** InfoBoxLook's colours by function (doc/architecture.rst). */
 private fun tileColor(code: Int, colors: XcsColors): Color? = when (code) {
@@ -598,7 +601,7 @@ private fun tileColor(code: Int, colors: XcsColors): Color? = when (code) {
 
 private fun TileValue.toInfoBoxValue(colors: XcsColors) =
     InfoBoxValue(title, Format.Value(value, unit), tileColor(color, colors), comment,
-                 tileColor(commentColor, colors))
+                 tileColor(commentColor, colors), graphic)
 
 /**
  * The design's six tiles from the snapshot, for previews and the fake

@@ -12,8 +12,10 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.MapOrientation
+import org.xcsoar.mobile.core.TileGraphic
 import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.ui.theme.XcsTheme
+import kotlin.math.sin
 
 /**
  * L4: the flight screen against the fake core, in each theme and
@@ -68,6 +70,41 @@ class FlightScreenScreenshotTest {
                               TileValue(5, "V GND", "130", "km/h"),
                               TileValue(6, "TC 30s", "+2.1", "m/s",
                                         color = TileValue.COLOR_GREEN)))
+        }
+    }
+
+    /**
+     * Graphical InfoBoxes: the vario and thermal sparks, the barogram,
+     * the wind and next waypoint arrows, drawn from the core's data.
+     */
+    @Test
+    @Config(qualifiers = "w390dp-h844dp-xxhdpi")
+    fun graphicTiles() = capture("tiles_graphic") {
+        val vario = (0 until 24).map { 2.2 * sin(it / 3.5) - 0.4 }
+        val barogram = (0..40).map { listOf(it / 20.0, 600 + 900 * sin(it / 13.0) + 15 * (it % 5)) }
+        val terrain = (0..40).map { listOf(it / 20.0, 350 + 120 * sin(it / 6.0)) }
+        XcsTheme(dark = false) {
+            FlightContent(FakeXcsoarCore.syntheticState(320), null, circling = true, {},
+                          tiles = listOf(
+                              TileValue(24, "Vario Trace", "", comment = "+1.6 m/s",
+                                        graphic = TileGraphic(TileGraphic.SPARK, vario, 30,
+                                                              center = true, macCready = 1.5,
+                                                              scale = listOf(-5.0, 5.0))),
+                              TileValue(79, "Barogram", "", comment = "1420 m",
+                                        graphic = TileGraphic(TileGraphic.BAROGRAM, pointsRaw = barogram,
+                                                              terrainRaw = terrain)),
+                              TileValue(27, "TC Trace", "", comment = "+1.2 m/s",
+                                        graphic = TileGraphic(TileGraphic.SPARK,
+                                                              vario.map { maxOf(it, 0.3) }, 30,
+                                                              macCready = 1.5,
+                                                              scale = listOf(0.0, 5.0))),
+                              TileValue(46, "Wind", "", comment = "250° / 22",
+                                        graphic = TileGraphic(TileGraphic.WIND_ARROW,
+                                                              angle = 110.0)),
+                              TileValue(85, "Grenoble Le Versoud", "", comment = "22.8 km",
+                                        graphic = TileGraphic(TileGraphic.NEXT_ARROW,
+                                                              angle = 320.0)),
+                              TileValue(6, "V GND", "130", "km/h")))
         }
     }
 

@@ -189,7 +189,7 @@ fun StatusChip(text: String, color: Color, modifier: Modifier = Modifier) {
 
 /** An arrow pointing to [bearing] (degrees, north up). */
 @Composable
-private fun DirectionArrow(bearing: Double, color: Color, modifier: Modifier) {
+internal fun DirectionArrow(bearing: Double, color: Color, modifier: Modifier) {
     Canvas(modifier.rotate(bearing.toFloat())) {
         val w = size.width
         val stroke = Stroke(w * 0.12f, cap = StrokeCap.Round, join = StrokeJoin.Round)
