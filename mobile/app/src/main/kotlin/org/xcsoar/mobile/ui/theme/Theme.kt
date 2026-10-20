@@ -73,7 +73,7 @@ data class XcsColors(
  * Every text colour has at least 4.5:1 contrast on the surface it is
  * drawn on.
  */
-private val sunlight = XcsColors(
+internal val sunlight = XcsColors(
     warning = Color(0xFFB42A30),
     caution = Color(0xFFC2410C),
     safe = Color(0xFF0B7A5C),
@@ -99,7 +99,7 @@ private val sunlight = XcsColors(
 )
 
 /** Low light: dark surfaces, no pure white glare. */
-private val night = XcsColors(
+internal val night = XcsColors(
     warning = Color(0xFFFF6B6B),
     caution = Color(0xFFFFAB40),
     safe = Color(0xFF3BD1A6),

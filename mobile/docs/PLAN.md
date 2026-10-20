@@ -672,8 +672,15 @@ the core already links but that has never run in this app:
       as XCSoar's InfoBoxes (doc/architecture.rst "Touch interaction"):
       both commit on lift-off, sliding off cancels, a one-way fill from
       150 to 500 ms and a haptic tick when the hold is armed
-      (`TileGestureTest`; not yet felt on the phone).  Left: sunlight
-      contrast audit, landscape / tablet review
+      (`TileGestureTest`; not yet felt on the phone).  Sunlight contrast
+      (`ContrastTest`, WCAG): text 15.8:1 or more in sunlight (10.8:1 at
+      night), every other text colour 4.5:1 or more on the surfaces it
+      is drawn on (lowest: caution on a tile, 4.72:1); caution and
+      green on the bare map ground are 4.33 / 4.45:1, so they stay off
+      it (chips are cards).  Landscape: the side panel's instruments sit
+      at its bottom, MacCready and the menu under the hand as in
+      portrait; tablet screenshots (10", both ways).  Left: one-handed
+      quick actions; tablets could show more tiles
 - [x] Screen always on.  Orientation lock and a brightness shortcut: not
       wanted, the phone does both (pilot, 2026-10-07)
 - [ ] Crash reporting (opt-in, privacy-friendly) + native crash symbolication

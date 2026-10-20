@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -294,15 +295,22 @@ fun FlightContent(
                         .fillMaxHeight()
                         .background(colors.sheet)
                         .windowInsetsPadding(WindowInsets.safeDrawing.only(
-                            WindowInsetsSides.Vertical + WindowInsetsSides.End))
-                        .verticalScroll(rememberScrollState())
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                            WindowInsetsSides.Vertical + WindowInsetsSides.End)),
                 ) {
-                    NextWaypointCard(state?.next, Modifier.fillMaxWidth(),
-                                     state?.nextTimeRemaining, onClick = onNextWaypoint,
-                                     elevated = false)
-                    instruments()
+                    // at the bottom, as in portrait: MacCready and the menu
+                    // stay under the hand; short screens scroll
+                    Spacer(Modifier.weight(1f))
+                    Column(
+                        Modifier
+                            .verticalScroll(rememberScrollState())
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        NextWaypointCard(state?.next, Modifier.fillMaxWidth(),
+                                         state?.nextTimeRemaining, onClick = onNextWaypoint,
+                                         elevated = false)
+                        instruments()
+                    }
                 }
             }
         } else {

@@ -121,6 +121,23 @@ class FlightScreenScreenshotTest {
             FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {})
         }
     }
+
+    /** A 10" tablet, upright and on its side. */
+    @Test
+    @Config(qualifiers = "w800dp-h1280dp-xhdpi")
+    fun tabletPortrait() = capture("tablet_portrait") {
+        XcsTheme(dark = false) {
+            FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {})
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-land-xhdpi")
+    fun tabletLandscape() = capture("tablet_landscape") {
+        XcsTheme(dark = false) {
+            FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {})
+        }
+    }
 }
 
 @RunWith(RobolectricTestRunner::class)
