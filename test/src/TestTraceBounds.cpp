@@ -175,13 +175,33 @@ TestCrossingLegKept() noexcept
   ok1(bounded.back().GetTime() == seconds{10});
 }
 
+/**
+ * More points within the "no thin" time than the trace holds: thinning
+ * gives up on recency rather than running past the end of its list.
+ */
+static void
+TestThinningShortTrace() noexcept
+{
+  Trace trace(seconds{1000}, Trace::null_time, 16);
+
+  for (unsigned i = 0; i < 100; ++i) {
+    const GeoPoint loc(Angle::Degrees(8 + i * 0.001), Angle::Degrees(48));
+    trace.push_back(TracePoint(loc, seconds{i}, 1000, 0, 0));
+  }
+
+  ok1(trace.size() <= 16);
+  /* the latest points stay (closer ones are skipped once thinned) */
+  ok1(trace.back().GetTime() >= seconds{90});
+}
+
 int
 main()
 {
-  plan_tests(9 + 7 + 4 + 5);
+  plan_tests(9 + 7 + 4 + 5 + 2);
   TestBoundsFirstQuery();
   TestCrossingLegKept();
   TestThinningKeepsLatestPoint();
   TestThinningAnchoredAtTip();
+  TestThinningShortTrace();
   return exit_status();
 }

@@ -115,7 +115,9 @@ Trace::EraseDelta(const unsigned target_size, const Time recent) noexcept
   const Time recent_time = GetRecentTime(recent);
 
   auto candidate = delta_list.begin();
-  while (size() > target_size) {
+  /* when too few points are old enough, stop at the end of the list: the
+     caller thins again ignoring recency */
+  while (size() > target_size && candidate != delta_list.end()) {
     const TraceDelta &td = *candidate;
     if (!td.IsEdge() && td.point.GetTime() < recent_time) {
       EraseInside(candidate);
