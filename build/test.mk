@@ -115,6 +115,7 @@ TEST_NAMES = \
 	TestMETARParser \
 	TestIGCParser TestIGCFlightTimes \
 	TestTraceBounds \
+	TestTriangleContest \
 	TestStrings TestUnescapeCString TestUTF8 TestWrapText TestLayout \
 	TestInputConfig \
 	TestCRC16 TestCRC8 \
@@ -1211,6 +1212,16 @@ TEST_TRACE_BOUNDS_SOURCES = \
 	$(TEST_SRC_DIR)/TestTraceBounds.cpp
 TEST_TRACE_BOUNDS_DEPENDS = GEO MATH UTIL
 $(eval $(call link-program,TestTraceBounds,TEST_TRACE_BOUNDS))
+
+TEST_TRIANGLE_CONTEST_SOURCES = \
+	$(TEST_SRC_DIR)/tap.c \
+	$(SRC)/Engine/Trace/Point.cpp \
+	$(SRC)/Engine/Trace/Trace.cpp \
+	$(SRC)/IGC/IGCParser.cpp \
+	$(TEST_SRC_DIR)/FakeGeoid.cpp \
+	$(TEST_SRC_DIR)/TestTriangleContest.cpp
+TEST_TRIANGLE_CONTEST_DEPENDS = CONTEST IO OS GEO TIME MATH UTIL
+$(eval $(call link-program,TestTriangleContest,TEST_TRIANGLE_CONTEST))
 
 FLIGHT_TABLE_SOURCES = \
 	$(SRC)/IGC/IGCParser.cpp \
