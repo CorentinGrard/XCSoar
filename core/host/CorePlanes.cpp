@@ -2,6 +2,10 @@
 // Copyright The XCSoar Project
 
 #include "CorePlanes.hpp"
+#include "Units/Units.hpp"
+#include "Polar/Shape.hpp"
+#include "Polar/Parser.hpp"
+#include "Polar/Polar.hpp"
 #include "Interface.hpp"
 #include "Components.hpp"
 #include "BackendComponents.hpp"
@@ -56,6 +60,16 @@ ExistingProfilePath(std::string_view key) noexcept
   return path != nullptr && File::Exists(path) ? path.c_str() : "";
 }
 
+/** The polar's three points: [[speed, sink], ...], m/s. */
+static boost::json::array
+DescribePoints(const PolarShape &shape) noexcept
+{
+  boost::json::array a;
+  for (const auto &p : shape.points)
+    a.emplace_back(boost::json::array{p.v, p.w});
+  return a;
+}
+
 std::string
 CorePlanes::List() noexcept
 {
@@ -94,6 +108,7 @@ CorePlanes::List() noexcept
       {"double_seater", plane.double_seater},
       {"empty_mass", plane.empty_mass},
       {"reference_mass", plane.polar_shape.reference_mass},
+      {"points", DescribePoints(plane.polar_shape)},
       {"max_ballast", plane.max_ballast},
       {"dump_time", plane.dump_time},
       {"max_speed", plane.max_speed},
@@ -133,7 +148,31 @@ CorePlanes::DescribePolar(unsigned index) noexcept
     {"wing_area", item.wing_area},
     {"max_speed", item.v_no},
     {"handicap", item.contest_handicap},
+    {"points", DescribePoints(item.ToPolarInfo().shape)},
   });
+}
+
+std::string
+CorePlanes::ParsePolarFile(const char *text) noexcept
+{
+  /* PolarGlue::LoadFromFile(): the first line that is a polar */
+  std::string_view rest{text};
+  while (!rest.empty()) {
+    const auto end = rest.find('\n');
+    std::string line{rest.substr(0, end)};
+    rest = end == rest.npos ? std::string_view{} : rest.substr(end + 1);
+
+    PolarInfo polar;
+    if (ParsePolar(polar, line.c_str()) && polar.IsValid())
+      return Serialize(boost::json::object{
+        {"reference_mass", polar.shape.reference_mass},
+        {"max_ballast", polar.max_ballast},
+        {"wing_area", polar.wing_area},
+        {"max_speed", polar.v_no},
+        {"points", DescribePoints(polar.shape)},
+      });
+  }
+  return {};
 }
 
 bool
@@ -205,10 +244,21 @@ NewPlanePath(const char *registration) noexcept
 std::string
 CorePlanes::Save(const char *path, const char *registration,
                  const char *competition_id, const char *type, int polar,
+                 const PolarShape *shape, const char *polar_name,
                  unsigned weglide_type, bool double_seater) noexcept
 try {
   if (path == nullptr || registration == nullptr || *registration == '\0' ||
       competition_id == nullptr || type == nullptr)
+    return {};
+
+  /* PlanePolarWidget::Save(): only a shape that is a polar; speeds as
+     its fields allow (0..300 km/h) */
+  if (shape != nullptr &&
+      (!shape->IsValid() || polar_name == nullptr ||
+       std::any_of(shape->points.begin(), shape->points.end(),
+                   [](const PolarPoint &p){
+                     return !(p.v > 0 && p.v <= Units::ToSysUnit(300, Unit::KILOMETER_PER_HOUR));
+                   })))
     return {};
 
   const auto polars = PolarStore::GetAll();
@@ -219,7 +269,7 @@ try {
   Plane plane{};
   if (create) {
     /* a plane file without a polar cannot be read back */
-    if (polar < 0)
+    if (polar < 0 && shape == nullptr)
       return {};
     plane.handicap = 100;
   } else if (!PlaneGlue::ReadFile(plane, Path{path}))
@@ -227,6 +277,14 @@ try {
 
   if (polar >= 0)
     PlaneGlue::ApplyPolar(plane, polars[polar]);
+
+  if (shape != nullptr) {
+    /* the points; the reference mass belongs to the plane's details */
+    plane.polar_shape.points = shape->points;
+    if (shape->reference_mass > 0)
+      plane.polar_shape.reference_mass = shape->reference_mass;
+    plane.polar_name.SetUTF8(polar_name);
+  }
 
   plane.registration.SetUTF8(registration);
   plane.competition_id.SetUTF8(competition_id);

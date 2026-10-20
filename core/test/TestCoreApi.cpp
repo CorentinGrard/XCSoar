@@ -381,12 +381,13 @@ TestPlanesAndCrew(xcs_core *core)
   char path[1024];
   size_t length;
   /* a new plane needs a polar */
-  ok1(xcs_plane_save(core, "", "D-TEST", "TT", "LS 4", -1, 0, 0,
+  ok1(xcs_plane_save(core, "", "D-TEST", "TT", "LS 4", -1, nullptr, nullptr,
+                     0, 0, path, sizeof(path), &length) ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_plane_save(core, "", "", "TT", "LS 4", 0, nullptr, nullptr, 0, 0,
                      path, sizeof(path), &length) == XCS_ERROR_INVALID_ARGUMENT);
-  ok1(xcs_plane_save(core, "", "", "TT", "LS 4", 0, 0, 0,
-                     path, sizeof(path), &length) == XCS_ERROR_INVALID_ARGUMENT);
-  ok1(xcs_plane_save(core, "", "D-TEST", "TT", "LS 4", 0, 160, 0,
-                     path, sizeof(path), &length) == XCS_OK &&
+  ok1(xcs_plane_save(core, "", "D-TEST", "TT", "LS 4", 0, nullptr, nullptr,
+                     160, 0, path, sizeof(path), &length) == XCS_OK &&
       Contains(path, "planes/D-TEST"));
   ok1(Contains(planes(), "\"registration\":\"D-TEST\",\"competition_id\":\"TT\""));
 
@@ -396,8 +397,8 @@ TestPlanesAndCrew(xcs_core *core)
 
   /* edit: two seats; the active plane keeps flying */
   char saved[1024];
-  ok1(xcs_plane_save(core, path, "D-TEST", "TT", "Duo", -1, 160, 1,
-                     saved, sizeof(saved), &length) == XCS_OK &&
+  ok1(xcs_plane_save(core, path, "D-TEST", "TT", "Duo", -1, nullptr, nullptr,
+                     160, 1, saved, sizeof(saved), &length) == XCS_OK &&
       std::string{saved} == path);
   ok1(Contains(planes(), "\"type\":\"Duo\"") &&
       Contains(planes(), "\"double_seater\":true"));
@@ -420,7 +421,42 @@ TestPlanesAndCrew(xcs_core *core)
   details.dump_time = 120;
   ok1(xcs_plane_set_details(core, path, &details) == XCS_OK);
   ok1(Contains(planes(), "\"empty_mass\":2.3E2,\"reference_mass\":3.5E2,"
-                         "\"max_ballast\":1E2,\"dump_time\":120"));
+                         "\"points\":[[") &&
+      Contains(planes(), "\"max_ballast\":1E2,\"dump_time\":120"));
+
+  /* a polar of the pilot's: three points; the reference mass stays */
+  const xcs_polar_shape shape{{100 / 3.6, 120 / 3.6, 150 / 3.6},
+                              {-0.69, -0.87, -1.44}, 0};
+  ok1(xcs_plane_save(core, path, "D-TEST", "TT", "Duo", -1, &shape, "Mine",
+                     160, 1, saved, sizeof(saved), &length) == XCS_OK);
+  ok1(Contains(planes(), "\"polar_name\":\"Mine\"") &&
+      Contains(planes(), "\"reference_mass\":3.5E2"));
+  /* sinking most at the middle speed: no polar */
+  const xcs_polar_shape no_polar{{100 / 3.6, 120 / 3.6, 150 / 3.6},
+                                 {-0.69, -1.44, -0.87}, 0};
+  ok1(xcs_plane_save(core, path, "D-TEST", "TT", "Duo", -1, &no_polar, "Bad",
+                     160, 1, saved, sizeof(saved), &length) ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_plane_save(core, path, "D-TEST", "TT", "Duo", -1, &shape, nullptr,
+                     160, 1, saved, sizeof(saved), &length) ==
+      XCS_ERROR_INVALID_ARGUMENT);
+  /* a new plane needs no built-in polar then */
+  char other[1024];
+  ok1(xcs_plane_save(core, "", "D-MINE", "", "Mine", -1, &shape, "Mine", 0, 0,
+                     other, sizeof(other), &length) == XCS_OK &&
+      xcs_plane_delete(core, other) == XCS_OK);
+
+  /* a WinPilot polar file */
+  ok1(Contains(GetJson([core](char *b, size_t s, size_t *l){
+    return xcs_polar_parse(core, "*LS-3 WinPilot POLAR file\n"
+                           "403, 101, 115.03, -0.86, 174.04, -1.76, 212.72, -3.4\n",
+                           b, s, l);
+  }), "\"reference_mass\":4.03E2,\"max_ballast\":1.01E2"));
+  {
+    char buffer[256];
+    ok1(xcs_polar_parse(core, "* only a comment\n", buffer, sizeof(buffer),
+                        &length) == XCS_ERROR_INVALID_ARGUMENT);
+  }
 
   double crew_mass = -1;
   ok1(xcs_set_crew_mass(core, 301) == XCS_ERROR_INVALID_ARGUMENT);
@@ -1254,7 +1290,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7);
 
   Recorder recorder;
   TestCreateArguments(recorder);

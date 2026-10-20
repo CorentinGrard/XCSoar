@@ -40,6 +40,7 @@
 #include "CoreTask.hpp"
 #include "CoreAnalysis.hpp"
 #include "CoreStatus.hpp"
+#include "Polar/Shape.hpp"
 #include "CoreTilePages.hpp"
 #include "CorePlanes.hpp"
 #include "CoreProfiles.hpp"
@@ -1401,22 +1402,49 @@ xcs_get_crew_mass(xcs_core *core, double *kg_r)
 xcs_status
 xcs_plane_save(xcs_core *core, const char *path, const char *registration,
                const char *competition_id, const char *type, int32_t polar,
+               const xcs_polar_shape *shape, const char *polar_name,
                uint32_t weglide_type, int double_seater,
                char *buffer, size_t size, size_t *length_r)
 {
   if (core == nullptr || path == nullptr || registration == nullptr ||
       competition_id == nullptr || type == nullptr || buffer == nullptr ||
-      length_r == nullptr)
+      length_r == nullptr ||
+      (shape != nullptr && (polar_name == nullptr || !ValidateUTF8(polar_name))))
     return XCS_ERROR_INVALID_ARGUMENT;
 
   return RunOnMain(*core, [&]{
+    std::optional<PolarShape> polar_shape;
+    if (shape != nullptr) {
+      polar_shape.emplace();
+      for (unsigned i = 0; i < 3; ++i)
+        polar_shape->points[i] = {shape->speed[i], shape->sink[i]};
+      polar_shape->reference_mass = shape->reference_mass;
+    }
+
     const auto saved = CorePlanes::Save(path, registration, competition_id,
-                                        type, polar, weglide_type,
+                                        type, polar,
+                                        polar_shape ? &*polar_shape : nullptr,
+                                        polar_name, weglide_type,
                                         double_seater != 0);
     if (saved.empty())
       return XCS_ERROR_INVALID_ARGUMENT;
     return CopyJson(saved, buffer, size, length_r);
   });
+}
+
+xcs_status
+xcs_polar_parse(xcs_core *core, const char *text, char *buffer, size_t size,
+                size_t *length_r)
+{
+  if (core == nullptr || text == nullptr || buffer == nullptr ||
+      length_r == nullptr)
+    return XCS_ERROR_INVALID_ARGUMENT;
+
+  /* parsing needs no core state: not on the core main thread */
+  const auto json = CorePlanes::ParsePolarFile(text);
+  if (json.empty())
+    return XCS_ERROR_INVALID_ARGUMENT;
+  return CopyJson(json, buffer, size, length_r);
 }
 
 xcs_status

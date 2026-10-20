@@ -5,6 +5,8 @@
 
 #include <string>
 
+struct PolarShape;
+
 /**
  * Planes and crew, without the UI: what XCSoar's plane list and plane
  * dialogs (src/Dialogs/Plane) and the logger's pilot settings do.
@@ -61,16 +63,33 @@ SetDetails(const char *path, const Details &details) noexcept;
 
 /**
  * Create a plane (empty @p path) or change one.  @p polar is an index
- * into ListPolars(), or -1 to keep the plane's polar (a new plane needs
- * one).  A new plane is written to planes/<registration>.xcp.
+ * into ListPolars(), or -1 to keep the plane's polar; or @p shape (not
+ * nullptr) replaces it with a polar of the pilot's, named
+ * @p polar_name, as XCSoar's plane polar dialog does.  A new plane
+ * needs one of them.  A new plane is written to
+ * planes/<registration>.xcp.
  *
  * @return the plane's path, or an empty string for invalid arguments
- * or an I/O error
+ * (including a @p shape that is no polar) or an I/O error
  */
 std::string
 Save(const char *path, const char *registration, const char *competition_id,
-     const char *type, int polar, unsigned weglide_type,
+     const char *type, int polar, const PolarShape *shape,
+     const char *polar_name, unsigned weglide_type,
      bool double_seater) noexcept;
+
+/**
+ * A WinPilot polar file's text (.plr, as PolarGlue::LoadFromFile()
+ * reads it) as JSON, SI units:
+ *
+ *   {"reference_mass": 403.0, "max_ballast": 101.0, "wing_area": 0.0,
+ *    "max_speed": 0.0, "points": [[31.95, -0.86], [48.34, -1.76],
+ *    [59.09, -3.4]]}
+ *
+ * @return an empty string if it has no valid polar
+ */
+std::string
+ParsePolarFile(const char *text) noexcept;
 
 /** Fly this plane: load it, as the plane list's "Activate" does. */
 bool

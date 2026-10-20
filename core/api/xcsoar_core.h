@@ -915,17 +915,42 @@ XCS_EXPORT xcs_status
 xcs_polars_list(xcs_core *core, char *buffer, size_t size,
                 size_t *length_r);
 
+/** A polar of the pilot's: three points of the sink rate over speed. */
+typedef struct xcs_polar_shape {
+  /** m/s, slowest first, 0..300 km/h */
+  double speed[3];
+  /** m/s, negative (sink) */
+  double sink[3];
+  /** kg; 0 keeps the plane's */
+  double reference_mass;
+} xcs_polar_shape;
+
 /**
  * Create (empty @p path) or change a plane file and write its path
  * (null-terminated) into @p buffer.  @p polar is an index into
- * xcs_polars_list(), or -1 to keep the polar; a new plane needs one.
+ * xcs_polars_list(), or -1 to keep the polar; or @p shape (not NULL)
+ * replaces the polar with the pilot's, named @p polar_name, as XCSoar's
+ * plane polar dialog does.  A new plane needs one of them.
+ * XCS_ERROR_INVALID_ARGUMENT also for a @p shape that is no polar.
  * The active plane is flown with the new values at once.
  */
 XCS_EXPORT xcs_status
 xcs_plane_save(xcs_core *core, const char *path, const char *registration,
                const char *competition_id, const char *type, int32_t polar,
+               const xcs_polar_shape *shape, const char *polar_name,
                uint32_t weglide_type, int double_seater,
                char *buffer, size_t size, size_t *length_r);
+
+/**
+ * A WinPilot polar file's text (.plr, UTF-8) as JSON, SI units:
+ * {"reference_mass": 403.0, "max_ballast": 101.0, "wing_area": 0.0,
+ *  "max_speed": 0.0, "points": [[speed, sink], ...]}.
+ * XCS_ERROR_INVALID_ARGUMENT if it has no valid polar.  Buffer rules as
+ * for xcs_get_data_status().
+ */
+XCS_EXPORT xcs_status
+xcs_polar_parse(xcs_core *core, const char *text, char *buffer, size_t size,
+                size_t *length_r);
 
 /**
  * One of XCSoar's built-in polars (an index into xcs_polars_list()) with

@@ -943,6 +943,8 @@ Java_org_xcsoar_mobile_NativeCore_nativePlaneSave(JNIEnv *env, jclass,
                                                   jstring registration,
                                                   jstring competition_id,
                                                   jstring type, jint polar,
+                                                  jdoubleArray shape,
+                                                  jstring polar_name,
                                                   jint weglide_type,
                                                   jboolean double_seater)
 {
@@ -950,10 +952,37 @@ Java_org_xcsoar_mobile_NativeCore_nativePlaneSave(JNIEnv *env, jclass,
   const auto r = Java::String::GetUTFChars(env, registration);
   const auto c = Java::String::GetUTFChars(env, competition_id);
   const auto t = Java::String::GetUTFChars(env, type);
+  const auto n = OptionalUTFChars(env, polar_name);
+
+  /* {speed1, sink1, speed2, sink2, speed3, sink3, reference mass} */
+  xcs_polar_shape s{};
+  const bool has_shape = shape != nullptr && env->GetArrayLength(shape) == 7;
+  if (has_shape) {
+    jdouble v[7];
+    env->GetDoubleArrayRegion(shape, 0, 7, v);
+    for (unsigned i = 0; i < 3; ++i) {
+      s.speed[i] = v[2 * i];
+      s.sink[i] = v[2 * i + 1];
+    }
+    s.reference_mass = v[6];
+  }
+
   return GetJson(env, [&](char *buffer, size_t size, size_t *length){
     return xcs_plane_save(ToCore(core), p.c_str(), r.c_str(), c.c_str(),
-                          t.c_str(), polar, weglide_type, double_seater,
+                          t.c_str(), polar, has_shape ? &s : nullptr,
+                          n.c_str(), weglide_type, double_seater,
                           buffer, size, length);
+  });
+}
+
+/** @return the JSON of xcs_polar_parse(), or null */
+JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativePolarParse(JNIEnv *env, jclass,
+                                                   jlong core, jstring text)
+{
+  const auto t = Java::String::GetUTFChars(env, text);
+  return GetJson(env, [&](char *buffer, size_t size, size_t *length){
+    return xcs_polar_parse(ToCore(core), t.c_str(), buffer, size, length);
   });
 }
 
