@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- The end-to-end tests' app (build type l5): it shows over a locked
+     phone and turns the screen on, so the tests run without unlocking it.
+     The pilot's app is unchanged. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <activity
+            android:name=".MainActivity"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            tools:node="merge" />
+    </application>
+</manifest>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<resources>
+    <!-- the end-to-end tests' own app (build type l5), never the pilot's -->
+    <string name="app_name">XCSoar L5 test</string>
+</resources>

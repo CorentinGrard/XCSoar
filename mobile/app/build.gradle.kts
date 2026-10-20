@@ -24,6 +24,7 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "0.1"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures {
@@ -38,7 +39,16 @@ android {
             // and measure on a phone (never for a store)
             signingConfig = signingConfigs.getByName("debug")
         }
+        /* L5 end-to-end tests: the release core (optimised as it flies)
+           in an app of its own, so installing and uninstalling it never
+           touches the pilot's app and its data (flights, maps, profile) */
+        create("l5") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".l5"
+            matchingFallbacks += "release"
+        }
     }
+    testBuildType = "l5"
 
     testOptions {
         // Robolectric needs the resources (fonts) for screenshot tests
@@ -81,6 +91,14 @@ dependencies {
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.test.manifest)
+
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    // Compose's test library brings Espresso 3.5, which fails on Android 17
+    androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
 }
 
 /* L4 screenshot tests: reference images live next to the tests (verify
@@ -165,6 +183,8 @@ abstract class NativeCoreLibrary : DefaultTask() {
         val root = repoRoot.get().asFile
         val targets = mapOf("arm64-v8a" to "ANDROIDAARCH64", "x86_64" to "ANDROIDX64")
         val (flag, dir) = if (debug.get()) "y" to "dbg" else "n" to "opt"
+        // only the ABIs asked for: no stale core of an earlier build
+        outputDir.get().asFile.deleteRecursively()
         for (abi in abis.get()) {
             val target = targets[abi] ?: error("unsupported ABI $abi")
             exec.exec {
@@ -234,7 +254,7 @@ androidComponents {
     onVariants { variant ->
         variant.sources.java?.addGeneratedSourceDirectory(upstreamJava, CopyIntoGenerated::outputDir)
         variant.sources.assets?.addGeneratedSourceDirectory(demoFlight, CopyIntoGenerated::outputDir)
-        val core = if (variant.buildType == "release") nativeCoreRelease else nativeCoreDebug
+        val core = if (variant.buildType == "debug") nativeCoreDebug else nativeCoreRelease
         variant.sources.jniLibs?.addGeneratedSourceDirectory(core, NativeCoreLibrary::outputDir)
         variant.sources.res?.addGeneratedSourceDirectory(coreDrawables, CoreDrawables::outputDir)
     }

@@ -13,18 +13,18 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 
 | Milestone | Goal | State |
 |---|---|---|
-| M0 | Foundations: build, branch, CI baseline | ◐ reference app install left |
+| M0 | Foundations: build, branch, CI baseline | ☑ done |
 | M1 | Headless core behind the C API, replay tests on the host | ☑ done |
 | M2 | Android skeleton: replay an IGC, see live InfoBoxes | ◐ demo works on the emulator |
 | M3 | Moving map in the new app | ◐ map, gestures, hold card on the phone |
-| M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ all features in, flown once (2026-10-10); L5 left |
+| M4 | Flyable with internal GPS: task, Go To, MC, airspace warnings, vario audio, IGC logging | ◐ all features in, flown once (2026-10-10), L5 passes on the phone; not yet compared with another instrument |
 | M5 | External devices: Bluetooth / BLE / USB, drivers, declaration | ☐ on hold: no hardware ([not done](#not-done-no-external-hardware)) |
-| M6 | Settings, profiles, data management | ◐ most pages in; tile pages done (phone check left) |
+| M6 | Settings, profiles, data management | ◐ most pages in, every tile opens its page |
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** check the new tile pages (team code, radio, ATC,
-nearest airspace) on the phone, L5 replay test.  Open: the map that stopped drawing once
+**Current focus:** the L5 CI job's first run (needs a push of
+`mobile`), then M6 / M7 polish.  Open: the map that stopped drawing once
 (M3, not reproduced; next idea: screen off/on cycles during a replay,
 which locks the phone, so only with the pilot's OK).
 M5 is on hold: no external device to test with.
@@ -66,7 +66,8 @@ M5 is on hold: no external device to test with.
       ANDROID_BUILD_TOOLS_DIR=$HOME/Library/Android/sdk/build-tools/36.1.0
       ./output/ANDROID/arm64-v8a/dbg/bin/libxcsoar.so`
       Shortcut: `source mobile/tools/env.sh` then `xmake …` (sets all of the above).
-- [ ] Install upstream XCSoar from Play Store / F-Droid on your phone (reference for parity)
+- [x] Install upstream XCSoar from Play Store / F-Droid on your phone (reference for parity):
+      `org.xcsoar.play` is on the Pixel 7 (seen 2026-10-20)
 - [x] CI: `.github/workflows/mobile.yml` runs `make check` (TARGET=UNIX, Debian
       trixie, same setup as upstream) on `mobile`/`mobile-*` pushes and PRs.
       First run green on 2026-09-30 (8 min 21 s with cold caches). Upstream's
@@ -388,7 +389,20 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       Upstream fix: WindStore::GetWind() was [[gnu::pure]] with an out
       parameter.  Not yet: the airspace cross-section, the task's
       observation zones, and the maps on terrain (plain background)
-- [ ] **L5** instrumented replay test on an emulator in CI (nightly)
+- [~] **L5** instrumented tests (`app/src/androidTest`, 2026-10-20): the
+      demo flight replays through the app and the flight screen shows it
+      flying, with a vario and a wind estimate; each panel tile asks for
+      its own page.  Build type `l5`: the release core (optimised, as it
+      flies) in an app of its own (`org.xcsoar.mobile.l5`, "XCSoar L5
+      test", shows over the lock screen), so installing and uninstalling
+      it never touches the pilot's app and data.  On the phone:
+      `ANDROID_SERIAL=… ./gradlew :app:connectedL5AndroidTest
+      -Pxcsoar.abis=arm64-v8a` (2 tests, ~40 s, pass).  CI: jobs `l5-build`
+      (x86_64 core) and `l5` (API 36 emulator) on every push to `mobile`,
+      not nightly: GitHub schedules only run from the default branch
+      (master).  **The CI jobs have not run yet.**  The tile test fails
+      on the code before 616d42bde6 (panel seams folded by --icf=all,
+      which the host tests cannot see)
 - [~] **Demo / field test:** a real flight with the app open on the
       phone (2026-10-10): no bug seen by the pilot, IGC recorded, "last
       flown" plane kept.  Not yet compared with a certified instrument
@@ -499,9 +513,12 @@ the core already links but that has never run in this app:
 - [x] Vario sound (Settings → Vario sound): on/off, volume, Vario or Auto
       (speed to fly in cruise, needs airspeed), dead band and its edges
       (`xcs_sound_option` 3–6).  Tone frequencies stay XCSoar's defaults
-- [ ] Settings screens backed by `xcs_settings_*` JSON sections: units, polar /
-      plane, safety heights, airspace filters, audio, map, InfoBox pages
-- [~] Tile pages (2026-10-20), like upstream's dialogs, in
+- [-] Settings screens backed by `xcs_settings_*` JSON sections: units, polar /
+      plane, safety heights, airspace filters, audio, map, InfoBox pages.
+      Dropped (2026-10-20): each became its own page with a small typed
+      API instead (Units, Aircraft & crew, Safety heights, Airspace, Vario
+      sound, Map, tiles), all of them done
+- [x] Tile pages (2026-10-20), like upstream's dialogs, in
       `core/host/CoreTilePages.cpp`: Team code (own code, mate code, range
       and bearings, "Set code", "Set WP" saved as TeamcodeRefWaypoint;
       no "Flarm Lock" button: no FLARM yet), Radio (active / standby,
@@ -512,8 +529,12 @@ the core already links but that has never run in this app:
       "Set active / standby" frequency, "Ack Day" / "Enable").
       `xcs_team_code_*`, `xcs_radio_*`, `xcs_atc_*`,
       `xcs_airspace_details*`; TestCoreApi (38 checks), screenshot tests.
-      **Not yet checked on the phone** (it disconnected after the
-      install); the airspace page needs an airspace within 30 km
+      Checked on a Pixel 7: team code from LFMT (own code, mate 10 km
+      at 129°), radio steps and typed frequencies (118.020 refused),
+      ATC radial 321° 3.7 NM from LFMT, nearest airspace R108C Istres
+      (frequency to standby, Ack Day and Enable).  Found on the way: panel
+      tiles all opened Flight setup in release builds (616d42bde6), and
+      the waypoint list re-sorted under the finger (6d90a3b5ef)
 - [x] Status (Menu → Status, or a status tile on its page): XCSoar's
       status dialog, flight / system / task / rules / times, formatted
       and translated by the core after each panel's Refresh()
@@ -652,9 +673,12 @@ the core already links but that has never run in this app:
 ## Log
 
 - 2026-10-20 — Tile pages: team code, radio, ATC radial and nearest
-  airspace, like upstream's dialogs.  Core tests and screenshots pass;
-  the phone disconnected after the install, so not checked on it yet.
-  Next: that check (a replay near airspace for the airspace page), L5.
+  airspace, like upstream's dialogs; checked on the phone.  Fixed on
+  the way: panel tiles opened Flight setup in release builds (the
+  linker folded the panels' seams), and Go to / pickers re-sorted the
+  list under the finger.  L5 tests (build type `l5`, its own app id)
+  pass on the phone; CI jobs written, not yet run.  Next: push to see
+  the L5 jobs, then M6 / M7.
 
 - 2026-10-15 — First real flight with the app (2026-10-10, by the
   pilot): no bug seen, IGC logged on its own.  Wind page.  Fixed: a

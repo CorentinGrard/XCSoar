@@ -234,7 +234,7 @@ build to CMake.
 | L2 | **Golden replay tests:** replay `test/data/*.igc` through the C API, dump a snapshot every N seconds to JSON and compare to committed golden files | same | host, CI |
 | L3 | Kotlin core binding: `ByteBuffer` ↔ `FlightState` decoding, JSON models, unit formatting | JUnit + golden JSON shared with L2 | JVM, CI |
 | L4 | ViewModels and screens against `FakeXcsoarCore` | JUnit, Compose UI tests, screenshot tests (Roborazzi) | JVM, CI |
-| L5 | End-to-end: real `.so` on an emulator, replay an IGC, check the UI shows expected values | Android instrumented tests | emulator, CI (nightly) + your phone |
+| L5 | End-to-end: real `.so` on an emulator, replay an IGC, check the UI shows expected values | Android instrumented tests (build type `l5`, its own app id) | emulator, CI (every push to `mobile`) + your phone |
 
 L2 is the main safety net. It shows whether the numbers the pilot sees change,
 including after merging upstream changes. L4 screenshot tests catch visual

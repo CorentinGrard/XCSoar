@@ -210,3 +210,126 @@ jobs:
           name: xcsoar-mobile-debug
           path: mobile/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
+
+  # L5: the app end to end (mobile/docs/ARCHITECTURE.md §6).  The x86_64
+  # core is built optimised, as it flies (build type l5), in the
+  # container; the emulator runs on the runner itself, which has KVM.
+  l5-build:
+    runs-on: ubuntu-24.04
+    container: debian:trixie-slim
+
+    steps:
+      - name: Install checkout dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Mark git directory as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Cache downloads
+        uses: actions/cache@v6
+        with:
+          key: mobile-downloads-${{ hashFiles('build/libboost.mk', 'build/thirdparty.py', 'build/python/build/libs.py') }}
+          restore-keys: mobile-downloads-
+          path: ${{ github.workspace }}/output/download
+
+      - name: Cache Android SDK and NDK
+        uses: actions/cache@v6
+        with:
+          key: mobile-android-tools-${{ hashFiles('ide/provisioning/install-android-tools.sh') }}
+          restore-keys: mobile-android-tools-
+          path: |
+            ~/opt/android-sdk-linux
+            ~/opt/android-ndk-r26d
+
+      - name: Cache third-party libraries (x86_64)
+        uses: actions/cache@v6
+        with:
+          key: mobile-thirdparty-x86_64-${{ hashFiles('build/thirdparty.py', 'build/python/build/*.py', 'build/thirdparty.mk', 'build/targets.mk', 'lib/**/patches/**') }}
+          path: ${{ github.workspace }}/output/ANDROID/x86_64/lib
+
+      - name: Gradle cache key
+        id: gradle-key
+        run: echo "key=mobile-gradle-${{ hashFiles('mobile/gradle/libs.versions.toml', 'mobile/gradle/wrapper/gradle-wrapper.properties', 'mobile/*.gradle.kts', 'mobile/*/build.gradle.kts') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Gradle
+        uses: actions/cache@v6
+        with:
+          key: ${{ steps.gradle-key.outputs.key }}
+          restore-keys: mobile-gradle-
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+
+      - name: Install build dependencies
+        run: |
+          ./ide/provisioning/install-debian-packages.sh UPDATE
+          ./ide/provisioning/install-debian-packages.sh BASE
+          ./ide/provisioning/install-debian-packages.sh LINUX
+          ./ide/provisioning/install-debian-packages.sh LLVM
+          ./ide/provisioning/install-debian-packages.sh ANDROID
+          ./ide/provisioning/install-android-tools.sh NDK
+          ./ide/provisioning/install-android-tools.sh SDK
+
+      - name: Cache ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: mobile-android-x86_64-ccache
+          max-size: 2G
+
+      - name: Build the app and its end-to-end tests (x86_64)
+        shell: bash
+        working-directory: mobile
+        env:
+          ANDROID_HOME: /github/home/opt/android-sdk-linux
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --console=plain -Pxcsoar.abis=x86_64 :app:assembleL5 :app:assembleL5AndroidTest 2>&1 | tee build.log || {
+            grep -E "^e: | error:|error:|FAILED|What went wrong" -A3 build.log | head -30 | sed 's/^/::error::/'
+            exit 1
+          }
+
+      - name: Upload the APKs
+        uses: actions/upload-artifact@v7
+        with:
+          name: xcsoar-mobile-l5
+          path: |
+            mobile/app/build/outputs/apk/l5/app-l5.apk
+            mobile/app/build/outputs/apk/androidTest/l5/app-l5-androidTest.apk
+          retention-days: 3
+
+  l5:
+    needs: l5-build
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download the APKs
+        uses: actions/download-artifact@v8
+        with:
+          name: xcsoar-mobile-l5
+          path: apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # each line of "script" runs on its own
+      - name: Run the end-to-end tests on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            adb install -r $(find apk -name app-l5.apk)
+            adb install -r $(find apk -name app-l5-androidTest.apk)
+            adb shell am instrument -w org.xcsoar.mobile.l5.test/androidx.test.runner.AndroidJUnitRunner | tee l5.txt; grep -q "^OK (" l5.txt || { grep -E "^[0-9]+\)|Error|Exception" l5.txt | head -20 | sed 's/^/::error::/'; exit 1; }
