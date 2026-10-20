@@ -31,20 +31,38 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.xcsoar.mobile.core.TaskFileInfo
+import org.xcsoar.mobile.core.WeGlideTask
+import org.xcsoar.mobile.core.WeGlideTaskList
+import org.xcsoar.mobile.ui.Format
+import org.xcsoar.mobile.ui.flight.Caption
+import org.xcsoar.mobile.ui.flight.Segmented
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
 @Composable
 fun TaskFilesScreen(viewModel: TaskViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { viewModel.listFiles() }
+    LaunchedEffect(Unit) {
+        viewModel.listFiles()
+        viewModel.listWeGlide(state.weGlideList)
+    }
     BackHandler(onBack = onBack)
-    TaskFilesContent(state.files, { viewModel.load(it); onBack() }, onBack)
+    TaskFilesContent(state.files, { viewModel.load(it); onBack() }, onBack,
+                     WeGlideTasks(state.weGlideList, state.weGlideTasks, state.weGlideError),
+                     onWeGlideList = viewModel::listWeGlide,
+                     onWeGlideTask = { viewModel.loadWeGlide(it); onBack() })
 }
+
+/** A WeGlide list being shown: [tasks] null while downloading. */
+data class WeGlideTasks(val list: WeGlideTaskList, val tasks: List<WeGlideTask>?,
+                        val error: String?)
 
 /** The tasks XCSoar finds in XCSoarData; a tap loads one for editing. */
 @Composable
 fun TaskFilesContent(files: List<TaskFileInfo>?, onLoad: (TaskFileInfo) -> Unit,
-                     onBack: () -> Unit) {
+                     onBack: () -> Unit,
+                     weGlide: WeGlideTasks? = null,
+                     onWeGlideList: (WeGlideTaskList) -> Unit = {},
+                     onWeGlideTask: (WeGlideTask) -> Unit = {}) {
     val colors = XcsTheme.colors
     Column(
         Modifier
@@ -81,5 +99,48 @@ fun TaskFilesContent(files: List<TaskFileInfo>?, onLoad: (TaskFileInfo) -> Unit,
                      .background(colors.panel, RoundedCornerShape(14.dp))
                      .clickable(onClickLabel = "Load ${file.name}") { onLoad(file) }
                      .padding(horizontal = 14.dp, vertical = 16.dp))
+
+        if (weGlide != null) WeGlideSection(weGlide, onWeGlideList, onWeGlideTask)
+    }
+}
+
+/** WeGlide's tasks, as upstream's WeGlide tasks panel: a tap loads one. */
+@Composable
+private fun WeGlideSection(weGlide: WeGlideTasks, onList: (WeGlideTaskList) -> Unit,
+                           onTask: (WeGlideTask) -> Unit) {
+    val colors = XcsTheme.colors
+    Caption("WeGlide", Modifier.padding(start = 4.dp, top = 8.dp))
+    val lists = WeGlideTaskList.entries
+    Segmented(lists.map { it.label }, lists.indexOf(weGlide.list),
+              { onList(lists[it]) }, Modifier.fillMaxWidth())
+    when {
+        weGlide.error != null -> Text(weGlide.error, color = colors.caution, fontSize = 16.sp)
+        weGlide.tasks == null -> Text("Downloading…", color = colors.textSecondary,
+                                      fontSize = 16.sp)
+        weGlide.tasks.isEmpty() -> Text("No tasks", color = colors.textSecondary,
+                                        fontSize = 16.sp)
+    }
+    for (task in weGlide.tasks.orEmpty()) {
+        val name = task.name.ifEmpty { "Task ${task.id}" }
+        val distance = Format.distance(task.distance)
+        val detail = listOfNotNull(
+            "${distance.text} ${distance.unit}",
+            task.kind.takeIf { it.isNotEmpty() && it != "unknown" },
+            "${task.turnpoints.size} TPs".takeIf { task.turnpoints.isNotEmpty() },
+            task.userName.ifEmpty { null },
+            task.scoringDate.ifEmpty { null },
+        ).joinToString(" · ")
+        Column(Modifier
+                   .fillMaxWidth()
+                   .heightIn(min = 56.dp)
+                   .background(colors.panel, RoundedCornerShape(14.dp))
+                   .clickable(onClickLabel = "Load $name") { onTask(task) }
+                   .padding(horizontal = 14.dp, vertical = 10.dp),
+               verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(name, color = colors.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
+                 maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(detail, color = colors.textSecondary, fontSize = 14.sp, maxLines = 2,
+                 overflow = TextOverflow.Ellipsis)
+        }
     }
 }

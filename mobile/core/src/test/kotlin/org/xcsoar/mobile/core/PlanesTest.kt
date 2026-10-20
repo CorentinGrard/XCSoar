@@ -112,4 +112,21 @@ class PlanesTest {
         assertEquals(3, polar.polar.size)
         assertEquals(-3.4, polar.polar[2].sink, 0.0)
     }
+
+    @Test
+    fun parsesWeGlideTasks() {
+        // as xcs_weglide_tasks writes them
+        val tasks = WeGlideTask.parseList("""[{"id":123456789012,"name":"Cevennes 300",
+            "user_name":"Jane Doe","distance":3.012E5,"kind":"triangle","ruleset":"D",
+            "scoring_date":"2026-10-20","turnpoints":["Grenoble","Mens","Grenoble"],
+            "scores":[{"user":"John Roe","points":812.5,"speed":2.5E1}]}]""")
+        assertEquals(123456789012L, tasks.single().id)
+        assertEquals(3, tasks.single().turnpoints.size)
+        assertEquals(WeGlideScore("John Roe", 812.5, 25.0), tasks.single().scores.single())
+    }
+
+    @Test(expected = WeGlideException::class)
+    fun weGlideTaskErrors() {
+        WeGlideTask.parseList("""{"error":"Set your WeGlide pilot ID first"}""")
+    }
 }

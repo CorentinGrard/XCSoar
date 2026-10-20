@@ -12,11 +12,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.xcsoar.mobile.core.TaskFileInfo
 import org.xcsoar.mobile.core.TaskInfo
 import org.xcsoar.mobile.core.TaskOp
 import org.xcsoar.mobile.core.WaypointInfo
+import org.xcsoar.mobile.core.WeGlideTask
+import org.xcsoar.mobile.core.WeGlideTaskList
 import org.xcsoar.mobile.core.XcsoarCore
 
 data class TaskState(
@@ -26,6 +29,10 @@ data class TaskState(
     val selected: Int? = null,
     /** The task files, once listed. */
     val files: List<TaskFileInfo>? = null,
+    /** The WeGlide list shown, its tasks once downloaded, or why not. */
+    val weGlideList: WeGlideTaskList = WeGlideTaskList.MINE,
+    val weGlideTasks: List<WeGlideTask>? = null,
+    val weGlideError: String? = null,
     /** Something the pilot asked for did not work. */
     val message: String? = null,
 )
@@ -185,6 +192,43 @@ class TaskViewModel(private val core: XcsoarCore) : ViewModel() {
                 emptyList()
             }
             stateFlow.update { it.copy(files = files) }
+        }
+    }
+
+    /* WeGlide, as upstream's WeGlide tasks panel */
+
+    fun listWeGlide(list: WeGlideTaskList) {
+        stateFlow.update { it.copy(weGlideList = list, weGlideTasks = null, weGlideError = null) }
+        viewModelScope.launch {
+            try {
+                val tasks = core.weGlideTasks(list)
+                stateFlow.update { if (it.weGlideList == list) it.copy(weGlideTasks = tasks) else it }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                stateFlow.update {
+                    if (it.weGlideList != list) it
+                    else it.copy(weGlideTasks = emptyList(),
+                                 weGlideError = e.message ?: "WeGlide did not answer")
+                }
+            }
+        }
+    }
+
+    /** Download it into the editor; the pilot reviews it and taps Done. */
+    fun loadWeGlide(task: WeGlideTask) {
+        viewModelScope.launch {
+            val message = try {
+                core.loadWeGlideTask(task.id)
+                stateFlow.update { it.copy(selected = null) }
+                null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                "${task.name.ifEmpty { "WeGlide task" }}: ${e.message ?: "not loaded"}"
+            }
+            stateFlow.update { it.copy(message = message) }
+            refresh()
         }
     }
 

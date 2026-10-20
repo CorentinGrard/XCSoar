@@ -208,6 +208,37 @@ data class WeGlideFlight(
     }
 }
 
+/** WeGlide's task lists (`xcs_weglide_task_list`). */
+enum class WeGlideTaskList(val code: Int, val label: String) {
+    MINE(0, "Mine"), DECLARED(1, "Declared"), TODAY(2, "Today"), SCORES(3, "Scores"),
+}
+
+/** One of WeGlide's tasks (`xcs_weglide_tasks`), SI units. */
+@Serializable
+data class WeGlideTask(
+    val id: Long,
+    val name: String = "",
+    @SerialName("user_name") val userName: String = "",
+    /** m */
+    val distance: Double = 0.0,
+    /** "free", "free4", "triangle" or "unknown" */
+    val kind: String = "",
+    val ruleset: String = "",
+    @SerialName("scoring_date") val scoringDate: String = "",
+    val turnpoints: List<String> = emptyList(),
+    val scores: List<WeGlideScore> = emptyList(),
+) {
+    companion object {
+        fun parseList(text: String): List<WeGlideTask> =
+            json.decodeFromString(ListSerializer(serializer()), WeGlideException.check(text))
+    }
+}
+
+/** A pilot's score on a WeGlide task; speed in m/s. */
+@Serializable
+data class WeGlideScore(val user: String = "", val points: Double = 0.0,
+                        val speed: Double = 0.0)
+
 /** WeGlide or the network said no; [message] is theirs. */
 class WeGlideException(message: String) : Exception(message) {
     companion object {

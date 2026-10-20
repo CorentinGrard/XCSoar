@@ -310,6 +310,12 @@ interface XcsoarCore {
     /** Upload an IGC file.  @throws WeGlideException */
     suspend fun uploadToWeGlide(igcPath: String): WeGlideFlight = error("no WeGlide")
 
+    /** One of WeGlide's task lists; throws [WeGlideException]. */
+    suspend fun weGlideTasks(list: WeGlideTaskList): List<WeGlideTask> = emptyList()
+
+    /** Download a WeGlide task into the task editor; throws [WeGlideException]. */
+    suspend fun loadWeGlideTask(id: Long) {}
+
     /**
      * Change the task (`xcs_task_edit`); most operations need
      * [TaskOp.BEGIN] first.

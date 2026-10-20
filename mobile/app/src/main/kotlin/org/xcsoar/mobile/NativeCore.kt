@@ -102,6 +102,10 @@ internal object NativeCore {
                                             weGlideType: Int, doubleSeater: Boolean): String?
     /** @return JSON, or null if the text has no valid polar */
     @JvmStatic external fun nativePolarParse(core: Long, text: String): String?
+    /** @return JSON, {"error": ...}, or null on a bad argument; blocks */
+    @JvmStatic external fun nativeWeGlideTasks(core: Long, which: Int): String?
+    /** @return {"points": n}, {"error": ...}, or null; blocks */
+    @JvmStatic external fun nativeWeGlideTaskLoad(core: Long, taskId: Long): String?
     @JvmStatic external fun nativePlaneActivate(core: Long, path: String): Int
     @JvmStatic external fun nativePlaneDelete(core: Long, path: String): Int
     @JvmStatic external fun nativeProfilesList(core: Long): String?

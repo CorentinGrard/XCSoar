@@ -9,7 +9,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.xcsoar.mobile.core.TaskFileInfo
 import org.xcsoar.mobile.core.TaskInfo
+import org.xcsoar.mobile.core.WeGlideTask
+import org.xcsoar.mobile.core.WeGlideTaskList
 import org.xcsoar.mobile.core.TaskPointInfo
 import org.xcsoar.mobile.core.TaskTypeChoice
 import org.xcsoar.mobile.ui.theme.XcsTheme
@@ -50,6 +53,18 @@ class TaskScreenshotTest {
                          types = listOf(TaskTypeChoice(4, "Racing"), TaskTypeChoice(5, "AAT")),
                          points = points),
                 selected = 1), {})
+        }
+    }
+
+    @Test
+    fun loadWithWeGlide() = captureRoboImage("src/test/screenshots/task_load_weglide.png") {
+        XcsTheme(dark = false) {
+            TaskFilesContent(
+                listOf(TaskFileInfo("Grenoble 300.tsk", "/d/tasks/Grenoble 300.tsk", 0)), {}, {},
+                WeGlideTasks(WeGlideTaskList.TODAY, listOf(
+                    WeGlideTask(1, "Cevennes 300", "Jane Doe", 301_200.0, "triangle",
+                                turnpoints = listOf("Grenoble", "Mens", "Die", "Grenoble")),
+                    WeGlideTask(2, "", "John Roe", 182_000.0, "free")), null))
         }
     }
 }

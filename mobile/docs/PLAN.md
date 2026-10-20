@@ -154,7 +154,9 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       list when a trace is smaller than its no-thin window), fixed with
       a TestTraceBounds case.  Both ready to send upstream.  Upstream
       `make check` here: 123 of 124 programs pass (11,610 checks);
-      `TestWrapText` does not link on this Fedora host (VirtualCanvas)
+      `TestWrapText` aborts on this Fedora host: FreeType finds no font
+      file (an environment matter; a build without VFB=y in the same
+      output directory had also mixed OpenGL objects in)
 - [~] Run L1 + L2 under ASan/TSan in CI.  ASan: job `core-asan`
       (2026-10-20, not run yet).  TSan: not yet; this host lacks the
       runtime (`sudo dnf install libtsan`, the pilot's call), and Ubuntu
@@ -643,7 +645,11 @@ the core already links but that has never run in this app:
   types and XCSoar's built-in polars together; it sets the type, the
   polar (matched by name: 134 of the 201 polars have a WeGlide type),
   the WeGlide type and the seats.  A model without a polar asks for one
-- WeGlide tasks (upstream's WeGlideTasksPanel / DownloadTask)
+- WeGlide tasks: done (2026-10-20), Task → Load…: Mine / Declared /
+  Today / Scores as upstream's WeGlideTasksPanel; a tap downloads the
+  task into the editor (its own turn points), Done makes it active.
+  Checked on the Pixel 7 (l5 app): a declared 1004 km triangle loaded
+  with its 4 points; "Mine" asks for the pilot ID
 
 ## M7 — Polish & beta
 - [~] Performance (2026-10-03, Pixel 7, CPU of one core, idle on the
@@ -686,7 +692,8 @@ the core already links but that has never run in this app:
       as XCSoar's InfoBoxes (doc/architecture.rst "Touch interaction"):
       both commit on lift-off, sliding off cancels, a one-way fill from
       150 to 500 ms and a haptic tick when the hold is armed
-      (`TileGestureTest`; not yet felt on the phone).  Sunlight contrast
+      (`TileGestureTest`; on the Pixel 7: the picker opens only on
+      lift-off, the fill shows while held, sliding off cancels).  Sunlight contrast
       (`ContrastTest`, WCAG): text 15.8:1 or more in sunlight (10.8:1 at
       night), every other text colour 4.5:1 or more on the surfaces it
       is drawn on (lowest: caution on a tile, 4.72:1); caution and

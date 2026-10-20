@@ -44,6 +44,8 @@ import org.xcsoar.mobile.core.AirspaceOption
 import org.xcsoar.mobile.core.MapOption
 import org.xcsoar.mobile.core.PlaneDetails
 import org.xcsoar.mobile.core.ImportedPolar
+import org.xcsoar.mobile.core.WeGlideTask
+import org.xcsoar.mobile.core.WeGlideTaskList
 import org.xcsoar.mobile.core.PolarInfo
 import org.xcsoar.mobile.core.ProfileInfo
 import org.xcsoar.mobile.core.MacCreadyOption
@@ -508,6 +510,12 @@ class NativeXcsoarCore(
 
     override suspend fun uploadToWeGlide(igcPath: String) =
         network({ NativeCore.nativeWeGlideUpload(it, igcPath) }, WeGlideFlight::parse)
+
+    override suspend fun weGlideTasks(list: WeGlideTaskList) =
+        network({ NativeCore.nativeWeGlideTasks(it, list.code) }, WeGlideTask::parseList)
+
+    override suspend fun loadWeGlideTask(id: Long) =
+        network({ NativeCore.nativeWeGlideTaskLoad(it, id) }) { WeGlideException.check(it); Unit }
 
     override suspend fun editTask(op: TaskOp, index: Int, value: Double) =
         command { NativeCore.nativeTaskEdit(it, op.code, index, value) }
