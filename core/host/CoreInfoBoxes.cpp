@@ -6,13 +6,7 @@
 #include "InfoBoxes/Content/Factory.hpp"
 #include "InfoBoxes/Data.hpp"
 #include "InfoBoxes/Panel/Panel.hpp"
-#include "InfoBoxes/Panel/AltitudeInfo.hpp"
-#include "InfoBoxes/Panel/AltitudeSetup.hpp"
-#include "InfoBoxes/Panel/ATCReference.hpp"
-#include "InfoBoxes/Panel/ATCSetup.hpp"
-#include "InfoBoxes/Panel/MacCreadyEdit.hpp"
-#include "InfoBoxes/Panel/RadioEdit.hpp"
-#include "InfoBoxes/Panel/SpeedSimulator.hpp"
+#include "Widget/Widget.hpp"
 #include "Language/Language.hpp"
 #include "Profile/Profile.hpp"
 #include "Units/Descriptor.hpp"
@@ -234,26 +228,18 @@ CoreInfoBoxes::RequestAction(const char *action, const char *page) noexcept
   requested_page = page != nullptr ? page : "";
 }
 
-/** The page an InfoBox's dialog panels edit, by their loaders. */
-static const char *
-PanelAction(const InfoBoxPanel *panels) noexcept
+/**
+ * Ask an InfoBox's dialog panels for the page they edit: each loader (a
+ * seam in InfoBoxSeams.cpp) requests it, as the dialogs do.  Not by the
+ * loaders' addresses: their code is the same, and optimised builds fold
+ * identical functions into one (--icf=all).
+ */
+static void
+RequestPanelAction(const InfoBoxPanel *panels) noexcept
 {
-  for (; panels != nullptr && panels->load != nullptr; ++panels) {
-    if (panels->load == LoadAltitudeSetupPanel ||
-        panels->load == LoadAltitudeInfoPanel)
-      return "altitude";
-    if (panels->load == LoadMacCreadyEditPanel)
-      return "maccready";
-    if (panels->load == LoadActiveRadioFrequencyEditPanel ||
-        panels->load == LoadStandbyRadioFrequencyEditPanel)
-      return "radio";
-    if (panels->load == LoadATCSetupPanel ||
-        panels->load == LoadATCReferencePanel)
-      return "atc";
-    if (panels->load == LoadSpeedSimulatorPanel)
-      return "simulator";
-  }
-  return nullptr;
+  for (; panels != nullptr && panels->load != nullptr &&
+         requested_action.empty(); ++panels)
+    panels->load(0);
 }
 
 std::string
@@ -266,19 +252,19 @@ CoreInfoBoxes::Click(unsigned layout, unsigned index) noexcept
   Tile &tile = tiles[layout][index];
   Show(tile, LoadLayout(layout)[index]);
 
-  boost::json::object o;
   requested_action.clear();
-  if (tile.content && tile.content->HandleClick() &&
-      !requested_action.empty()) {
-    o["action"] = requested_action;
-    if (!requested_page.empty())
-      o["page"] = requested_page;
-  } else if (const char *action = tile.content
-             ? PanelAction(tile.content->GetDialogContent()) : nullptr) {
-    o["action"] = action;
-  } else
-    o["action"] = "none";
+  requested_page.clear();
+  if (tile.content && !tile.content->HandleClick()) {
+    /* not handled: the dialog's panels */
+    requested_action.clear();
+    requested_page.clear();
+    RequestPanelAction(tile.content->GetDialogContent());
+  }
 
+  boost::json::object o;
+  o["action"] = requested_action.empty() ? "none" : requested_action;
+  if (!requested_page.empty())
+    o["page"] = requested_page;
   return Serialize(o);
 }
 

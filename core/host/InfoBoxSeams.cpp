@@ -131,17 +131,21 @@ ShowWaypointListDialog([[maybe_unused]] Waypoints &waypoints,
   return nullptr;
 }
 
-/* src/InfoBoxes/Panel: the InfoBox dialog's pages */
+/* src/InfoBoxes/Panel: the InfoBox dialog's pages.  Each asks for the
+   app's page that edits what it would (CoreInfoBoxes::Click()); the
+   altitude simulator panel has none. */
 
 std::unique_ptr<Widget>
 LoadAltitudeInfoPanel([[maybe_unused]] unsigned id)
 {
+  CoreInfoBoxes::RequestAction("altitude");
   return nullptr;
 }
 
 std::unique_ptr<Widget>
 LoadAltitudeSetupPanel([[maybe_unused]] unsigned id)
 {
+  CoreInfoBoxes::RequestAction("altitude");
   return nullptr;
 }
 
@@ -154,42 +158,49 @@ LoadAltitudeSimulatorPanel([[maybe_unused]] unsigned id)
 std::unique_ptr<Widget>
 LoadATCReferencePanel([[maybe_unused]] unsigned id)
 {
+  CoreInfoBoxes::RequestAction("atc");
   return nullptr;
 }
 
 std::unique_ptr<Widget>
 LoadATCSetupPanel([[maybe_unused]] unsigned id)
 {
+  CoreInfoBoxes::RequestAction("atc");
   return nullptr;
 }
 
 std::unique_ptr<Widget>
 LoadMacCreadyEditPanel([[maybe_unused]] unsigned id)
 {
+  CoreInfoBoxes::RequestAction("maccready");
   return nullptr;
 }
 
 std::unique_ptr<Widget>
 LoadMacCreadySetupPanel([[maybe_unused]] unsigned id)
 {
+  CoreInfoBoxes::RequestAction("maccready");
   return nullptr;
 }
 
 std::unique_ptr<Widget>
 LoadActiveRadioFrequencyEditPanel([[maybe_unused]] unsigned id)
 {
+  CoreInfoBoxes::RequestAction("radio");
   return nullptr;
 }
 
 std::unique_ptr<Widget>
 LoadStandbyRadioFrequencyEditPanel([[maybe_unused]] unsigned id)
 {
+  CoreInfoBoxes::RequestAction("radio");
   return nullptr;
 }
 
 std::unique_ptr<Widget>
 LoadSpeedSimulatorPanel([[maybe_unused]] unsigned id)
 {
+  CoreInfoBoxes::RequestAction("simulator");
   return nullptr;
 }
 
