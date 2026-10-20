@@ -710,7 +710,8 @@ the core already links but that has never run in this app:
       wanted, the phone does both (pilot, 2026-10-07)
 - [ ] Crash reporting (opt-in, privacy-friendly) + native crash symbolication
 - [ ] F-Droid / Play internal testing track
-- [ ] User docs: migration guide from XCSoar
+- [x] User docs: migration guide from XCSoar (`mobile/docs/MIGRATING.md`,
+      2026-10-20): data, where things are, what is not there yet
 
 ## M8 — iOS
 - [ ] Move `:core` + ViewModels to Kotlin Multiplatform; UI to Compose Multiplatform
