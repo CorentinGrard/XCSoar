@@ -267,8 +267,10 @@ VarioHistogram(const FlightStatistics &fs, const GlidePolar &polar) noexcept
 {
   boost::json::object o{
     {"mac_cready", polar.GetMC()},
-    {"cruise_sink", -polar.GetSBestLD()},
   };
+  /* without a polar there is no cruise sink rate to mark */
+  if (polar.IsValid())
+    o["cruise_sink"] = -polar.GetSBestLD();
   if (fs.vario_cruise_histogram.empty() &&
       fs.vario_circling_histogram.empty())
     return o;

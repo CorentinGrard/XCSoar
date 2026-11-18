@@ -395,6 +395,16 @@ TestPlanesAndCrew(xcs_core *core)
   ok1(xcs_plane_activate(core, path) == XCS_OK);
   ok1(Contains(planes(), std::string{"\"active\":\""} + path + "\""));
 
+  /* the plane's polar, in upstream's analysis pages */
+  const auto analysis = GetJson([core](char *b, size_t s, size_t *l){
+    return xcs_get_analysis(core, b, s, l);
+  });
+  ok1(Contains(analysis, "\"polar\":{\"mac_cready\":") &&
+      Contains(analysis, "\"dolphin\":[[") &&
+      Contains(analysis, "\"best_ld\":"));
+  ok1(Contains(analysis, "\"mac_cready\":{\"mac_cready\":") &&
+      Contains(analysis, "\"speeds\":[[0"));
+
   /* edit: two seats; the active plane keeps flying */
   char saved[1024];
   ok1(xcs_plane_save(core, path, "D-TEST", "TT", "Duo", -1, nullptr, nullptr,
@@ -1260,11 +1270,9 @@ TestStarted(xcs_core *core, Recorder &recorder)
     ok1(json.find("\"wind\":{\"levels\":[") != std::string::npos);
     ok1(json.find("\"thermal_band\":{") != std::string::npos &&
         json.find("\"collection\":[[") != std::string::npos);
-    ok1(json.find("\"polar\":{\"mac_cready\":") != std::string::npos &&
-        json.find("\"dolphin\":[[") != std::string::npos &&
-        json.find("\"best_ld\":") != std::string::npos);
-    ok1(json.find("\"mac_cready\":{\"mac_cready\":") != std::string::npos &&
-        json.find("\"speeds\":[[0") != std::string::npos);
+    /* no plane yet, so no polar (TestPlanesAndCrew() has them) */
+    ok1(json.find("\"polar\":{}") != std::string::npos);
+    ok1(json.find("\"mac_cready\":{}") != std::string::npos);
     /* no temperature probe in the IGC file */
     ok1(json.find("\"temperature\":{\"levels\":[]}") != std::string::npos);
     /* the airspace cross-section: 50 km along the track, or none when
@@ -1346,11 +1354,14 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2);
 
   Recorder recorder;
   TestCreateArguments(recorder);
   TestRepositoryList();
+
+  /* start as on a new phone (and in CI): no profile, no plane */
+  std::filesystem::remove_all(DATA_PATH);
 
   const auto config = MakeConfig(recorder);
   xcs_core *core = nullptr;

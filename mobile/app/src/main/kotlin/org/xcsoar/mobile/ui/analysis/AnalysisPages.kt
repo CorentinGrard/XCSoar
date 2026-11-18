@@ -104,7 +104,7 @@ internal fun VarioHistogramPage(a: Analysis) {
     val colors = XcsTheme.colors
     val h = a.varioHistogram
     val all = h.cruise + h.circling
-    val yMin = min(all.minOfOrNull { it.x } ?: 0.0, h.cruiseSink) - 0.5
+    val yMin = min(all.minOfOrNull { it.x } ?: 0.0, h.cruiseSink ?: 0.0) - 0.5
     val yMax = max(all.maxOfOrNull { it.x } ?: 0.0, h.macCready) + 0.5
     val xMax = (all.maxOfOrNull { it.y } ?: 0.0) * 1.2
     // the climb rate goes up the chart: x is how often
@@ -114,16 +114,19 @@ internal fun VarioHistogramPage(a: Analysis) {
             hasData = all.isNotEmpty(), xMin = 0.0, xMax = xMax, yMin = yMin, yMax = yMax,
             xUnit = null, yUnit = Format.unit(UnitGroup.VERTICAL_SPEED),
             xName = "", yName = axisName("w", UnitGroup.VERTICAL_SPEED),
-            labels = listOf("MC" to ChartPoint(xMax, h.macCready),
-                            "S cruise" to ChartPoint(xMax, h.cruiseSink))) { m ->
+            labels = listOfNotNull("MC" to ChartPoint(xMax, h.macCready),
+                                   h.cruiseSink?.let { "S cruise" to ChartPoint(xMax, it) })) { m ->
         line(m, h.circling.sideways(), colors.updraft)
         line(m, h.cruise.sideways(), colors.textSecondary)
         level(m, h.macCready, colors.warning)
-        level(m, h.cruiseSink, colors.updraft)
+        h.cruiseSink?.let { level(m, it, colors.updraft) }
     }
     if (all.isNotEmpty())
-        Hint("Blue: circling; grey: cruise.  Dashed: your MacCready, and the sink at " +
-             "the best glide speed.")
+        Hint(if (h.cruiseSink != null)
+                 "Blue: circling; grey: cruise.  Dashed: your MacCready, and the sink at " +
+                 "the best glide speed."
+             else
+                 "Blue: circling; grey: cruise.  Dashed: your MacCready.")
 }
 
 /** RenderWindChart(): the wind from the lowest climb base to the highest top. */

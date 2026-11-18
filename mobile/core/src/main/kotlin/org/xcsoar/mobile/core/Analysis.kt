@@ -119,8 +119,8 @@ private fun List<List<Double>>.toXY() = map { XY(it[0], it[1]) }
 @Serializable
 data class VarioHistogram(
     @SerialName("mac_cready") val macCready: Double = 0.0,
-    /** The polar's sink at best glide, negative m/s. */
-    @SerialName("cruise_sink") val cruiseSink: Double = 0.0,
+    /** The polar's sink at best glide, negative m/s; null without a polar. */
+    @SerialName("cruise_sink") val cruiseSink: Double? = null,
     @SerialName("cruise") private val cruiseRaw: List<List<Double>> = emptyList(),
     @SerialName("circling") private val circlingRaw: List<List<Double>> = emptyList(),
 ) {
