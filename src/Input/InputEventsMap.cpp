@@ -146,12 +146,23 @@ InputEvents::sub_PanCursor(int dx, int dy)
   if (!projection.IsValid())
     return;
 
+  /* A repeat arrives before the 180 ms glide ends.  Step from the
+     pending target so the key does not lose the rest of that glide. */
   auto pt = projection.GetScreenOrigin();
+  const GeoPoint target = map_window->GetAnimatedPanTarget();
+  if (target.IsValid())
+    pt = projection.GeoToScreen(target);
+
   pt.x -= dx * Layout::FastScale(40);
   pt.y -= dy * Layout::FastScale(40);
-  map_window->SetLocation(projection.ScreenToGeo(pt));
+  const GeoPoint location = projection.ScreenToGeo(pt);
 
-  map_window->QuickRedraw();
+  /* Same choice as keyboard zoom: glide on a fast colour display. */
+  if (HasEPaper() || IsSlowCPU()) {
+    map_window->SetLocation(location);
+    map_window->QuickRedraw();
+  } else
+    map_window->AnimateLocation(location);
 }
 
 // called from UI or input event handler (same thread)

@@ -19,7 +19,6 @@
 #include "Renderer/TurnBackMarkerRenderer.hpp"
 #include "OverlayLimits.hpp"
 #include "Weather/Features.hpp"
-#include "Tracking/SkyLines/Features.hpp"
 
 #include <memory>
 
@@ -39,11 +38,7 @@ class ContainerWindow;
 class NOAAStore;
 class MapOverlay;
 
-namespace SkyLinesTracking {
-  struct Data;
-}
-
-namespace TIM { class Glue; }
+class ObservationDatabase;
 
 class MapWindow :
   public DoubleBufferWindow,
@@ -154,13 +149,7 @@ protected:
   NOAAStore *noaa_store = nullptr;
 #endif
 
-#ifdef HAVE_SKYLINES_TRACKING
-  const SkyLinesTracking::Data *skylines_data = nullptr;
-#endif
-
-#ifdef HAVE_HTTP
-  const TIM::Glue *tim_glue = nullptr;
-#endif
+  const ObservationDatabase *observations = nullptr;
 
   bool compass_visible = true;
 
@@ -170,6 +159,16 @@ protected:
    * moved left by this amount so the buttons do not hide them.
    */
   unsigned top_right_margin = 0;
+
+  /**
+   * Margins that keep the HUD elements clear of the areas covered by
+   * system UI (display cutout, status bar, home indicator) while the
+   * map itself uses the whole screen.
+   *
+   * @see GetHudRect(), DisplaySettings::infobox_area_stretch
+   */
+  unsigned hud_margin_left = 0, hud_margin_top = 0;
+  unsigned hud_margin_right = 0, hud_margin_bottom = 0;
 
 #ifndef ENABLE_OPENGL
   /**
@@ -226,6 +225,36 @@ public:
 
   void SetGlideComputer(GlideComputer *_gc) noexcept;
 
+  /**
+   * Keep the HUD elements this far away from the window borders.
+   * The projection origin follows #GetHudRect(); #GlueMapWindow
+   * republishes it when these margins change.
+   *
+   * @see GetHudRect()
+   */
+  virtual void SetHudMargins(unsigned left, unsigned top,
+                             unsigned right, unsigned bottom) noexcept;
+
+  /**
+   * The part of the given rectangle in which the HUD elements
+   * (compass, map scale, final glide bar, ...) may be drawn.  This is
+   * the whole rectangle unless the map extends into areas covered by
+   * system UI.
+   */
+  [[gnu::pure]]
+  PixelRect GetHudRect(PixelRect rc) const noexcept {
+    rc.left += int(hud_margin_left);
+    rc.top += int(hud_margin_top);
+    rc.right -= int(hud_margin_right);
+    rc.bottom -= int(hud_margin_bottom);
+    return rc;
+  }
+
+  [[gnu::pure]]
+  PixelRect GetHudRect() const noexcept {
+    return GetHudRect(GetClientRect());
+  }
+
   void SetAirspaces(Airspaces *airspaces) noexcept {
     airspace_renderer.SetAirspaces(airspaces);
     airspace_label_renderer.SetAirspaces(airspaces);
@@ -268,17 +297,9 @@ public:
   }
 #endif
 
-#ifdef HAVE_SKYLINES_TRACKING
-  void SetSkyLinesData(const SkyLinesTracking::Data *_data) noexcept {
-    skylines_data = _data;
+  void SetObservations(const ObservationDatabase *db) noexcept {
+    observations = db;
   }
-#endif
-
-#ifdef HAVE_HTTP
-  void SetThermalInfoMap(const TIM::Glue *_tim) noexcept {
-    tim_glue = _tim;
-  }
-#endif
 
   void FlushCaches() noexcept;
 

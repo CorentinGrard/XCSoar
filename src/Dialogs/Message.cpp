@@ -9,12 +9,16 @@
 #include "Look/DialogLook.hpp"
 #include "Screen/Layout.hpp"
 #include "ui/window/SingleWindow.hpp"
+#include "ui/event/KeyCode.hpp"
 #include "UIGlobals.hpp"
+#include "ui/event/PeriodicTimer.hpp"
+#include "util/StringFormat.hpp"
 
 #include <boost/container/static_vector.hpp>
 
 #include <algorithm>
 #include <cassert>
+#include <cstdlib>
 
 static WindowStyle
 GetMessageBoxStyle() noexcept
@@ -141,7 +145,67 @@ public:
     UpdateLayout(parent_rc);
   }
 
+  void SetButtonCaption(unsigned index, const char *caption) noexcept {
+    if (index >= buttons.size())
+      return;
+
+    buttons[index].SetCaption(caption);
+    UpdateLayout(GetMainWindow().GetClientRect());
+  }
+
 protected:
+  bool OnAnyKeyDown(unsigned key_code) noexcept override {
+    if (key_code != KEY_LEFT && key_code != KEY_RIGHT &&
+        key_code != KEY_UP && key_code != KEY_DOWN)
+      return WndForm::OnAnyKeyDown(key_code);
+
+    auto *focused = GetClientAreaWindow().GetFocusedWindow();
+    const auto current = std::find_if(buttons.begin(), buttons.end(),
+                                     [focused](const Button &button) {
+                                       return &button == focused;
+                                     });
+    if (current == buttons.end())
+      return WndForm::OnAnyKeyDown(key_code);
+
+    const auto origin = current->GetPosition().GetCenter();
+    const bool horizontal = key_code == KEY_LEFT || key_code == KEY_RIGHT;
+    const bool reverse = key_code == KEY_LEFT || key_code == KEY_UP;
+    Button *next = nullptr;
+    int best_distance = 0, best_offset = 0;
+
+    for (auto &button : buttons) {
+      if (!button.IsVisible() || !button.IsEnabled())
+        continue;
+
+      const auto center = button.GetPosition().GetCenter();
+      const int dx = center.x - origin.x;
+      const int dy = center.y - origin.y;
+      if (horizontal && dy != 0)
+        continue;
+
+      int distance = horizontal ? dx : dy;
+      if (reverse)
+        distance = -distance;
+      if (distance <= 0)
+        continue;
+
+      // Stay in the row, or choose the closest column in the next row.
+      const int offset = horizontal ? 0 : std::abs(dx);
+      if (next == nullptr || distance < best_distance ||
+          (distance == best_distance && offset < best_offset)) {
+        next = &button;
+        best_distance = distance;
+        best_offset = offset;
+      }
+    }
+
+    if (next != nullptr)
+      next->SetFocus();
+
+    // At an edge, keep focus instead of falling back to tab order.
+    return true;
+  }
+
   void SetDefaultFocus() noexcept override {
     if (default_button != nullptr)
       default_button->SetFocus();
@@ -198,4 +262,74 @@ ShowMessageBox(const char *text, const char *caption,
 
   return ShowMessageBox(text, caption,
                         {buttons.data(), buttons.size()});
+}
+
+int
+ShowMessageBox(const char *text, const char *caption,
+               unsigned flags, unsigned timeout_ms,
+               int timeout_id) noexcept
+{
+  char yes_caption[40];
+  unsigned seconds_left = timeout_ms / 1000;
+  const bool countdown = timeout_ms > 0 && seconds_left > 0;
+  if (countdown)
+    StringFormat(yes_caption, sizeof(yes_caption), "%s (%u)",
+                 _("Yes"), seconds_left);
+
+  boost::container::static_vector<MessageBoxButton, 3> buttons;
+  int yes_index = -1;
+
+  const unsigned button_flags = flags & 0x000f;
+  if (button_flags == MB_OK || button_flags == MB_OKCANCEL)
+    buttons.push_back({_("OK"), IDOK});
+
+  if (button_flags == MB_YESNO || button_flags == MB_YESNOCANCEL) {
+    yes_index = (int)buttons.size();
+    buttons.push_back({countdown ? yes_caption : _("Yes"), IDYES});
+    buttons.push_back({_("No"), IDNO});
+  }
+
+  if (button_flags == MB_ABORTRETRYIGNORE ||
+      button_flags == MB_RETRYCANCEL)
+    buttons.push_back({_("Retry"), IDRETRY});
+
+  if (button_flags == MB_OKCANCEL ||
+      button_flags == MB_RETRYCANCEL ||
+      button_flags == MB_YESNOCANCEL)
+    buttons.push_back({_("Cancel"), IDCANCEL});
+
+  if (button_flags == MB_ABORTRETRYIGNORE) {
+    buttons.push_back({_("Abort"), IDABORT});
+    buttons.push_back({_("Ignore"), IDIGNORE});
+  }
+
+  if (!countdown)
+    return ShowMessageBox(text, caption,
+                          {buttons.data(), buttons.size()});
+
+  auto &main_window = UIGlobals::GetMainWindow();
+  MessageBoxForm form(main_window, UIGlobals::GetDialogLook(),
+                      text, caption,
+                      {buttons.data(), buttons.size()}, 0);
+
+  UI::PeriodicTimer *timer = nullptr;
+  UI::PeriodicTimer timeout_timer([&]{
+    if (seconds_left <= 1) {
+      if (timer != nullptr)
+        timer->Cancel();
+      form.SetModalResult(timeout_id);
+      return;
+    }
+
+    --seconds_left;
+    if (yes_index < 0)
+      return;
+
+    StringFormat(yes_caption, sizeof(yes_caption), "%s (%u)",
+                 _("Yes"), seconds_left);
+    form.SetButtonCaption((unsigned)yes_index, yes_caption);
+  });
+  timer = &timeout_timer;
+  timeout_timer.Schedule(std::chrono::seconds{1});
+  return form.ShowModal();
 }

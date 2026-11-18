@@ -149,7 +149,11 @@ similar operating systems:
 
 -  to run XCSoar, you need one of the following fonts (Debian package):
    DejaVu (``fonts-dejavu``), Roboto (``fonts-roboto``), Droid
-   (``fonts-droid``), Freefont (``fonts-freefont-ttf``)
+   (``fonts-droid``), Freefont (``fonts-freefont-ttf``).
+   The port monitor requests a monospace face. On Debian install
+   ``fonts-dejavu-mono`` (``DejaVuSansMono.ttf``).
+   ``ide/provisioning/install-debian-packages.sh`` installs that
+   package for the Linux and Windows targets.
 
 Install host packages on Debian/Ubuntu::
 
@@ -440,15 +444,36 @@ The same steps work on a native Debian/Ubuntu host or inside the
 
 Cross-compile (Pi 1 / ARMv6; binaries in ``output/PI/bin/``)::
 
-  make TARGET=PI PI=/opt/pi/root
+  make TARGET=PI SYSROOT=/opt/pi/root
 
 For Raspberry Pi 2/3 (ARMv7 with NEON; ``output/PI2/bin/``)::
 
-  make TARGET=PI2 PI=/opt/pi/root
+  make TARGET=PI2 SYSROOT=/opt/pi/root
 
-Although ``TARGET=PI`` and ``TARGET=PI2`` compile as ``UNIX`` internally,
-binaries are written to ``output/PI/`` and ``output/PI2/`` respectively
-(the flavour name is preserved for the output directory).
+``TARGET=PI3`` is an alias of ``PI2`` and writes to ``output/PI3/``.
+
+Cross-compiling for Raspberry Pi 4 and 5
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Pi 4 and Pi 5 are aarch64. ``TARGET=PI4`` cross-compiles for both
+(``-march=armv8-a``). ``TARGET=PI5`` is an alias and writes to
+``output/PI5/``. This needs an arm64 sysroot, separate from the armhf
+tree used for Pi 1–3::
+
+  cd ide/provisioning
+  sudo ./setup-pi-sysroot.sh --arch arm64
+
+Cross-compile (binaries in ``output/PI4/bin/``)::
+
+  make TARGET=PI4 SYSROOT=/opt/pi64/root
+
+The default sysroot path is ``/opt/pi64/root``. Building on the Pi itself
+is still ``TARGET=UNIX`` with no sysroot; see above.
+
+Although ``TARGET=PI``, ``TARGET=PI2`` and ``TARGET=PI4`` compile as
+``UNIX`` internally, binaries are written to ``output/PI/``,
+``output/PI2/`` and ``output/PI4/`` respectively (the flavour name is
+preserved for the output directory).
 
 Compiling for the Cubieboard
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -462,15 +487,24 @@ toolchain; install the ``ARM`` provisioning section::
 
 Cross-compile (binaries in ``output/CUBIE/bin/``)::
 
-  make TARGET=CUBIE CUBIE=/opt/cubie/root
+  make TARGET=CUBIE SYSROOT=/opt/cubie/root
 
 The default sysroot path is ``/opt/cubie/root``. Unlike the Raspberry Pi
 path, XCSoar does not ship an automated sysroot script for Cubie; the
-sysroot must provide ARMhf development libraries and the Mali/EGL headers
-under ``usr/local/stow/sunxi-mali/`` (see ``build/targets.mk``).
+sysroot must provide ARMhf development libraries.
+
+On the sysroot, as well for native compilation on the Cubieboard,
+install the same embedded-Linux graphics packages as a desktop
+``UNIX`` build, plus ``LIBINPUT_GBM`` (DRM/GBM/GLES)::
 
 If you compile on the Cubieboard itself, the default ``UNIX`` target
 auto-detects the board.
+
+To create a working Cubieboard sysroot file system use the
+`meta-openvario <https://github.com/Openvario/meta-openvario>`__
+toolchain used by the `OpenVario <https://openvario.org>`__ project.
+Alternatively a working Ubuntu SD card image and root file system can be created
+from the `horOV <https://github.com/hor63/horOpenVario>`__ project.
 
 OpenVario flight computer images
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -669,6 +703,11 @@ Defaults shown are from the build system (they can be overridden with
    - no
    - OpenGL (EGL/KMS)
    - ARMv7 + NEON cross-compile target (Pi 2 and 3).
+ * - ``PI3``
+   - Raspberry Pi 3
+   - no
+   - OpenGL (EGL/KMS)
+   - Alias of ``PI2``. Binaries go to ``output/PI3/``.
  * - ``CUBIE``
    - Cubieboard
    - no
@@ -812,13 +851,96 @@ or as part of ``everything`` (below). To build one program::
   make -j$(nproc) output/UNIX/bin/RunTask
 
 The ``everything`` target adds optional outputs, those ``debug`` utilities,
-unit-test binaries, and test harness programs; ``check`` runs the tests (build
-them first with ``everything`` or ``build-check``).
+unit-test binaries, and the flight harness (``build-harness``). ``check``
+runs the TAP unit tests listed as ``TEST_NAMES`` in :file:`build/test.mk`.
+Build those first with ``everything`` or ``build-check``. ``check`` does
+not run ``testfast`` or ``testslow``.
 
-``debug`` lists all ``Run*`` tools in :file:`build/test.mk`; ``build-harness``
-builds the ``test_*`` harness programs (also included in ``everything``).
-Utilities are built for the host platform (``UNIX``, Windows OpenGL, macOS),
-not for embedded targets such as Android or Kobo.
+``debug`` lists all ``Run*`` tools in :file:`build/test.mk`. Utilities are
+built for the host platform (``UNIX``, Windows OpenGL, macOS), not for
+embedded targets such as Android or Kobo.
+
+.. _flight-harness:
+
+Flight harness
+^^^^^^^^^^^^^^
+
+``testfast`` and ``testslow`` build and run the flight-engine harness.
+The program lists are ``TESTFAST`` and ``TESTSLOW`` in
+:file:`build/test.mk`. ``build-harness`` only compiles them, and
+``everything`` includes that compile. Continuous integration runs
+``make check``, not these two targets.
+
+.. code-block:: bash
+
+   make -j$(nproc) TARGET=UNIX testfast
+   make -j$(nproc) TARGET=UNIX testslow
+
+``testfast`` finishes in a few seconds. ``testslow`` flies simulated
+tasks and takes a few minutes. ``test_replay_olc`` replays
+:file:`test/data/0asljd01.igc`. Android builds omit that replay because
+it needs Java.
+
+Both targets print TAP through :file:`test/src/testall.pl`. To build and
+run one program::
+
+   make -j$(nproc) TARGET=UNIX output/UNIX/bin/test_flight
+   ./output/UNIX/bin/test_flight --verbose=1
+
+``-v`` needs an argument, so use ``-v 1``. An unknown option aborts the
+program.
+
+Four ``testfast`` programs are already part of ``make check``:
+``test_fixed``, ``TestWaypoints``, ``test_pressure`` and ``test_task``.
+The other harness programs are not.
+
+The flight programs share :file:`test/src/harness_flight.cpp`. An
+autopilot flies a constructed task through the task engine. Wind is one
+of nine cases in :file:`test/src/harness_wind.hpp`: still air, then
+5 m/s and 10 m/s from north, east, south and west. Where a program
+checks the clock, elapsed time must stay within 2% of the planned
+time. The random seed is fixed at startup, so a run repeats.
+
+``testfast``:
+
+* ``test_fixed``, ``TestWaypoints``, ``test_pressure``, ``test_task``
+  — fixed-point maths, waypoints, pressure, and task construction.
+  These four also run under ``make check``.
+* ``test_mc`` — writes MacCready polar samples under
+  ``output/results/``. It does not compare them with an expected value.
+* ``test_modes`` — abort, goto, and an empty task.
+* ``test_automc`` — auto MacCready is not slower than a fixed setting,
+  once for each wind.
+* ``test_acfilter`` — one flight with heading noise through the
+  aircraft-state filter.
+* ``test_vopt`` — flying slower or faster than the optimum speed takes
+  longer.
+
+``testslow``:
+
+* ``test_flight`` — elapsed time matches the plan for each task type
+  and one wind.
+* ``test_randomtask`` — the same clock check on random tasks.
+* ``test_aat`` — assigned-area tasks finish within 1.5% of the minimum
+  time. The mixed task uses a four-hour minimum.
+* ``test_bestcruisetrack`` — crabbing is not slower than drifting.
+* ``test_effectivemc``, ``test_cruiseefficiency`` — a clean flight
+  scores higher than wandering, the wrong speed, extra sink, or a weak
+  climb.
+* ``test_airspace`` — flights through generated airspace, including
+  clearing a polygon.
+* ``test_highterrain`` — the clock check while spare waypoint
+  elevations are raised. The flown task still uses the flat fields.
+* ``test_replay_olc`` — replays :file:`test/data/0asljd01.igc` and
+  checks OLC, DMSt, the XContest triangle, Charron and SIS-AT. Classic,
+  FAI and Plus scores come from :file:`test/data/0asljd01.txt`. The
+  sprint trace is solved while the flight is read, because it only
+  keeps the latest two hours.
+
+Glide and reach checks live in the ``make check`` programs
+``TestMacCready`` and ``TestTerrainReach``. ``TestMacCready`` includes
+a crosswind. ``TestTerrainReach`` builds a small terrain tile and
+checks ridge clearance and the reach fan.
 
 CI uses a headless software renderer and optional sanitizers (clean the
 output tree when switching ``SANITIZE=``)::
@@ -828,6 +950,47 @@ output tree when switching ``SANITIZE=``)::
 
 To force warnings-as-errors on an optimised build (``DEBUG=n`` disables
 ``WERROR`` by default), pass ``WERROR=y`` explicitly.
+
+.. _complexity-report:
+
+Complexity report
+^^^^^^^^^^^^^^^^^
+
+`lizard <https://github.com/terryyin/lizard>`__ points out functions
+which branch a lot (cyclomatic complexity, CCN), run long or take many
+parameters.  The check is advisory: it never fails a build or blocks a
+commit, and existing code does not have to be changed to pass it.  It
+helps to keep new and changed functions small, and shows reviewers
+the ones that are not.
+
+The workflow :file:`.github/workflows/complexity.yml` runs it on every
+pull request that changes :file:`src/`, over the C/C++ files the pull
+request changes.  It shows each warning as an annotation on the pull
+request and lists them all in the job summary.  Started by hand
+(``workflow_dispatch``), it checks all of :file:`src/`.
+
+Locally, run it through :program:`pre-commit` (see
+:file:`.pre-commit-config.yaml`), on the staged files or on all of
+:file:`src/`::
+
+  pre-commit run lizard --hook-stage manual
+  pre-commit run lizard --hook-stage manual --all-files
+
+It warns about a function with a CCN above 25, more than 120 lines or
+more than 7 parameters, and leaves out the bundled third-party code in
+:file:`src/Topography/shapelib/`, :file:`src/zzip/` and
+:file:`src/Terrain/jasper/`.  Without :program:`pre-commit`, run
+:program:`lizard` directly (it skips :file:`*.hxx` when scanning a
+directory)::
+
+  pip install lizard
+  lizard -C 25 -L 120 -a 7 -w \
+    -x "src/Topography/shapelib/*" -x "src/zzip/*" \
+    -x "src/Terrain/jasper/*" src
+
+For a closer look, e.g. before refactoring, lower the thresholds to
+``-C 15 -L 100 -a 6``, or leave out ``-w`` and the thresholds for a
+table of every function and a summary.
 
 .. _docker-build:
 
@@ -884,7 +1047,13 @@ build::
       -it ghcr.io/xcsoar/xcsoar/xcsoar-build:latest /bin/bash
 
   sudo ./ide/provisioning/setup-pi-sysroot.sh
-  make -j$(nproc) TARGET=PI2 PI=/opt/pi/root USE_CCACHE=y
+  make -j$(nproc) TARGET=PI2 SYSROOT=/opt/pi/root USE_CCACHE=y
+
+For Pi 4/5, create the arm64 sysroot and cross-compile with
+``TARGET=PI4`` (``TARGET=PI5`` is an alias, output in ``output/PI5/``)::
+
+  sudo ./ide/provisioning/setup-pi-sysroot.sh --arch arm64
+  make -j$(nproc) TARGET=PI4 SYSROOT=/opt/pi64/root USE_CCACHE=y
 
 **Android and iOS:** The image ships with the Android SDK and NDK. On
 **Linux x86_64**, ``xcsoar-compile ANDROID`` is the usual Docker workflow

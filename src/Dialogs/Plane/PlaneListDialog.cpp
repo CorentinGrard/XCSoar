@@ -7,6 +7,7 @@
 #include "Dialogs/WidgetDialog.hpp"
 #include "Widget/ListWidget.hpp"
 #include "Form/Button.hpp"
+#include "Renderer/TextButtonRenderer.hpp"
 #include "Renderer/TwoTextRowsRenderer.hpp"
 #include "Plane/Plane.hpp"
 #include "Plane/PlaneGlue.hpp"
@@ -20,14 +21,37 @@
 #include "UIGlobals.hpp"
 #include "Look/DialogLook.hpp"
 #include "Interface.hpp"
+#include "ActionInterface.hpp"
 #include "Language/Language.hpp"
 #include "util/StringAPI.hxx"
 #include "util/StringCompare.hxx"
 #include "Components.hpp"
 #include "BackendComponents.hpp"
+#include "Device/MultipleDevices.hpp"
+#include "Operation/MessageOperationEnvironment.hpp"
 
+#include <algorithm>
+#include <memory>
 #include <vector>
 #include <cassert>
+
+/**
+ * Width stays the larger of Activate and Deactivate, so changing the
+ * caption when the cursor moves does not clip the label.
+ */
+class ActivateButtonRenderer final : public TextButtonRenderer {
+public:
+  using TextButtonRenderer::TextButtonRenderer;
+
+  unsigned GetMinimumButtonWidth() const noexcept override {
+    const ButtonLook &look = GetLook();
+    const unsigned activate =
+      TextButtonRenderer::GetMinimumButtonWidth(look, _("Activate"));
+    const unsigned deactivate =
+      TextButtonRenderer::GetMinimumButtonWidth(look, _("Deactivate"));
+    return std::max(activate, deactivate);
+  }
+};
 
 class PlaneListWidget final
   : public ListWidget {
@@ -71,10 +95,13 @@ public:
 
 private:
   void UpdateList() noexcept;
-  bool Load(unsigned i) noexcept;
+  bool IsActive(unsigned i) const noexcept;
+  void UpdateActivateButton() noexcept;
+  bool Load(unsigned i, bool edited_active) noexcept;
   bool LoadWithDialog(unsigned i) noexcept;
 
   void LoadClicked() noexcept;
+  void DeactivateClicked() noexcept;
   void NewClicked() noexcept;
   void EditClicked(bool copy) noexcept;
   void DeleteClicked() noexcept;
@@ -91,6 +118,10 @@ protected:
   /* virtual methods from ListCursorHandler */
   bool CanActivateItem([[maybe_unused]] unsigned index) const noexcept override {
     return true;
+  }
+
+  void OnCursorMoved([[maybe_unused]] unsigned index) noexcept override {
+    UpdateActivateButton();
   }
 
   void OnActivateItem(unsigned index) noexcept override;
@@ -118,9 +149,24 @@ PlaneListWidget::UpdateList() noexcept
   edit_button->SetEnabled(!empty);
   copy_button->SetEnabled(!empty);
   delete_button->SetEnabled(!empty);
+  UpdateActivateButton();
 
   if (form != nullptr)
     form->ResyncButtonPanelSelection();
+}
+
+bool
+PlaneListWidget::IsActive(unsigned i) const noexcept
+{
+  return i < list.size() &&
+    Profile::GetPathIsEqual("PlanePath", list[i].path);
+}
+
+void
+PlaneListWidget::UpdateActivateButton() noexcept
+{
+  const unsigned i = GetList().GetCursorIndex();
+  load_button->SetCaption(IsActive(i) ? _("Deactivate") : _("Activate"));
 }
 
 void
@@ -132,7 +178,10 @@ PlaneListWidget::CreateButtons(WidgetDialog &dialog) noexcept
   edit_button = dialog.AddButton(_("Edit"), [this](){ EditClicked(false); });
   copy_button = dialog.AddButton(_("Copy"), [this](){ EditClicked(true); });
   delete_button = dialog.AddButton(C_("Button", "Delete"), [this](){ DeleteClicked(); });
-  load_button = dialog.AddButton(_("Activate"), [this](){ LoadClicked(); });
+  load_button = dialog.AddButton(
+    std::make_unique<ActivateButtonRenderer>(dialog.GetButtonLook(),
+                                             _("Activate")),
+    [this](){ LoadClicked(); });
 }
 
 void
@@ -165,35 +214,88 @@ PlaneListWidget::OnPaintItem(Canvas &canvas, const PixelRect rc,
   row_renderer.DrawSecondRow(canvas, rc, path.c_str());
 }
 
+/**
+ * Push the glide polar just loaded.  PutPolar sends only when polar
+ * sync is Send, and it sends this plane's coefficients rather than
+ * the curve cached from the vario.
+ */
+static void
+SendLoadedPolar(const GlidePolar &polar) noexcept
+{
+  if (backend_components == nullptr ||
+      backend_components->devices == nullptr)
+    return;
+
+  if (!polar.IsValid())
+    return;
+
+  MessageOperationEnvironment env;
+  backend_components->devices->PutPolar(polar, env);
+}
+
 static bool
-LoadFile(Path path) noexcept
+LoadFile(Path path, bool edited_active) noexcept
 {
   ComputerSettings &settings = CommonInterface::SetComputerSettings();
+
+  const bool same_plane = Profile::GetPathIsEqual("PlanePath", path);
+  const double previous_empty =
+    settings.polar.glide_polar_task.GetEmptyMass();
+  const double previous_mtow = settings.plane.max_takeoff_mass;
 
   if (!PlaneGlue::ReadFile(settings.plane, path))
     return false;
 
+  const double new_empty = settings.plane.empty_mass;
+  const bool empty_changed = previous_empty > new_empty + 0.1 ||
+                             previous_empty < new_empty - 0.1;
+  const double new_mtow = settings.plane.max_takeoff_mass;
+  const bool mtow_changed = previous_mtow > new_mtow + 0.1 ||
+                            previous_mtow < new_mtow - 0.1;
+
   Profile::SetPath("PlanePath", path);
-  PlaneGlue::Synchronize(settings.plane, settings,
-                         settings.polar.glide_polar_task);
+
+  /* Before Synchronize, so SetEmptyMass still sees the previous mass
+     and resends ballast only for a real change.  PutEmptyMass keeps
+     the vario's curve and replaces the empty mass, which is right
+     for an edit of this plane and wrong for a different glider. */
+  if (edited_active && empty_changed)
+    ActionInterface::SetEmptyMass(new_empty);
+
+  /* After the empty mass, so this polar sentence keeps that change.
+     Zero is not a weight the device should store. */
+  if (new_mtow > 0 &&
+      ((edited_active && mtow_changed) ||
+       (!edited_active && !same_plane)))
+    ActionInterface::SetMaxTakeoffMass(new_mtow);
+
+  if (!PlaneGlue::Synchronize(settings.plane, settings,
+                              settings.polar.glide_polar_task))
+    ShowMessageBox(_("The polar of this plane is invalid. "
+                     "Check it in the plane setup."),
+                   _("Polar"), MB_OK | MB_ICONWARNING);
   backend_components->SetTaskPolar(settings.polar);
+
+  if (!edited_active && !same_plane)
+    SendLoadedPolar(settings.polar.glide_polar_task);
+
   Profile::Save();
 
   return true;
 }
 
 bool
-PlaneListWidget::Load(unsigned i) noexcept
+PlaneListWidget::Load(unsigned i, bool edited_active) noexcept
 {
   assert(i < list.size());
 
-  return LoadFile(list[i].path);
+  return LoadFile(list[i].path, edited_active);
 }
 
 bool
 PlaneListWidget::LoadWithDialog(unsigned i) noexcept
 {
-  bool result = Load(i);
+  bool result = Load(i, false);
   if (!result) {
     const char *title = _("Error");
     StaticString<256> text;
@@ -208,8 +310,40 @@ PlaneListWidget::LoadWithDialog(unsigned i) noexcept
 inline void
 PlaneListWidget::LoadClicked() noexcept
 {
-  if (LoadWithDialog(GetList().GetCursorIndex()))
+  const unsigned i = GetList().GetCursorIndex();
+  if (IsActive(i))
+    DeactivateClicked();
+  else if (LoadWithDialog(i))
     form->SetModalResult(mrOK);
+}
+
+inline void
+PlaneListWidget::DeactivateClicked() noexcept
+{
+  if (ShowMessageBox(_("Deactivate the current plane?"),
+                     _("Deactivate"), MB_YESNO) != IDYES)
+    return;
+
+  Profile::SetPath("PlanePath", nullptr);
+  /* a pre-6.7 PolarInformation value would otherwise become the
+     polar again at the next start, with no plane file */
+  Profile::Remove(ProfileKeys::Polar);
+
+  /* back to the startup state: no glider, MacCready and crew kept */
+  ComputerSettings &settings = CommonInterface::SetComputerSettings();
+  const double mc = settings.polar.glide_polar_task.GetMC();
+  const double bugs = settings.polar.glide_polar_task.GetBugs();
+  const double crew = settings.polar.glide_polar_task.GetCrewMass();
+
+  settings.plane = {};
+
+  GlidePolar &gp = settings.polar.glide_polar_task;
+  gp = GlidePolar(mc, bugs);
+  gp.SetCrewMass(crew);
+  backend_components->SetTaskPolar(settings.polar);
+
+  Profile::Save();
+  form->SetModalResult(mrOK);
 }
 
 inline void
@@ -299,7 +433,7 @@ PlaneListWidget::EditClicked(bool copy) noexcept
       if (!copy && Profile::GetPathIsEqual("PlanePath", old_path)) {
         list[index].path = Path(path);
         list[index].name = filename;
-        Load(index);
+        Load(index, true);
       }
     } else {
       try {
@@ -310,7 +444,7 @@ PlaneListWidget::EditClicked(bool copy) noexcept
       }
 
       if (Profile::GetPathIsEqual("PlanePath", old_path))
-        Load(index);
+        Load(index, true);
     }
 
     UpdateList();
@@ -341,6 +475,11 @@ void
 PlaneListWidget::OnActivateItem(unsigned i) noexcept
 {
   assert(i < list.size());
+
+  if (IsActive(i)) {
+    DeactivateClicked();
+    return;
+  }
 
   StaticString<256> tmp;
   tmp.Format(_("Activate plane \"%s\"?"),

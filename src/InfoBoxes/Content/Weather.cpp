@@ -17,6 +17,7 @@
 #include "UIGlobals.hpp"
 #include "Look/Look.hpp"
 #include "Dialogs/Dialogs.h"
+#include "Input/InputEvents.hpp"
 
 void
 UpdateInfoBoxHumidity(InfoBoxData &data) noexcept
@@ -80,22 +81,10 @@ InfoBoxContentTemperatureForecast::Update(InfoBoxData &data) noexcept
 }
 
 bool
-InfoBoxContentTemperatureForecast::HandleKey(const InfoBoxKeyCodes keycode) noexcept
+InfoBoxContentTemperatureForecast::HandleClick() noexcept
 {
-  switch(keycode) {
-  case ibkUp:
-    CommonInterface::SetComputerSettings().forecast_temperature += Temperature::FromKelvin(0.5);
-    return true;
-
-  case ibkDown:
-    CommonInterface::SetComputerSettings().forecast_temperature -= Temperature::FromKelvin(0.5);
-    return true;
-
-  default:
-    break;
-  }
-
-  return false;
+  InputEvents::eventSetup("Basic");
+  return true;
 }
 
 bool
@@ -227,5 +216,6 @@ InfoBoxContentWindArrow::OnCustomPaint(Canvas &canvas,
   WindArrowRenderer renderer(UIGlobals::GetLook().wind_arrow_info_box);
   renderer.DrawArrow(canvas, radar_renderer.GetCenter(), angle,
                      arrow_width, length, arrow_tail_length,
-                     style, offset, scale);
+                     style, offset, scale,
+                     UIGlobals::GetLook().wind_arrow_info_box.arrow_brush);
 }

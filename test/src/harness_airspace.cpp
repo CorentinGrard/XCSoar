@@ -12,6 +12,7 @@
 #include "Geo/GeoVector.hpp"
 #include "Formatter/AirspaceFormatter.hpp"
 #include "system/FileUtil.hpp"
+#include "time/BrokenDateTime.hpp"
 
 #include <stdlib.h>
 #include <fstream>
@@ -26,17 +27,21 @@ airspace_random_properties(AbstractAirspace& as)
   base.altitude = rand()%4000;
   top.altitude = base.altitude+rand()%3000;
   TransponderCode code = TransponderCode::Parse("1234");
-  as.SetProperties("hello", "Hello2",std::move(code), asclass, AirspaceClass::CLASSE, base, top);
+  as.SetProperties("hello", false,
+                   BrokenDateTime::Invalid(),BrokenDateTime::Invalid(),
+                   true, false, "Hello2",
+                   std::move(code), asclass, AirspaceClass::CLASSE, base, top);
 }
 
 
 bool test_airspace_extra(Airspaces &airspaces) {
-  // try adding a null polygon
-
+  // Clear() without another Optimise() after an add. A polygon needs
+  // at least three points; the constructor asserts on fewer.
   std::vector<GeoPoint> pts;
+  pts.emplace_back(Angle::Degrees(0.1), Angle::Degrees(0.1));
+  pts.emplace_back(Angle::Degrees(0.2), Angle::Degrees(0.1));
+  pts.emplace_back(Angle::Degrees(0.15), Angle::Degrees(0.2));
   airspaces.Add(std::make_shared<AirspacePolygon>(pts));
-
-  // try clearing now (we haven't called optimise())
 
   airspaces.Clear();
   return true;

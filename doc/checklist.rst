@@ -120,6 +120,11 @@ Open XCSoar dialogs and settings directly from your checklist.
     [Status](xcsoar://dialog/status)
     [Checklist](xcsoar://dialog/checklist)
 
+**Sound test**: play the example of the spoken FLARM alerts, "Traffic
+urgent! Twelve o'clock. Above.", to check the voice and the volume::
+
+    - [ ] FLARM voice audible [Test](xcsoar://sound/test)
+
 Communication Links
 ~~~~~~~~~~~~~~~~~~~
 
@@ -252,7 +257,7 @@ Here is a complete example checklist file for glider operations::
     - [Location](geo:47.5,8.5)
 
     [References]
-    - [XCSoar Manual](https://xcsoar.org/discover/manual.html)
+    - [XCSoar Manual](https://xcsoar.org/docs/#manual)
     - [Weather](https://www.windy.com)
 
 Supported URI Schemes

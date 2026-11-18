@@ -37,7 +37,7 @@ env:
   TARGET_EXT: pdf
 jobs:
   manual-pdf:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     container: debian:trixie-slim
     steps:
      - name: Install checkout dependencies
@@ -92,9 +92,11 @@ jobs:
          REMOTE_USER: ${{ secrets.REPOSITORY_SSH_USER }}
          TARGET: ${{ secrets.REPOSITORY_REMOTE_PATH }}/releases/${{ inputs.release_version }}/
          SCRIPT_BEFORE: mkdir -p ${{ secrets.REPOSITORY_REMOTE_PATH }}/releases/${{ inputs.release_version }}
+         SCRIPT_AFTER: find "${{ secrets.REPOSITORY_REMOTE_PATH }}/releases/${{ inputs.release_version }}" -type f -exec chmod 644 {} +
+         SCRIPT_AFTER_REQUIRED: "true"
 
   readthedocs-sphinx:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
      - uses: actions/checkout@v7
        with:
@@ -102,7 +104,7 @@ jobs:
 
      - uses: actions/setup-python@v7
        with:
-         python-version: '3.14'
+         python-version: '3.15'
 
      - name: Install Graphviz
        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends graphviz

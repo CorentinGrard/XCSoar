@@ -20,6 +20,96 @@
 #endif
 
 #include <cassert>
+#include <cstdint>
+
+UnsignedPoint2D
+Display::AlignDpiToPixelAxes(PixelSize size, UnsignedPoint2D dpi) noexcept
+{
+  if (size.width == 0 || size.height == 0 ||
+      size.width == size.height ||
+      dpi.x == 0 || dpi.y == 0)
+    return dpi;
+
+  const bool pixel_portrait = size.height > size.width;
+  const bool inch_portrait =
+    (uint64_t)size.height * dpi.x > (uint64_t)size.width * dpi.y;
+  if (pixel_portrait == inch_portrait)
+    return dpi;
+
+  /* Physical width/height came from the unrotated panel.  Pair the
+     shorter physical edge with the shorter pixel edge. */
+  const unsigned x = (unsigned)((uint64_t)size.width * dpi.y / size.height);
+  const unsigned y = (unsigned)((uint64_t)size.height * dpi.x / size.width);
+  if (x == 0 || y == 0)
+    return dpi;
+
+  return {x, y};
+}
+
+static constexpr bool
+DpiFarFrom(unsigned dpi, unsigned density) noexcept
+{
+  if (density == 0)
+    return false;
+
+  const unsigned slack = density / 5;
+  return dpi > density + slack || density > dpi + slack;
+}
+
+/** Measured panels agree.  188 vs 667 does not. */
+static constexpr bool
+DpiAxesAgree(UnsignedPoint2D dpi) noexcept
+{
+  if (dpi.x == 0 || dpi.y == 0)
+    return false;
+
+  const unsigned lo = dpi.x < dpi.y ? dpi.x : dpi.y;
+  const unsigned hi = dpi.x < dpi.y ? dpi.y : dpi.x;
+  return (hi - lo) * 10 <= hi;
+}
+
+/** 320 to 480 is one bucket.  200 vs 400 is not. */
+static constexpr bool
+WithinOneDensityStep(unsigned dpi, unsigned density) noexcept
+{
+  if (dpi == 0 || density == 0)
+    return false;
+
+  const unsigned lo = dpi < density ? dpi : density;
+  const unsigned hi = dpi < density ? density : dpi;
+  return hi * 2 <= lo * 3;
+}
+
+/** shortcut: short edge outside 1.5–12 inches still uses density. */
+static constexpr bool
+ShortEdgeIsScreen(PixelSize size, UnsignedPoint2D dpi) noexcept
+{
+  if (size.width == 0 || size.height == 0 || dpi.x == 0 || dpi.y == 0)
+    return false;
+
+  const bool portrait = size.height > size.width;
+  const unsigned px = portrait ? size.width : size.height;
+  const unsigned dpi_short = portrait ? dpi.x : dpi.y;
+  return px * 2 >= dpi_short * 3 && px <= dpi_short * 12;
+}
+
+UnsignedPoint2D
+Display::SanitizeDisplayDpi(PixelSize size, UnsignedPoint2D physical,
+                            unsigned density_dpi) noexcept
+{
+  const auto dpi = AlignDpiToPixelAxes(size, physical);
+  if (DpiFarFrom(dpi.x, density_dpi) || DpiFarFrom(dpi.y, density_dpi)) {
+    if (DpiAxesAgree(physical) &&
+        WithinOneDensityStep(dpi.x, density_dpi) &&
+        WithinOneDensityStep(dpi.y, density_dpi) &&
+        ShortEdgeIsScreen(size, dpi))
+      return dpi;
+
+    return {density_dpi, density_dpi};
+  }
+
+  return dpi;
+}
 
 #ifndef ANDROID
 static UnsignedPoint2D forced_dpi{};
@@ -118,8 +208,9 @@ Display::ProvideSizeMM(unsigned width_pixels, unsigned height_pixels,
   assert(width_mm > 0);
   assert(height_mm > 0);
 
-  detected_dpi = SizeMMToDPI({width_pixels, height_pixels},
-                             {width_mm, height_mm});
+  detected_dpi = AlignDpiToPixelAxes({width_pixels, height_pixels},
+                                     SizeMMToDPI({width_pixels, height_pixels},
+                                                 {width_mm, height_mm}));
 }
 
 #endif

@@ -8,6 +8,7 @@
 #include "Look/FontDescription.hpp"
 #include "Resources.hpp"
 #include "Formatter/ByteSizeFormatter.hpp"
+#include "Asset.hpp"
 
 #include "ui/canvas/Canvas.hpp"
 
@@ -15,9 +16,15 @@
 #include <cstdint>
 
 ProgressWindow::ProgressWindow(ContainerWindow &parent) noexcept
-  :background_color(GlobalSettings::dark_mode
+  :ProgressWindow(parent, GlobalSettings::dark_mode, true) {}
+
+ProgressWindow::ProgressWindow(ContainerWindow &parent,
+                               bool _dark_mode,
+                               bool _paint_background) noexcept
+  :background_color(!IsDithered() && _dark_mode
                     ? COLOR_DARK_THEME_BACKGROUND : COLOR_WHITE),
-   dark_mode(GlobalSettings::dark_mode)
+   dark_mode(!IsDithered() && _dark_mode),
+   paint_background(_paint_background)
 {
   message.clear();
 
@@ -80,9 +87,10 @@ ProgressWindow::UpdateLayout(PixelRect rc) noexcept
 static void
 FormatSpeed(StaticString<16> &out, unsigned per_sec, bool bytes) noexcept
 {
-  /* A fast unnamed counter is a byte stream that did not call
-     SetProgressBytes().  A slow one is lines, fixes, or a percent. */
-  if (!bytes && per_sec < 1024) {
+  /* Only a real byte count gets a unit.  A KiB or line counter must
+     not be passed through FormatByteSize: 2048 KiB/s would print
+     "2 KB/s". */
+  if (!bytes) {
     out.Format("%u/s", per_sec);
     return;
   }
@@ -119,7 +127,8 @@ SmoothToward(int shown, int sample) noexcept
 
 static StaticString<64>
 FormatBarLabel(unsigned percent, unsigned done, unsigned total,
-               int eta_secs, int per_sec, bool bytes) noexcept
+               int eta_secs, int per_sec, bool bytes,
+               unsigned byte_count) noexcept
 {
   StaticString<16> eta("--:--");
   if (done >= total)
@@ -133,9 +142,13 @@ FormatBarLabel(unsigned percent, unsigned done, unsigned total,
 
   /* Digits, a percent sign, and the speed text.  Nothing here is a
      sentence, so it stays out of the translation catalog. */
+  char amount[40];
+  FormatProgressAmount(amount, sizeof(amount), done, total,
+                       bytes, byte_count);
+
   StaticString<64> text;
-  text.Format("%u%% (%u/%u)  %s  %s",
-              percent, done, total, speed.c_str(), eta.c_str());
+  text.Format("%u%% (%s)  %s  %s",
+              percent, amount, speed.c_str(), eta.c_str());
   return text;
 }
 
@@ -204,7 +217,7 @@ ProgressWindow::UpdateRate(unsigned done, unsigned total) noexcept
 void
 ProgressWindow::UpdateBarLabel(unsigned value) noexcept
 {
-  if (range_max <= range_min) {
+  if (!have_progress_position || range_max <= range_min) {
     progress_bar.SetText("");
     return;
   }
@@ -222,7 +235,7 @@ ProgressWindow::UpdateBarLabel(unsigned value) noexcept
     static_cast<unsigned>(uint64_t{done} * 100u / total);
   progress_bar.SetText(FormatBarLabel(percent, done, total,
                                        shown_secs, shown_rate,
-                                       have_bytes));
+                                       have_bytes, byte_count));
 }
 
 static unsigned
@@ -264,6 +277,8 @@ ProgressWindow::SetMessage(const char *text) noexcept
 void
 ProgressWindow::SetRange(unsigned min_value, unsigned max_value) noexcept
 {
+  if (range_min != min_value || range_max != max_value)
+    have_progress_position = false;
   range_min = min_value;
   range_max = max_value;
   ResetRate();
@@ -301,6 +316,7 @@ ProgressWindow::SetValue(unsigned value) noexcept
 {
   AssertThread();
 
+  have_progress_position = true;
   progress_bar.SetValue(value);
   UpdateBarLabel(value);
 }
@@ -308,6 +324,7 @@ ProgressWindow::SetValue(unsigned value) noexcept
 void
 ProgressWindow::Step() noexcept
 {
+  have_progress_position = true;
   progress_bar.Step();
   UpdateBarLabel(progress_bar.GetValue());
 }
@@ -328,11 +345,13 @@ ProgressWindow::OnResize(PixelSize new_size) noexcept
 void
 ProgressWindow::OnPaint(Canvas &canvas) noexcept
 {
-  canvas.Clear(background_color);
+  /* The dialog client has already drawn its gradient.  Clearing
+     here would hide it. */
+  if (paint_background)
+    canvas.Clear(background_color);
 
   logo.draw(canvas, logo_position, dark_mode);
 
-  // Draw progress bar background
   canvas.Stretch(bottom_position.GetTopLeft(), bottom_position.GetSize(),
                  bitmap_progress_border);
 

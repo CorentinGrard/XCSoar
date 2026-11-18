@@ -6,6 +6,8 @@
 #include "TaskEditPanel.hpp"
 #include "TaskPropertiesPanel.hpp"
 #include "TaskMiscPanel.hpp"
+#include "WeGlidePanel.hpp"
+#include "SoaringScoringTasksPanel.hpp"
 #include "TaskClosePanel.hpp"
 #include "../TaskDialogs.hpp"
 #include "UIGlobals.hpp"
@@ -32,15 +34,57 @@
 #include "Language/Language.hpp"
 #include "BackendComponents.hpp"
 #include "DataComponents.hpp"
+#include "net/http/Features.hpp"
+#ifdef HAVE_HTTP
+#include "net/client/SoaringScoring/Account.hpp"
+#endif
+
+/**
+ * The task manager currently on screen, or nullptr.  A received task
+ * is handed to this one instead of opening a second task manager on
+ * top of it; see TaskManagerReceiveTask().
+ */
+static TaskManagerDialog *visible_dialog;
 
 inline
 TaskManagerDialog::TaskManagerDialog(WndForm &_dialog,
                                      std::unique_ptr<OrderedTask> &&_task) noexcept
     :TabWidget(Orientation::AUTO),
      dialog(_dialog),
-     task(std::move(_task)) {}
+     task(std::move(_task))
+{
+  visible_dialog = this;
+}
 
-TaskManagerDialog::~TaskManagerDialog() noexcept = default;
+TaskManagerDialog::~TaskManagerDialog() noexcept
+{
+  visible_dialog = nullptr;
+}
+
+void
+TaskManagerDialog::ReceiveTask(std::unique_ptr<OrderedTask> _task) noexcept
+{
+  task = std::move(_task);
+  modified = true;
+
+  ResetTaskView();
+  UpdateCaption();
+  SwitchToEditTab();
+}
+
+bool
+HasVisibleTaskManager() noexcept
+{
+  return visible_dialog != nullptr;
+}
+
+void
+TaskManagerReceiveTask(std::unique_ptr<OrderedTask> task) noexcept
+{
+  assert(visible_dialog != nullptr);
+
+  visible_dialog->ReceiveTask(std::move(task));
+}
 
 bool
 TaskManagerDialog::KeyPress(unsigned key_code) noexcept
@@ -54,9 +98,9 @@ TaskManagerDialog::KeyPress(unsigned key_code) noexcept
       /* close the dialog immediately if nothing was modified */
       return false;
 
-    if (GetCurrentIndex() != 3) {
+    if (GetCurrentIndex() != close_tab) {
       /* switch to "close" page instead of closing the dialog */
-      SetCurrent(CloseTab);
+      SetCurrent(close_tab);
       SetFocus();
       return true;
     }
@@ -109,9 +153,24 @@ TaskManagerDialog::Initialise(ContainerWindow &parent,
          _("Turn Points"), TurnPointIcon);
   AddTab(std::make_unique<TaskMiscPanel>(*this, task, &modified),
          _("Manage"), BrowseIcon);
+#ifdef HAVE_HTTP
+  if (CommonInterface::GetComputerSettings().weglide.enabled) {
+    const auto *WeGlideIcon = enable_icons ? &icons.hBmpTabWeGlide : nullptr;
+    AddTab(std::make_unique<WeGlidePanel>(*this, task, &modified),
+           "WeGlide", WeGlideIcon);
+  }
+  if (SoaringScoring::AccountConnected()) {
+    const auto *SoaringScoringIcon =
+      enable_icons ? &icons.hBmpTabSoaringScoring : nullptr;
+    AddTab(CreateSoaringScoringTasksPanel(*this, task, &modified),
+           "SoaringScoring", SoaringScoringIcon);
+  }
+#endif
+  rules_tab = GetSize();
   AddTab(std::make_unique<VScrollWidget>(std::make_unique<TaskPropertiesPanel>(*this, task, &modified),
                                          GetLook()),
          _("Rules"), PropertiesIcon);
+  close_tab = GetSize();
   AddTab(std::make_unique<TaskClosePanel>(*this, &modified,
                                           UIGlobals::GetDialogLook()),
          _("Close"));
@@ -170,7 +229,7 @@ TaskManagerDialog::SwitchToEditTab()
 void
 TaskManagerDialog::SwitchToPropertiesPanel()
 {
-  SetCurrent(PropertiesTab);
+  SetCurrent(rules_tab);
   SetFocus();
 }
 

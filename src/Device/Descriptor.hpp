@@ -419,6 +419,21 @@ public:
   void Close() noexcept;
 
   /**
+   * Close the port although this object is borrowed, because the
+   * borrower needs the hardware to be reachable by somebody else
+   * (e.g. the FLARM Hub REST API, which cannot obtain its own
+   * connection to the FLARM while we occupy the NMEA port).  The
+   * device stays borrowed and must still be returned.
+   */
+  void CloseBorrowed() noexcept;
+
+  /**
+   * Schedule reopening the port closed by CloseBorrowed().  The port
+   * is opened only after the device has been returned.
+   */
+  void ScheduleReopenBorrowed() noexcept;
+
+  /**
    * @param env a persistent object
    */
   void Reopen(OperationEnvironment &env);
@@ -562,6 +577,8 @@ public:
                   OperationEnvironment &env) noexcept;
   bool PutCrewMass(double crew_mass, OperationEnvironment &env) noexcept;
   bool PutEmptyMass(double empty_mass, OperationEnvironment &env) noexcept;
+  bool PutMaxTakeoffMass(double max_takeoff_mass,
+                         OperationEnvironment &env) noexcept;
   bool PutPolar(const GlidePolar &polar, OperationEnvironment &env) noexcept;
   bool PutTarget(const GeoPoint &location, const char *name,
                  std::optional<double> elevation,
@@ -628,6 +645,7 @@ private:
   /* virtual methods from class PortListener */
   void PortStateChanged() noexcept override;
   void PortError(const char *msg) noexcept override;
+  void PortLog(const char *msg) noexcept override;
 
   /* virtual methods from DataHandler  */
   bool DataReceived(std::span<const std::byte> s) noexcept override;

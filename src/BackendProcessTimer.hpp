@@ -10,7 +10,7 @@
 
 /**
  * Settings that change over time: UTC offset, ballast dump, automatic
- * bugs degradation.
+ * bugs degradation, and the session state kept for a restart.
  */
 void
 BackendSettingsTimer() noexcept;

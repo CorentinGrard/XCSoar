@@ -80,6 +80,8 @@ ShowMessageBox(const char *text, const char *caption,
    reload files; the core will reload through its settings API */
 bool AirspaceFileChanged = false;
 bool WaypointFileChanged = false;
+bool PrimaryWaypointFileChanged = false;
+bool WatchedWaypointFileChanged = false;
 bool AirfieldFileChanged = false;
 bool InputFileChanged = false;
 bool MapFileChanged = false;
@@ -90,11 +92,12 @@ bool ChecklistFileChanged = false;
 /* src/PageOverlayTitle.cpp reaches the weather overlays of the map
    window; page titles are only shown by the UI, which names its own
    pages */
-void
-AppendOverlayTitle([[maybe_unused]] BasicStringBuilder<char> &builder,
+bool
+FormatOverlayLabel([[maybe_unused]] std::span<char> buffer,
                    [[maybe_unused]] const PageLayout &layout,
-                   [[maybe_unused]] const RaspStore *rasp)
+                   [[maybe_unused]] const RaspStore *rasp) noexcept
 {
+  return false;
 }
 
 /* src/InfoBoxes/InfoBoxManager.cpp: "redraw the InfoBoxes" signals from

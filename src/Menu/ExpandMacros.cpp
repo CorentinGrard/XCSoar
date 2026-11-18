@@ -24,6 +24,9 @@
 #include "util/DollarExpand.hpp"
 #include "util/Macros.hpp"
 #include "net/http/Features.hpp"
+#ifdef HAVE_HTTP
+#include "net/client/SoaringScoring/Account.hpp"
+#endif
 #include "UIState.hpp"
 
 #include <stdlib.h>
@@ -276,6 +279,8 @@ LookupMacro(std::string_view name, bool &invalid) noexcept
 
     case PageLayout::Overlay::SKYSIGHT:
     case PageLayout::Overlay::RASP:
+    case PageLayout::Overlay::RADAR:
+    case PageLayout::Overlay::SATELLITE:
     case PageLayout::Overlay::NONE:
     case PageLayout::Overlay::MAX:
       return plus
@@ -296,6 +301,8 @@ LookupMacro(std::string_view name, bool &invalid) noexcept
       return "";
 
     case PageLayout::Overlay::RASP:
+    case PageLayout::Overlay::RADAR:
+    case PageLayout::Overlay::SATELLITE:
     case PageLayout::Overlay::NONE:
     case PageLayout::Overlay::MAX:
       return C_("Weather control", "Layer\nList\n(F2/+)");
@@ -314,6 +321,8 @@ LookupMacro(std::string_view name, bool &invalid) noexcept
       return C_("Weather control", "Time\nAuto\n(F3/-)");
 
     case PageLayout::Overlay::RASP:
+    case PageLayout::Overlay::RADAR:
+    case PageLayout::Overlay::SATELLITE:
     case PageLayout::Overlay::NONE:
     case PageLayout::Overlay::MAX:
       return C_("Weather control", "Time\nAuto\n(F3/-)");
@@ -488,6 +497,14 @@ LookupMacro(std::string_view name, bool &invalid) noexcept
                           true);
   } else if (name == "CheckWeGlide") {
     invalid |= !CommonInterface::GetComputerSettings().weglide.enabled;
+    return nullptr;
+  } else if (name == "CheckFlightUpload") {
+#ifndef HAVE_HTTP
+    invalid = true;
+#else
+    invalid |= !CommonInterface::GetComputerSettings().weglide.enabled &&
+               !SoaringScoring::AccountConnected();
+#endif
     return nullptr;
   } else
     return nullptr;

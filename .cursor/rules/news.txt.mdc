@@ -13,6 +13,10 @@ bottom retain legacy formats (prose lists, “Changes from …”, contributor
 attributions). **New entries** always go at the top under the current
 unreleased version.
 
+When a version is marked released, copy that block into
+`debian/changelog` and write the Play What's New text. Limits and
+paths: `doc/release.rst` and `.cursor/rules/release.mdc`.
+
 ## When to add an entry
 
 - Under **`Version X.Y - not yet released`** at the top of the file
@@ -33,6 +37,10 @@ notes only list bugs that were present in 7.44.
 - If a **new feature** in this version had bugs during development, fold
   the final behaviour into the feature bullet (or omit); do not add a
   separate `fix` line
+- What's New shows only the first version block. Do not repeat a fix
+  already shipped in a patch release of the previous minor (7.46 must
+  not restate 7.45.1–7.45.3). Keep those patch blocks in the cumulative
+  file, below the unreleased version
 
 ```text
 # BAD in Version 7.45 (only happened on 7.45 development builds)

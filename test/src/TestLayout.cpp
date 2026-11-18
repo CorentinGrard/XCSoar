@@ -3,6 +3,7 @@
 
 #include "Screen/Layout.hpp"
 #include "TestUtil.hpp"
+#include "ui/window/MinimumSize.hpp"
 #include "util/Macros.hpp"
 
 #include <algorithm>
@@ -43,9 +44,10 @@ struct Expected {
   static bool
   IsSmallScreen(PixelSize size, UnsignedPoint2D dpi) noexcept
   {
+    /* Short edge under 3.2 inches.  A square uses height and y DPI. */
     return size.width < size.height
-      ? size.width < dpi.x * 5
-      : size.height < dpi.y * 5;
+      ? size.width * 5 < dpi.x * 16
+      : size.height * 5 < dpi.y * 16;
   }
 
   static Expected
@@ -76,13 +78,8 @@ struct Expected {
     e.minimum_control_height = std::min(font_h,
                                        e.min_screen_pixels / 12);
 
-    if (has_touch) {
-      e.maximum_control_height = Shift10(30, e.pt_scale);
-      if (e.maximum_control_height < e.minimum_control_height)
-        e.maximum_control_height = e.minimum_control_height;
-    } else {
-      e.maximum_control_height = e.minimum_control_height;
-    }
+    e.maximum_control_height = std::max(Shift10(30, e.pt_scale),
+                                       e.minimum_control_height);
 
     e.hit_radius = Shift10(has_touch ? 28 : 6, e.pt_scale);
     return e;
@@ -137,10 +134,13 @@ TestCase(PixelSize size, UnsignedPoint2D dpi,
 /**
  * Literal goldens for square vs landscape.  Square is never
  * landscape, uses divisor 320, and small-screen on a square uses
- * y DPI.  Landscape is width>height and uses the short-edge (y)
- * DPI; flipping 480x640 to 640x480 keeps the same scale_1024.
+ * y DPI.  Landscape uses the short edge (height) and y DPI;
+ * flipping 480x640 to 640x480 keeps the same scale_1024.
  */
 static constexpr unsigned SQUARE_LANDSCAPE_CHECKS = 25;
+
+/** ClampToMinimumSize width/height plus MinimumWindowSize width/height. */
+static constexpr unsigned MINIMUM_SIZE_CHECKS = 12 * 4;
 
 static void
 TestSquareAndLandscape() noexcept
@@ -188,7 +188,7 @@ TestSquareAndLandscape() noexcept
   ok1(!Layout::landscape);
   ok1(!Layout::small_screen);
 
-  /* landscape small-screen uses y_dpi (the short edge) */
+  /* landscape small-screen uses the short edge and y_dpi */
   Layout::Initialise({800, 480}, {96, 200}, 100, false);
   ok1(Layout::landscape);
   ok1(Layout::small_screen);
@@ -196,6 +196,37 @@ TestSquareAndLandscape() noexcept
   Layout::Initialise({800, 480}, {200, 96}, 100, false);
   ok1(Layout::landscape);
   ok1(!Layout::small_screen);
+}
+
+static void
+TestMinimumWindowSize() noexcept
+{
+  const auto check = [](PixelSize in, PixelSize clamped,
+                        PixelSize native_min) {
+    const PixelSize got = UI::ClampToMinimumSize(in);
+    ok1(got.width == clamped.width);
+    ok1(got.height == clamped.height);
+
+    const PixelSize min = UI::MinimumWindowSize(in);
+    ok1(min.width == native_min.width);
+    ok1(min.height == native_min.height);
+  };
+
+  /* Square and landscape use 320x240. A wide window keeps its width. */
+  check({0, 0}, {320, 240}, {320, 240});
+  check({10, 10}, {320, 240}, {320, 240});
+  check({11, 10}, {320, 240}, {320, 240});
+  check({319, 240}, {320, 240}, {320, 240});
+  check({320, 240}, {320, 240}, {320, 240});
+  check({500, 100}, {500, 240}, {320, 240});
+  check({800, 600}, {800, 600}, {320, 240});
+
+  /* Portrait uses 240x320. A tall window keeps its height. */
+  check({10, 11}, {240, 320}, {240, 320});
+  check({100, 500}, {240, 500}, {240, 320});
+  check({240, 319}, {240, 320}, {240, 320});
+  check({240, 320}, {240, 320}, {240, 320});
+  check({400, 800}, {400, 800}, {240, 320});
 }
 
 int
@@ -210,29 +241,32 @@ main()
     unsigned ui_scale;
     bool has_touch;
   } cases[] = {
-    /* 240x320 @ 96 DPI: historical base, 2.5" short edge, small */
+    /* 240x320 @ 96 DPI: short edge 2.5", small */
     {{240, 320}, dpi96, 100, false},
     {{320, 240}, dpi96, 100, false},
     {{320, 320}, dpi96, 100, false},
     {{480, 480}, dpi96, 100, false},
     {{480, 640}, dpi96, 100, false},
 
-    /* 5 inch is size < dpi*5, not <= */
-    {{479, 800}, dpi96, 100, false},
-    {{480, 800}, dpi96, 100, false},
+    /* 3.2 inch is size*5 < dpi*16, not <= (short edge) */
+    {{307, 800}, dpi96, 100, false},
+    {{308, 800}, dpi96, 100, false},
 
     {{1920, 1080}, dpi96, 100, false},
     {{1920, 1080}, dpi96, 200, false},
     {{1920, 1080}, dpi96, 100, true},
-    /* high ui_scale + touch: PtScale(30) can be below minimum */
+    /* high ui_scale: PtScale(30) can be below minimum */
     {{1920, 1080}, dpi96, 400, true},
 
     {{1080, 1920}, dpi400, 100, true},
     {{1080, 1920}, {96, 400}, 100, false},
+
+    /* HiBreak Pro: short edge 2.75" at 300 dpi, small */
+    {{824, 1648}, {300, 300}, 100, true},
   };
 
   plan_tests(1 + ARRAY_SIZE(cases) * LAYOUT_CHECKS +
-             SQUARE_LANDSCAPE_CHECKS);
+             SQUARE_LANDSCAPE_CHECKS + MINIMUM_SIZE_CHECKS + 3 + 6);
 
   ok1(Layout::ScaleSupported());
 
@@ -240,6 +274,31 @@ main()
     TestCase(c.size, c.dpi, c.ui_scale, c.has_touch);
 
   TestSquareAndLandscape();
+  TestMinimumWindowSize();
+
+  /* HiBreak Pro is small (short edge 2.75").  12 pt at 300 dpi is
+     50 px before the closer-view shrink. */
+  Layout::Initialise({824, 1648}, {300, 300}, 100, true);
+  ok1(Layout::small_screen);
+  ok1(Layout::PtScale(12) == 49);
+  ok1(Layout::FontScale(12) == 33);
+
+  /* 7" panel, short edge 3.6".  Phone, short edge 2.7". */
+  Layout::Initialise({1024, 720}, {200, 200}, 100, true);
+  ok1(!Layout::small_screen);
+
+  Layout::Initialise({1080, 2400}, {400, 400}, 100, true);
+  ok1(Layout::small_screen);
+
+  Layout::Initialise({1024, 720}, {200, 200}, 100, true,
+                     Layout::ViewingDistance::HANDHELD);
+  ok1(Layout::small_screen);
+  ok1(Layout::FontScale(12) < Layout::PtScale(12));
+
+  Layout::Initialise({1080, 2400}, {400, 400}, 100, true,
+                     Layout::ViewingDistance::PANEL);
+  ok1(!Layout::small_screen);
+  ok1(Layout::FontScale(12) == Layout::PtScale(12));
 
   return exit_status();
 }

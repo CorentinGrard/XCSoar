@@ -7,28 +7,40 @@
 #include "Screen/Layout.hpp"
 #include "Asset.hpp"
 
+#include <algorithm>
+
 #ifdef EYE_CANDY
 #include "Resources.hpp"
 #endif
 
-#include <algorithm>
-
 void
 DialogLook::LoadFonts()
 {
-  const FontDescription text_font_d(std::min(Layout::FontScale(12),
-                                             Layout::min_screen_pixels / 20));
+  /* FontScale applies DPI, Text size, and the close-view shrink.
+     Cap at the short edge / 20 so menus, forms, headings and status
+     text stay on the screen.  Map labels are not capped. */
+  const unsigned cap    = Layout::min_screen_pixels / 20;
+  const unsigned height = std::min(Layout::FontScale(12), cap);
+  const FontDescription text_font_d(height);
+
   const FontDescription small_font_d =
     text_font_d.WithHeight(text_font_d.GetHeight() * 3u / 4u);
 
   text_font.Load(text_font_d);
   small_font.Load(small_font_d);
+  small_font_bold.Load(small_font_d.WithBold());
 
+  /* QuickGuide **bold** and list emphasis use bold_font; buttons use
+     text_font on e-paper (see Initialise). */
   bold_font.Load(text_font_d.WithBold());
 
-  /* H1 = 150% of text size, H2 = 125% */
-  heading1_font.Load(text_font_d.WithHeight(text_font_d.GetHeight() * 3u / 2u).WithBold());
-  heading2_font.Load(text_font_d.WithHeight(text_font_d.GetHeight() * 5u / 4u).WithBold());
+  /* H1 = 150% of text size, H2 = 125%, both inside the same cap. */
+  const FontDescription heading1_d =
+    text_font_d.WithHeight(std::min(height * 3u / 2u, cap));
+  const FontDescription heading2_d =
+    text_font_d.WithHeight(std::min(height * 5u / 4u, cap));
+  heading1_font.Load(heading1_d.WithBold());
+  heading2_font.Load(heading2_d.WithBold());
 }
 
 void

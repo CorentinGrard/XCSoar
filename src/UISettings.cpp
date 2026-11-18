@@ -13,6 +13,12 @@ UISettings::SetDefaults() noexcept
 
   scale = 100;
 
+#ifdef KOBO
+  viewing_distance = Layout::ViewingDistance::HANDHELD;
+#else
+  viewing_distance = Layout::ViewingDistance::AUTO;
+#endif
+
   custom_dpi = 0;  // automatic
 
   thermal_assistant_position = ThermalAssistantPosition::BOTTOM_LEFT_AVOID_IB;
@@ -30,6 +36,7 @@ UISettings::SetDefaults() noexcept
 #endif
   show_zoom_button = show_menu_button;
   show_quickmenu_button = HasTouchScreen();
+  maccready_stf_ias = false;
 
 #ifdef KOBO
   dark_mode = DarkMode::OFF;

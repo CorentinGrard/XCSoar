@@ -126,14 +126,22 @@ Display::MakeCurrent(EGLSurface surface)
   if (!eglMakeCurrent(display, surface, surface, context))
     throw FmtRuntimeError("eglMakeCurrent() failed: {:#x}", eglGetError());
 
-#ifdef USE_WAYLAND
-  /* Mesa waits in eglSwapBuffers for a compositor frame callback.
-     Hidden surfaces never get one, which stalls the UI thread.
-     Interval 0 draws without that wait.  eglSwapInterval applies to
-     the current draw surface, so this must run after MakeCurrent.
-     Refresh() still skips Flip() while the surface is SUSPENDED. */
-  if (!eglSwapInterval(display, 0))
-    LogFormat("eglSwapInterval(0) failed: %#x", eglGetError());
+#if defined(USE_WAYLAND) || defined(USE_X11)
+  /* Mesa can wait inside eglSwapBuffers until the compositor
+     presents the frame.  A window that is not on screen may never
+     be presented, which stalls the UI thread and everything queued
+     behind it.  Interval 0 returns without that wait.
+     eglSwapInterval applies only to a window surface, so this must
+     run after MakeCurrent and not on the dummy pbuffer or after
+     unbinding.  A driver with no swap control returns
+     EGL_BAD_SURFACE; the Wayland frame callback still paces
+     presentation. */
+  if (surface != EGL_NO_SURFACE && surface != dummy_surface &&
+      !eglSwapInterval(display, 0)) {
+    const EGLint error = eglGetError();
+    if (error != EGL_BAD_SURFACE)
+      LogFormat("eglSwapInterval(0) failed: %#x", error);
+  }
 #endif
 }
 

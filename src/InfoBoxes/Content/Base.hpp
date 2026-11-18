@@ -10,22 +10,31 @@ class Canvas;
 
 class InfoBoxContent
 {
+  /**
+   * The index of the InfoBox this content is displayed in.
+   */
+  unsigned slot = 0;
+
 public:
-  enum InfoBoxKeyCodes {
-    ibkLeft = -2,
-    ibkDown = -1,
-    ibkUp = 1,
-    ibkRight = 2
-  };
+  /**
+   * Called by #InfoBoxWindow when the content is installed.
+   */
+  void SetSlot(unsigned _slot) noexcept {
+    slot = _slot;
+  }
 
   virtual ~InfoBoxContent() noexcept;
 
   virtual void Update(InfoBoxData &data) noexcept = 0;
-  virtual bool HandleKey(const InfoBoxKeyCodes keycode) noexcept;
   virtual bool HandleClick() noexcept;
 
   virtual void OnCustomPaint(Canvas &canvas, const PixelRect &rc) noexcept;
 
   [[gnu::pure]]
   virtual const InfoBoxPanel *GetDialogContent() noexcept;
+
+protected:
+  unsigned GetSlot() const noexcept {
+    return slot;
+  }
 };

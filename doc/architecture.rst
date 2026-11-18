@@ -72,6 +72,8 @@ section tries to give a rough overview where you can find what.
 
 -  :file:`Engine/Waypoint/`: waypoint data structures
 
+-  :file:`Engine/Observation/`: thermal and wave marks, tagged by feed
+
 -  :file:`Engine/GlideSolvers/`: a MacCready implementation
 
 -  :file:`Engine/Task/`: task data structures and calculations
@@ -217,13 +219,15 @@ torn down. The global pointer is cleared later in :file:`Startup.cpp`
 **Shutdown order** (see :file:`Startup.cpp`; simplified):
 
 1. ``NetComponents::BeginShutdown()`` — cancel coroutines and queued
-   downloads; clear map pointers to TIM / SkyLines data
+   downloads; clear the network clients' pointer to the observation
+   store
 2. ``MainWindow::BeginShutdown()``; stop merge and calculation threads;
    join them; deinitialise map and devices
 3. ``MainWindow::DeinitialiseStorage()`` — unregister storage UI listeners
 4. ``StorageManager::StopMonitoring()`` — stop hotplug; destructor joins
    the enumeration worker when ``delete backend_components`` runs
-5. ``delete backend_components`` and ``delete data_components``
+5. ``delete backend_components``; clear the map's observation pointer
+   and ``delete data_components``
 6. ``DestroyNetComponents()``; destroy :file:`MainWindow`
 7. On process exit, :file:`Net::Deinitialise` destroys :file:`CurlGlobal` on
    the **asio** thread (:file:`DrainCurl` in :file:`net/http/Init.cpp`)
@@ -243,6 +247,89 @@ layout while InfoBoxes are being created. Use
 example :file:`Weather/EDL/DownloadGlue.cpp`). New providers (such as
 XCTherm) should follow the same split: listener on the UI thread,
 network I/O on the asio thread, UI updates via :file:`UI::Notify`.
+
+Origin stores
+~~~~~~~~~~~~~
+
+Waypoints, airspaces, thermals, and waves each live in one list.  Every
+row is tagged with the feed that produced it: a waypoint file, the
+Thermal Information Map, Cloud, SkyLines, or XCSoar's own calculation.
+Replacing a feed deletes only that feed's rows.  A live packet appends
+or updates one row and leaves the other feeds in place.
+
+The engine types (:file:`Engine/Waypoint/Waypoints`,
+:file:`Engine/Airspace/Airspaces`, :file:`Engine/Observation/Store`)
+have no lock and no thread.  Waypoint and airspace reloads run on the
+UI thread while the other threads are suspended
+(:file:`ScopeSuspendAllThreads`).  Thermals and waves are published
+while the map is drawing, so :file:`Observation/Database` holds the
+mutex.  :file:`DataComponents` owns that database.  The network thread
+may call ``ReplaceThermals``, ``AppendThermal``, and the wave
+equivalents directly.  :file:`ReceiveCalculated` publishes own-ship rows
+from the UI thread through the same mutex.  The draw thread and the
+map click list copy a snapshot with ``CopyThermals`` / ``CopyWaves``
+and then work on the copy.
+
+:file:`UI::Notify` is for windows, status text, and
+:file:`ActionInterface`.  A new thermal or wave appears on the next map
+draw.
+
+Traffic (:file:`FLARM/List`) is a different store.  One slot per
+aircraft id is updated and expired in place.  Replacing a whole feed
+does not fit a single traffic sentence.
+
+Shutdown clears each network client's store pointer in its
+``BeginShutdown()`` before that client's work is cancelled, and clears
+the map pointer before ``delete data_components``.
+
+.. _loading-configured-files:
+
+Loading configured files
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+A file on disk is not the in-memory object.  Three kinds of source
+feed the lists in `Origin stores`_.
+
+**Map zip.**  The configured ``.xcm`` supplies ``terrain.jp2`` and
+``topology.tpl``.  It may also contain ``waypoints.cup`` or
+``waypoints.xcw``, ``airspace.txt``, and ``airfields.txt``.  Those
+members are still read: map waypoints only when no primary or watched
+waypoint file produced a row; ``airspace.txt`` is merged with the
+configured OpenAir files; ``airfields.txt`` is applied as waypoint
+details.  :file:`SettingsLeave` therefore treats ``MapFileChanged`` as
+a waypoint, airspace, airfield, terrain, and topography change.
+
+**Profile path.**  A Site files entry is one source: the map file, a
+waypoint or airspace list, FLARMNet, RASP, the checklist, or the input
+file.  Reloading one origin deletes only that origin's rows.
+
+**Live feed.**  NOTAM, traffic, Cloud, and SkyLines are not files.
+NOTAM replaces ``AirspaceOrigin::NOTAM`` and leaves file airspace in
+place.  Traffic (:file:`FLARM/List`) keeps one slot per aircraft id,
+updated and expired in place.
+
+The reload runs on the UI thread.  A download callback queues the
+path and :file:`UI::Notify` delivers it.  Waypoint and airspace edits
+suspend the other threads (:file:`ScopeSuspendAllThreads`, or
+:file:`SuspendAllThreads` inside :file:`SettingsLeave`) and bump
+``Serial`` on the list.
+
+**Map zip finished loading.**  :file:`MainWindow::LoadTerrain` reads
+the zip on a worker.  :file:`OnTerrainLoaded` then installs the
+terrain, fills waypoint elevations that were missing, updates home,
+and sets airspace ground levels.  Topography and the waypoint and
+airspace files stay as they were.
+
+**File Manager, or startup auto-update.**
+:file:`ApplyConfiguredDataFiles` compares each downloaded path with
+the Site files profile keys.  A path that is not selected is left on
+disk.  A match sets the same flags Setup uses and calls
+:file:`SettingsEnter` / :file:`SettingsLeave`.  An updated ``.xcm``
+still reloads the zip's waypoint, airspace, and airfield members.  An
+OpenAir update drops file and map airspace rows, rereads them, and
+clears airspace warnings; NOTAM rows stay.  Startup auto-update skips
+that reload while flying: the new file stays on disk until the next
+start.
 
 Background file jobs
 ~~~~~~~~~~~~~~~~~~~~
@@ -462,6 +549,9 @@ General
    function, such as dialogue graphics as well as map overlays and
    infoboxes.
 
+-  A control keeps its name and its result wherever it appears: an
+   InfoBox, a menu, a dialogue, and a status line.
+
 -  Text should always be monochrome.
 
 Use aviation conventions or adopt best aviation human factors standards
@@ -495,13 +585,17 @@ General colour conventions
 
 Colour conventions generally in use throughout the program:
 
--  Red for indicator of warning
+-  Red means a warning: act now.  Pair it with a sound.  The warning
+   leaves when the condition leaves.
 
--  Orange for indicator of caution
+-  Orange means a caution: look now.
 
--  Green for positive indicator of safety
+-  Green means OK, safe, or cleared.  An advisory is not red and not
+   green.
 
--  Blue for neutral indicator of safety
+-  Blue on an InfoBox is a derived or estimated value, or a pending
+   state, such as a start gate that is waiting or a standby
+   frequency.  It is not a safety colour.
 
 Displayed data
 ^^^^^^^^^^^^^^
@@ -515,6 +609,9 @@ Displayed data
    accuracy of the calculations, or its functional use by the pilot,
    whichever is lower.
 
+-  The screen shows the mode.  An automatic mode, a download, and a
+   setting that changed are visible.
+
 Dialogs and menu buttons
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -523,9 +620,10 @@ Colors
 
 Colour conventions in use are:
 
--  Grey for buttons
-
--  Buttons and other widgets rendered with an evenly shaded border
+-  A button that can be used has to contrast with the background
+   behind it.  WCAG 2.2 success criterion 1.4.11 (Non-text Contrast)
+   requires 3:1 for the face or the border that shows the button.
+   A disabled control is exempt.
 
 -  Yellow for clicked items
 
@@ -533,9 +631,15 @@ Colour conventions in use are:
 
 -  Medium blue for dialogue title bar
 
--  Text is black if the item is enabled
+-  Text is black on a light background when dark mode is off, and
+   light on a dark background when it is on.  Both have to stay
+   readable.  Pass the mode into Look ``Initialise()``
+   (``UISettings::DarkMode``).  Use the named colours in
+   ``Look/Colors.hpp``.  InfoBoxes may follow the global mode, or
+   stay Light or Dark on their own.  Kobo stays light.
 
--  Text is greyed out (but still visible) if the item is disabled
+-  Text is greyed out (but still visible) if the item is disabled.
+   Disable an action that cannot be done.
 
 dialogue types and navigation buttons
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -564,6 +668,10 @@ Select buttons.
 -  Dialogs that display information that cannot be modified.
 
    These shall have a Close button
+
+A destructive action asks before it runs, and the question says what
+will be lost.  When an entry is wrong, say so on that control, and
+say what to do.
 
 dialogue button placement and size
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -605,13 +713,137 @@ dialogue button placement and size
 Usability
 ^^^^^^^^^
 
--  Minimum size of buttons should be X by Y mm
+-  An action used in flight is at most three steps from the map
+   (``mode=default``).  Rare options live in Setup, with a default
+   so the common case needs no visit.  The button menu, and the
+   InfoBox arrange screen, close after Menu timeout
+   (``UISettings::menu_timeout``).  Do not put that timer on a
+   warning.  Escape in a menu returns to the map.  Escape on the map
+   itself is described under Touch interaction.
+
+-  An in-flight tap target is about 20 mm high
+   (``Layout::GetInflightButtonHeight()``, 56 pt), large enough for
+   a gloved tap.  Dialogue rows use
+   ``Layout::GetMinimumControlHeight()``.
+
+-  Type follows the viewing distance (``Layout::ViewingDistance``).
+   Auto uses the closer-view size when the short edge is under 3.2
+   inches.  Handheld always uses that size.  Panel keeps full-size
+   type, for a screen read at arm's length.  Scale that type with
+   ``Layout::FontScale()`` and ``Layout::VptScale()``.
 
 -  Ensure all dialogs are navigable using cursor keys only
 
 -  Ensure the focussed item is clearly identified. The rectangle of the
    widget on the canvas may be drawn using the ``fill_focus`` method of
    ``Canvas``.
+
+Screen rectangles
+~~~~~~~~~~~~~~~~~
+
+Full screen draws the map to the edge of the glass.  Several
+rectangles are smaller than that window, and they are not the same
+rectangle.  Use the one that matches the element.
+
+A rectangle from ``MainWindow`` is in main-window coordinates.
+``MapWindow::GetHudRect()`` is in map-window coordinates.  Intersect
+``map->GetPosition()`` with a main-window rectangle before placing a
+child of the main window on the map.
+
+``GetClientRect()``
+  The whole window.  On Android in full screen this includes the
+  status bar, the display cutout, the home indicator and the rounded
+  corners.  On iOS it is that full screen only while full screen mode
+  is on; otherwise it is already the safe area.  Use it for pixels
+  that are allowed to run under system UI: the map itself, a
+  screen-filling backdrop (the Fly/Simulator background, the dimming
+  behind the InfoBox arrange cards).
+
+``GetSafeAreaRect()``
+  The window minus the status bar, the navigation bar, the display
+  cutout and the rounded corners.  On a rectangular display with no
+  system bars it equals ``GetClientRect()``.  Android reports these
+  insets only while full screen is on, because outside full screen
+  the surface is already laid out inside them.  The reserved bar size
+  is kept even while full screen hides the bars.  Use it for anything
+  the pilot must be able to read or press that is not allowed to
+  slide under system UI: dialogue windows (title and buttons
+  included) and the Fly/Simulator controls.  Do not inset a dialogue
+  by the shade band as well; it is already below the status bar.
+
+``MainWindow::GetInfoBoxAreaRect()``
+  Per edge, the screen border where *Stretch InfoBox area* is on, and
+  the safe edge where it is off.  A visible status bar clears the top
+  stretch, because nothing can be drawn behind that bar.  Use it for
+  the InfoBoxes, the menu, and gauge positions that do not avoid the
+  InfoBoxes.  Positions that do avoid them, and a page that replaces
+  the map, use the HUD rectangle below.
+
+``MainWindow::GetAreaStackRect()``
+  The hole the InfoBoxes leave inside the InfoBox area.  When the
+  InfoBoxes are hidden, or before the first layout, it is the InfoBox
+  area.  The top and bottom areas (cross section, airspace and NOTAM
+  warnings) are placed in this rectangle.  Callers rarely need it
+  directly; it is the input to the HUD rectangle.
+
+``MainWindow::GetHudRect()``
+  The area stack minus the top and bottom areas.  This is where
+  in-flight map chrome belongs: the compass, the map scale, auto-zoom
+  on that line when it is on, and the titles above it (PAN, the page
+  name, an overlay and ballast, each its own label), the final
+  glide bar, the vario bar, the thermal profile, the GPS status, the
+  condition labels, the flight mode icon, the gesture label, the page
+  indicator, the pan elevation and coordinates, the overlay buttons
+  (menu, QuickMenu, zoom), status messages, and a widget that
+  replaces the map.
+  The condition labels are the persistent channel.  A yellow or red
+  label stays while its warning or error is true.  Simulator, with a
+  joystick, and Replay, with a circular arrow, are white rounded
+  labels at the top of the same stack.  Errors sit at the bottom,
+  warnings between.  Each drops when that condition clears.
+  ``Message::AddMessage()``
+  is the occurrence channel: a status popup at the moment something
+  happens, which then expires.  Use a label when the pilot should
+  keep seeing the condition.  Use ``AddMessage()`` when the news is
+  the moment it happened.
+  ``LayoutMapArea()`` then stores the same hole on the map as
+  ``MapWindow::GetHudRect()``.  Draw map overlays with that function,
+  not with the map's ``GetClientRect()``: the map is larger than the
+  hole and runs under the InfoBoxes and the system UI.
+
+  Two extra margins sit inside the map HUD and are not part of the
+  rectangle itself.  ``top_right_margin`` is the overlay-button
+  column; the north arrow and the pan readout move left by it, and
+  the margin goes to zero when those buttons are hidden.  ``bottom_margin``
+  is the portrait pan menu (and the InfoBox access dialogue).
+
+  Edge chrome is laid out once in ``MapHudLayout`` (via
+  ``GlueMapWindow::GetHudLayout()``): HUD, text-padding inset (the
+  same gap the overlay buttons leave), optional top-right and bottom
+  clearances, the compass slot height, and the scale/title clearance
+  for the GPS status.  Draw code reads those slots; it does not
+  recompose the insets.  The compass slot comes from
+  ``CompassRenderer``, and the GPS clearance from
+  ``GetMapScaleAndTitleClearance()``.  The gesture label and the page
+  indicator keep their own optical offset from the HUD edge.
+  Projection-space items (crosshair, aircraft, wind at the aircraft)
+  stay off this layout.
+
+``Android::ContentRectBelowTopGesture()``
+  The notification-shade swipe band.  It is not the safe area: it can
+  extend below the status bar, and it remains when full screen hides
+  the bars.  The value is how far the top of the XCSoar view still
+  lies inside that band, or zero when the surface already starts
+  below it.  Use it only for content the pilot drags in that band.
+
+  The InfoBox arrange overlay fills the client rectangle, so the
+  backdrop still covers the band.  Its cards, text and buttons use
+  the safe area, then the one-argument helper: a stretched outer
+  column must not sit in the edge-gesture strip, and only the part
+  of the shade band that still covers the safe area moves the cards.
+  The Sets editor is a dialogue already placed in the safe area;
+  pass the two-argument helper the dialogue's Y in the view, so a
+  band that ends at the status bar does not move the cards.
 
 Touch interaction
 ~~~~~~~~~~~~~~~~~
@@ -630,6 +862,9 @@ Murphy; NASA 9.3.3.4.7).  Do not invent a parallel gesture language.
    drag (movement past slop before the hold is armed), or hold then
    lift.  After a drag has started, a further hold does nothing.
 
+-  A gesture shows its label (``InputEvents::GetGestureLabel``).
+   A long press shows the hold indicator described below.
+
 -  Show a busy indicator if input cannot be processed for more than
    0.5 s (SAE ARP 4791).  That 0.5 s is “the system is occupied”, not
    a gesture timeout.  XCSoar’s hold-to-arm time
@@ -647,8 +882,20 @@ Murphy; NASA 9.3.3.4.7).  Do not invent a parallel gesture language.
    is armed is a drag or a cancel, not a tap.
 
 -  Cursor keys and a remote stick must reach the same actions as
-   touch.  E-paper skips hold animation (``HasEPaper()`` /
-   ``IsSlowCPU()``).
+   touch.  On a selected InfoBox, the arrow keys move to the InfoBox
+   in that screen direction (``InfoBoxArrange::FindNeighbour``): left
+   is left, right is right, and they do not follow the slot number.
+   Enter does what a short press does.  Holding Enter until the hold
+   is armed, then releasing, opens arrange, the same as a long press.
+   In arrange mode that hold opens the InfoBox list.  A short Enter
+   there takes or puts down the selected card, and does not also
+   open the list.
+   Escape on the map, with no
+   dialogue, menu, or special page open, selects the first InfoBox.
+   Escape on a selected InfoBox returns to the map.  A long press,
+   and the arrange screen, are the same action.  E-paper skips hold
+   animation
+   (``HasEPaper()`` / ``IsSlowCPU()``).
 
 Main graphics
 ~~~~~~~~~~~~~

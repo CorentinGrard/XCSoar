@@ -12,12 +12,7 @@ class OrderedTask;
 class ButtonWidget;
 
 class TaskManagerDialog final : public TabWidget {
-  enum Tabs {
-    TurnpointTab,
-    PropertiesTab,
-    RulesTab,
-    CloseTab,
-  };
+  static constexpr unsigned TurnpointTab = 0;
 
   WndForm &dialog;
 
@@ -26,6 +21,9 @@ class TaskManagerDialog final : public TabWidget {
   bool fullscreen = false;
 
   bool modified = true;
+
+  unsigned rules_tab = 0;
+  unsigned close_tab = 0;
 
 public:
   TaskManagerDialog(WndForm &_dialog,
@@ -76,6 +74,12 @@ public:
 
   void SwitchToEditTab();
   void SwitchToPropertiesPanel();
+
+  /**
+   * Replace the task being edited with one that arrived from outside,
+   * e.g. a scanned QR code, and show it.
+   */
+  void ReceiveTask(std::unique_ptr<OrderedTask> task) noexcept;
 
   /**
    * Validates task and prompts if change or error

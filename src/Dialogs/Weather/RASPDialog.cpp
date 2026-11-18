@@ -114,6 +114,11 @@ RaspColorbarWindow::OnPaint(Canvas &canvas) noexcept
     0, (int)INT16_MAX);
 
   RasterRenderer renderer;
+#ifdef ENABLE_OPENGL
+  /* Colorbar uses GetImage(); the shader path never allocates that
+     bitmap. */
+  renderer.SetUseCpuHillshade(true);
+#endif
   if (use_alpha)
     renderer.PrepareColorTableAlpha(
       &ramp, style->do_water,
@@ -250,6 +255,8 @@ class RASPSettingsPanel final
   Button *add_page_button = nullptr;
 
   static RASPSettingsPanel *active;
+  /** Panel this one replaced, restored when this one is destroyed. */
+  RASPSettingsPanel *replaced_active = nullptr;
 
   ContourDensity contour_density = ContourDensity::OFF;
   unsigned rasp_layer_opacity = 70;
@@ -276,7 +283,7 @@ public:
 
   ~RASPSettingsPanel() noexcept override {
     if (active == this)
-      active = nullptr;
+      active = replaced_active;
   }
 
 private:
@@ -465,6 +472,9 @@ void
 RASPSettingsPanel::Prepare([[maybe_unused]] ContainerWindow &parent,
                            [[maybe_unused]] const PixelRect &rc) noexcept
 {
+  /* Configuration prepares its own RASP page while a weather dialog
+     panel is still current. Hand the callback back when we go away. */
+  replaced_active = active == this ? nullptr : active;
   active = this;
 
   const auto &settings =

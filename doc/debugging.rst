@@ -86,6 +86,14 @@ draw or backend paths::
   xcsoar.replay.start("test/data/issue-2661/short_2026-06-20_11-47.nmea")
   xcsoar.replay.process_all()
 
+``xcsoar.key.press`` queues a key on that same UI event queue, so a
+script can drive menus or pan the map. The UI handles the key after
+the call returns. Names include ``LEFT``, ``RIGHT``, ``UP``,
+``DOWN``, ``ESCAPE``, ``RETURN``, ``F1`` and ``F2`` (:ref:`lua.key`)::
+
+  xcsoar.key.press("F1")
+  xcsoar.key.press("RIGHT", 30)
+
 Experiment with scripts using ``RunLua`` (see :doc:`lua`). Replay
 bindings: :ref:`lua.replay`.
 
@@ -141,8 +149,10 @@ For Xcode builds on iOS and macOS, set ``DEBUG_ALL_MAP_OVERLAYS=y`` in
 The flag is defined in :file:`build/options.mk` (default ``n``) and
 adds ``-DDEBUG_ALL_MAP_OVERLAYS=1``. When enabled, it forces the
 thermal band, FLARM alarm-level icon (not the FLARM traffic gauge
-widget), stall-ratio line, pan chrome, GPS-status and map-title
-placeholders, final-glide bar, and vario bar. Missing sensor data is
+widget), stall-ratio line, pan chrome, map-title placeholder,
+final-glide bar, and vario bar. The lower-left labels are forced
+too: yellow "No polar", red "GPS not connected", yellow "GPS
+waiting for fix", and yellow "Battery low". Missing sensor data is
 filled with placeholders so layout and collision can be tested
 without live traffic or a real flight. Separate MainWindow gauges
 (``GaugeFLARM``, thermal assistant) are unchanged.

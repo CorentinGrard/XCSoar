@@ -59,9 +59,7 @@ public:
    * Forget the waypoint to go to; the next takeoff creates a default
    * goto task again.
    */
-  void Clear() noexcept {
-    tp.reset();
-  }
+  void Clear() noexcept;
 
 public:
   /* virtual methods from class TaskInterface */

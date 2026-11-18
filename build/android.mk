@@ -94,6 +94,7 @@ NATIVE_CLASSES := \
 	FileProvider \
 	TextEntryDialog \
 	NativeView \
+	QRScannerActivity \
 	EventBridge \
 	NativeSensorListener \
 	NativeInputListener \
@@ -228,6 +229,47 @@ $(RES_DIR)/drawable-xxhdpi/icon.png: $(ICON_SVG) $(ICON_PACKAGE_STAMP) | $(RES_D
 $(RES_DIR)/drawable-xxxhdpi/icon.png: $(ICON_SVG) $(ICON_PACKAGE_STAMP) | $(RES_DIR)/drawable-xxxhdpi/dirstamp
 	$(Q)rsvg-convert --width=192 $< -o $@
 
+# Same artwork as drawable/icon.png, under the manifest resource name.
+# F-Droid skips adaptive-icon XML and does not follow the bitmap wrapper
+# in mipmap/ic_launcher.xml. It does extract
+# mipmap-<density>/ic_launcher.png. API 26+ still uses anydpi-v26.
+$(RES_DIR)/mipmap-ldpi/ic_launcher.png \
+$(RES_DIR)/mipmap-ldpi/ic_launcher_round.png: \
+	$(ICON_SVG) $(ICON_PACKAGE_STAMP) | $(RES_DIR)/mipmap-ldpi/dirstamp
+	$(Q)rsvg-convert --width=36 $< -o $@
+
+$(RES_DIR)/mipmap-mdpi/ic_launcher.png \
+$(RES_DIR)/mipmap-mdpi/ic_launcher_round.png: \
+	$(ICON_SVG) $(ICON_PACKAGE_STAMP) | $(RES_DIR)/mipmap-mdpi/dirstamp
+	$(Q)rsvg-convert --width=48 $< -o $@
+
+$(RES_DIR)/mipmap-hdpi/ic_launcher.png \
+$(RES_DIR)/mipmap-hdpi/ic_launcher_round.png: \
+	$(ICON_SVG) $(ICON_PACKAGE_STAMP) | $(RES_DIR)/mipmap-hdpi/dirstamp
+	$(Q)rsvg-convert --width=72 $< -o $@
+
+$(RES_DIR)/mipmap-xhdpi/ic_launcher.png \
+$(RES_DIR)/mipmap-xhdpi/ic_launcher_round.png: \
+	$(ICON_SVG) $(ICON_PACKAGE_STAMP) | $(RES_DIR)/mipmap-xhdpi/dirstamp
+	$(Q)rsvg-convert --width=96 $< -o $@
+
+$(RES_DIR)/mipmap-xxhdpi/ic_launcher.png \
+$(RES_DIR)/mipmap-xxhdpi/ic_launcher_round.png: \
+	$(ICON_SVG) $(ICON_PACKAGE_STAMP) | $(RES_DIR)/mipmap-xxhdpi/dirstamp
+	$(Q)rsvg-convert --width=144 $< -o $@
+
+$(RES_DIR)/mipmap-xxxhdpi/ic_launcher.png \
+$(RES_DIR)/mipmap-xxxhdpi/ic_launcher_round.png: \
+	$(ICON_SVG) $(ICON_PACKAGE_STAMP) | $(RES_DIR)/mipmap-xxxhdpi/dirstamp
+	$(Q)rsvg-convert --width=192 $< -o $@
+
+# F-Droid reads this from the source checkout after the build, not from
+# the APK. Always the public logo (testing builds use a red ICON_SVG).
+FASTLANE_ICON = $(topdir)/fastlane/metadata/android/en-US/images/icon.png
+$(FASTLANE_ICON): $(topdir)/Data/graphics/logo.svg
+	$(Q)$(MKDIR) -p $(dir $@)
+	$(Q)rsvg-convert --width=512 $< -o $@
+
 $(RES_DIR)/drawable/notification_icon.png: $(ICON_WHITE_SVG) | $(RES_DIR)/drawable/dirstamp
 	$(Q)rsvg-convert --width=24 $< -o $@
 
@@ -267,10 +309,9 @@ PNG5 := $(patsubst $(DATA)/graphics/%.bmp,$(DRAWABLE_DIR)/%.png,$(BMP_DIALOG_TIT
 $(PNG5): $(DRAWABLE_DIR)/%.png: $(DATA)/graphics/%.bmp | $(DRAWABLE_DIR)/dirstamp
 	$(Q)$(IM_CONVERT) $< $@
 
-####### gesture icons from SVG sources
-GESTURES_ANDROID = down dl dr du left ldr ldrdl lu right rd rl up ud uldr urd urdl
-PNG6 := $(addprefix $(DRAWABLE_DIR)/gesture_,$(addsuffix .png,$(GESTURES_ANDROID)))
-$(PNG6): $(DRAWABLE_DIR)/gesture_%.png: doc/manual/figures/gesture_%.svg | $(DRAWABLE_DIR)/dirstamp
+####### gesture icons, drawn from the name in Data/resources.txt
+PNG6 := $(addprefix $(DRAWABLE_DIR)/gesture_,$(addsuffix .png,$(GESTURES)))
+$(PNG6): $(DRAWABLE_DIR)/gesture_%.png: $(DATA)/graphics2/gesture_%.svg | $(DRAWABLE_DIR)/dirstamp
 	$(Q)rsvg-convert --width=82 --height=82 $< -o $@
 
 ####### permission disclosure graphics from SVG sources
@@ -300,6 +341,18 @@ PNG_FILES = $(PNG2) $(PNG3) $(PNG4) $(PNG5) $(PNG6) $(PNG7) $(PNG8a) $(PNG8) $(P
 	$(RES_DIR)/drawable-xhdpi/icon.png \
 	$(RES_DIR)/drawable-xxhdpi/icon.png \
 	$(RES_DIR)/drawable-xxxhdpi/icon.png \
+	$(RES_DIR)/mipmap-ldpi/ic_launcher.png \
+	$(RES_DIR)/mipmap-ldpi/ic_launcher_round.png \
+	$(RES_DIR)/mipmap-mdpi/ic_launcher.png \
+	$(RES_DIR)/mipmap-mdpi/ic_launcher_round.png \
+	$(RES_DIR)/mipmap-hdpi/ic_launcher.png \
+	$(RES_DIR)/mipmap-hdpi/ic_launcher_round.png \
+	$(RES_DIR)/mipmap-xhdpi/ic_launcher.png \
+	$(RES_DIR)/mipmap-xhdpi/ic_launcher_round.png \
+	$(RES_DIR)/mipmap-xxhdpi/ic_launcher.png \
+	$(RES_DIR)/mipmap-xxhdpi/ic_launcher_round.png \
+	$(RES_DIR)/mipmap-xxxhdpi/ic_launcher.png \
+	$(RES_DIR)/mipmap-xxxhdpi/ic_launcher_round.png \
 	$(RES_DIR)/drawable/notification_icon.png \
 	$(RES_DIR)/drawable-hdpi/notification_icon.png \
 	$(RES_DIR)/drawable-xhdpi/notification_icon.png \
@@ -310,6 +363,9 @@ PNG_FILES = $(PNG2) $(PNG3) $(PNG4) $(PNG5) $(PNG6) $(PNG7) $(PNG8a) $(PNG8) $(P
 # link) and in the App Bundle (BUNDLE_CONFIG / build-bundle --config):
 # SoundPool uses openRawResourceFd, which does not work on deflated res/raw ogg.
 SOUNDS = fail insert remove beep_bweep beep_clear beep_drip
+SOUNDS += traffic_low traffic_important traffic_urgent above below level
+SOUNDS += airspace_near airspace_above airspace_inside
+SOUNDS += $(addprefix oclock_,1 2 3 4 5 6 7 8 9 10 11 12)
 SOUND_FILES = $(patsubst %,$(RAW_DIR)/%.ogg,$(SOUNDS))
 
 # Vorbis -q 5: nominal quality (~160 kb/s class); was 1 for smallest APK
@@ -332,7 +388,7 @@ $(RES_DIR)/values/strings.xml: android/res/values/strings.xml | $(RES_DIR)/value
 	$(Q)sed 's/XCSoar/$(PRODUCT_NAME)/g' $< > $@
 
 # Convert resources to protobuf format with AAPT2 (build and unzip an apk)
-$(PROTOBUF_OUT_DIR)/dirstamp: $(PNG_FILES) $(SOUND_FILES) $(ANDROID_XML_RES_COPIES_NO_STRINGS) $(RES_DIR)/values/strings.xml $(MANIFEST) | $(GEN_DIR)/dirstamp $(COMPILED_RES_DIR)/dirstamp
+$(PROTOBUF_OUT_DIR)/dirstamp: $(PNG_FILES) $(FASTLANE_ICON) $(SOUND_FILES) $(ANDROID_XML_RES_COPIES_NO_STRINGS) $(RES_DIR)/values/strings.xml $(MANIFEST) | $(GEN_DIR)/dirstamp $(COMPILED_RES_DIR)/dirstamp
 	@$(NQ)echo "  AAPT2"
 	$(Q)find $(RES_DIR) -name dirstamp -type f -delete
 	$(Q)$(AAPT2) compile \
@@ -477,6 +533,7 @@ $(call SRC_TO_OBJ,$(SRC)/Android/NativePortListener.cpp): $(NATIVE_HEADERS)
 $(call SRC_TO_OBJ,$(SRC)/Android/NativeInputListener.cpp): $(NATIVE_HEADERS)
 $(call SRC_TO_OBJ,$(SRC)/Android/TextEntryDialog.cpp): $(NATIVE_HEADERS)
 $(call SRC_TO_OBJ,$(SRC)/Android/FileProvider.cpp): $(NATIVE_HEADERS)
+$(call SRC_TO_OBJ,$(SRC)/Android/QRScanner.cpp): $(NATIVE_HEADERS)
 
 ANDROID_LIB_BUILD = $(patsubst %,$(ANDROID_ABI_DIR)/lib%.so,$(ANDROID_LIB_NAMES))
 $(ANDROID_LIB_BUILD): $(ANDROID_ABI_DIR)/lib%.so: $(ABI_BIN_DIR)/lib%.so | $(ANDROID_ABI_DIR)/dirstamp
@@ -599,14 +656,14 @@ $(ANDROID_BIN)/XCSoar.apk: $(ANDROID_BIN)/XCSoar.aab
 	@$(NQ)echo "  APK     $@"
 	$(Q)set -e; \
 	if [ -n "$(BUNDLE_KS_PASS_FILE)" ]; then \
-		umask 077; \
-		printf '%s\n' "$$ANDROID_KEYSTORE_PASS" > $(BUNDLE_KS_PASS_FILE); \
+		(umask 077; printf '%s\n' "$$ANDROID_KEYSTORE_PASS" > $(BUNDLE_KS_PASS_FILE)); \
 	fi; \
 	trap 'rm -f $(BUNDLE_KS_PASS_FILE)' EXIT; \
 	$(BUNDLETOOL) build-apks --overwrite --mode=universal \
 		--ks=$(ANDROID_SIGN_KEYSTORE) --ks-key-alias=$(ANDROID_SIGN_ALIAS) $(BUNDLETOOL_SIGN_PASSWD) \
 		--bundle=$< \
 		--output=$(BUNDLE_BUILD_DIR)/apkset-release.apks; \
-	$(UNZIP) -p $(BUNDLE_BUILD_DIR)/apkset-release.apks universal.apk > $@
+	$(UNZIP) -p $(BUNDLE_BUILD_DIR)/apkset-release.apks universal.apk > $@; \
+	chmod 644 $@
 
 endif

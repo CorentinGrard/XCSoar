@@ -60,10 +60,12 @@ IsGraphic(Type type) noexcept
                    type) != std::end(GRAPHIC_TYPES);
 }
 
+/** e_CustomText shows the text of upstream's InfoBox panels, which
+    the app does not edit: not offered for a tile either. */
 static bool
 IsTileType(unsigned type) noexcept
 {
-  return type < NUM_TYPES && !IsGraphic(Type(type));
+  return type < NUM_TYPES && !IsGraphic(Type(type)) && type != e_CustomText;
 }
 
 /** One tile: its type and upstream's content object, which may keep

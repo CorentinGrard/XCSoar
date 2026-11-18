@@ -3,7 +3,7 @@ TARGETS = PC WIN64 \
 	UNIX UNIX32 UNIX64 OPT \
 	WAYLAND \
 	FUZZER \
-	PI PI2 CUBIE KOBO NEON \
+	PI PI2 PI3 PI4 PI5 CUBIE KOBO NEON \
 	ANDROID ANDROID7 ANDROID86 \
 	ANDROIDAARCH64 ANDROIDX64 \
 	ANDROIDFAT \
@@ -56,6 +56,7 @@ HAVE_POSIX := n
 HAVE_WIN32 := y
 HAVE_MSVCRT := y
 HAVE_HTTP := y
+DO_CROSS_COMPILE := n
 
 TARGET_ARCH :=
 
@@ -194,10 +195,8 @@ endif
 
 ifeq ($(TARGET),PI)
   override TARGET = UNIX
-  TCPREFIX := arm-linux-gnueabihf-
-  ifeq ($(HOST_IS_PI),n)
-    PI ?= /opt/pi/root
-  endif
+  HOST_TRIPLET := arm-linux-gnueabihf
+  TCPREFIX := $(HOST_TRIPLET)-
   TARGET_IS_LINUX = y
   TARGET_IS_PI = y
   TARGET_IS_PI32 = y
@@ -206,19 +205,37 @@ ifeq ($(TARGET),PI)
   ARMV6 = y
 endif
 
+ifeq ($(TARGET),PI3)
+  # Same ARMv7 + NEON build as PI2.  The output directory stays output/PI3.
+  override TARGET = PI2
+endif
+
 ifeq ($(TARGET),PI2)
   override TARGET = NEON
-  ifeq ($(HOST_IS_PI),n)
-    PI ?= /opt/pi/root
-  endif
   TARGET_IS_PI = y
   TARGET_IS_PI32 = y
+endif
+
+ifeq ($(TARGET),PI5)
+  # Same ARMv8-A build as PI4.  The output directory stays output/PI5.
+  override TARGET = PI4
+endif
+
+ifeq ($(TARGET),PI4)
+  override TARGET = UNIX
+  HOST_TRIPLET := aarch64-linux-gnu
+  TCPREFIX := $(HOST_TRIPLET)-
+  TARGET_IS_LINUX = y
+  TARGET_IS_PI = y
+  TARGET_IS_PI64 = y
+  TARGET_IS_ARM = y
+  # Pi 4 is Cortex-A72, Pi 5 is Cortex-A76.  armv8-a runs on both.
+  TARGET_ARCH += -march=armv8-a
 endif
 
 ifeq ($(TARGET),CUBIE)
   # cross-crompiling for Cubieboard
   override TARGET = NEON
-  CUBIE ?= /opt/cubie/root
   TARGET_IS_CUBIE=y
 endif
 
@@ -313,6 +330,12 @@ ifeq ($(TARGET),UNIX)
 
   ifeq ($(ARMV7),y)
     TARGET_ARCH += -march=armv7-a
+
+    # Use Thumb-2 instructions: smaller code, and NEON works in Thumb
+    # mode as well. Debian's and Ubuntu's arm-linux-gnueabihf GCC defaults to Thumb,
+    # but other toolchains and Clang may not, so do not leave it to the
+    # compiler.
+    TARGET_ARCH += -mthumb
   endif
 
   ifeq ($(TARGET_IS_ARMHF),y)
@@ -328,7 +351,9 @@ ifeq ($(TARGET),UNIX)
   endif
 
   ifeq ($(TARGET_IS_ARM)$(TARGET_IS_LINUX),yy)
-    ifeq ($(TARGET_IS_ARMHF),y)
+    ifeq ($(TARGET_IS_PI64),y)
+      LLVM_TARGET ?= aarch64-linux-gnu
+    else ifeq ($(TARGET_IS_ARMHF),y)
       LLVM_TARGET ?= arm-linux-gnueabihf
     else
       LLVM_TARGET ?= arm-linux-gnueabi
@@ -466,24 +491,46 @@ endif
 ifeq ($(TARGET_IS_PI),y)
   TARGET_CPPFLAGS += -DRASPBERRY_PI
 
-  ifneq ($(PI),)
-    TARGET_CPPFLAGS += --sysroot=$(PI) -isystem $(PI)/usr/include/arm-linux-gnueabihf -isystem $(PI)/usr/include
+  ifeq ($(HOST_IS_PI),n)
+    # Cross-compiling for a PI
+    DO_CROSS_COMPILE := y
+    ifneq ($(PI),)
+      $(warning Use of variable PI is deprecated. Please use SYSROOT instead.)
+      SYSROOT := $(PI)
+    else ifeq ($(TARGET_IS_PI64),y)
+      SYSROOT ?= /opt/pi64/root
+    else
+      SYSROOT ?= /opt/pi/root
+    endif
+
   endif
+
 endif
 
 ifeq ($(HOST_IS_ARM)$(TARGET_IS_CUBIE),ny)
   # cross-crompiling for Cubieboard
-  TARGET_CPPFLAGS += --sysroot=$(CUBIE) -isystem $(CUBIE)/usr/include/arm-linux-gnueabihf
-  TARGET_CPPFLAGS += -isystem $(CUBIE)/usr/local/stow/sunxi-mali/include
+  DO_CROSS_COMPILE := y
+  ifneq ($(CUBIE),)
+    $(warning Use of variable CUBIE is deprecated. Please use SYSROOT instead.)
+    SYSROOT := $(CUBIE)
+  else
+    SYSROOT ?= /opt/cubie/root
+  endif
+  
+endif
+
+ifeq ($(DO_CROSS_COMPILE),y)
+  # armhf GCC notes the std::pair return ABI change in every file.
+  TARGET_CXXFLAGS += -Wno-psabi
+endif
+
+# Same-arch sysroot is valid (other distro, or Mac arm64 vs Pi OS).
+ifneq ($(SYSROOT),)
+  TARGET_CPPFLAGS += --sysroot=$(SYSROOT)
 endif
 
 ifeq ($(TARGET_IS_KOBO),y)
   TARGET_CPPFLAGS += -DKOBO
-
-  # Use Thumb instructions (which is the default in Debian's arm-linux-gnueabihf
-  # toolchain, but this might be different when using another toolchain, or
-  # Clang instead of GCC).
-  TARGET_ARCH += -mthumb
 
   # At least in Debian's arm-linux-gnueabihf GCC, PIE is enabled by default.
   # PIE brings no benefit for us, and we can get smaller binaries when disabling
@@ -558,16 +605,14 @@ ifneq ($(TARGET),ANDROID)
 endif
 endif
 
-ifeq ($(HOST_IS_PI)$(TARGET_IS_PI),ny)
-  TARGET_LDFLAGS += --sysroot=$(PI) -L$(PI)/usr/lib/arm-linux-gnueabihf
+ifeq ($(TARGET_IS_ARMHF)$(TARGET_IS_KOBO),yn)
+  # GCC 32-bit ARM needs libatomic for 64-bit std::atomic.
+  # Kobo's musl toolchain does not ship it.
+  TARGET_LDLIBS += -latomic
 endif
 
-ifeq ($(HOST_IS_ARM)$(TARGET_IS_CUBIE),ny)
-  # cross-crompiling for Cubieboard
-  TARGET_LDFLAGS += -L/usr/arm-linux-gnueabihf/lib --sysroot=$(CUBIE)
-  TARGET_LDFLAGS += -L$(CUBIE)/lib/arm-linux-gnueabihf
-  TARGET_LDFLAGS += -L$(CUBIE)/usr/lib/arm-linux-gnueabihf
-  TARGET_LDFLAGS += -L$(CUBIE)/usr/local/stow/sunxi-mali/lib
+ifneq ($(SYSROOT),)
+  TARGET_LDFLAGS += --sysroot=$(SYSROOT)
 endif
 
 ifeq ($(TARGET_IS_KOBO),y)

@@ -87,21 +87,30 @@ TEST_NAMES = \
 	TestMathTables \
 	TestAngle TestARange \
 	TestGrahamScan \
-	TestUnits TestEarth TestSunEphemeris \
-	TestValidity TestUTM \
-	TestWaypointReachability TestBackupPaths \
+	TestUnits TestHorizonReadout TestEarth TestSunEphemeris \
+	TestValidity TestUTM TestSwitchState \
+	TestWaypointReachability TestWaypointElevation TestBackupPaths \
+	TestTarArchive \
 	TestAllocatedGrid \
 	TestRadixTree TestGeoBounds TestGeoClip \
-	TestLogger TestGPSDeviceName TestGRecord TestClimbAvCalc TestCirclingWind \
+	TestPCMetGeoreference \
+	TestOperaRadar \
+	TestEumetviewSatellite \
+	TestEumetviewEnhance \
+	TestLogger TestGPSDeviceName TestGLoadSample TestBlackboard TestGRecord TestVolksloggerGRecord TestClimbAvCalc TestCirclingWind \
 	TestFilteredVarioComputer \
+	TestBasicComputer \
 	TestVarioSynthesiser TestAudioVario \
 	TestWaypointReader TestThermalBase \
+	TestSpeedVector \
 	TestFlarmNet TestFlarmMessaging TestFlarmBinaryProtocol \
+	TestFlarmSpokenAlert \
+	TestSpokenAirspaceAlert \
 	TestColorRamp TestXCThermBandQuery TestGeoPoint TestDiffFilter \
 	TestFileUtil TestRepository TestFileType TestMarkdownCheckbox TestPath TestPolars TestCSVLine TestGlidePolar \
 	TestLXNAVPolarConversion \
 	test_replay_task TestProjection TestFlatPoint TestFlatLine TestFlatGeoPoint \
-	TestMacCready TestOrderedTask TestAATPoint TestTaskSave \
+	TestMacCready TestFinalGlide TestTerrainReach TestOrderedTask TestAATPoint TestTaskSave \
 	TestTaskFileSeeYouParsing \
 	TestPlanes \
 	TestTaskPoint \
@@ -112,11 +121,20 @@ TEST_NAMES = \
 	TestAirspaceParser \
 	TestAirspaceLabelPlacement \
 	TestOGNAprsParser \
+	TestAirspaceIntervalMath \
+	TestObservationStore \
+	TestAirspaceClearance \
+	TestAirspaceBoundary \
+	TestMapItemList \
 	TestMETARParser \
 	TestIGCParser TestIGCFlightTimes \
+	TestNanoFileTransfer \
 	TestTraceBounds \
 	TestTriangleContest \
 	TestStrings TestUnescapeCString TestUTF8 TestWrapText TestLayout \
+	TestContainerWindow \
+	TestDisplayDPI \
+	TestDisplayType \
 	TestInputConfig \
 	TestCRC16 TestCRC8 \
 	TestUnitsFormatter \
@@ -128,17 +146,24 @@ TEST_NAMES = \
 	TestIGCFilenameFormatter \
 	TestNMEAFormatter \
 	TestNMEAChecksum \
+	TestDewPoint \
+	TestCuSonde \
+	TestMosmixStation \
+	TestMosmixForecast \
+	TestMosmixAutoUpdate \
 	TestGDL90 \
 	TestGDL90Driver \
 	TestLXNToIGC \
 	TestLeastSquares \
 	TestHexString \
+	TestInfoBoxLayout \
 	TestUriUtil \
 	TestThermalBand \
 	TestPackedFloat \
 	TestWaylandScale \
 	TestVersionNumber \
 	TestSlowCPU \
+	TestSystemTools \
 	TestWeglideScoring \
 	TestNetCoupeScoring \
 	TestDMStScoring
@@ -149,13 +174,15 @@ ifeq ($(TARGET_IS_ANDROID),n)
 # These programs are broken on Android because they require Java code
 TEST_NAMES += \
 	TestProfile \
+	TestSession \
 	TestDriver
 endif
 
 ifeq ($(HAVE_WIN32),n)
 TEST_NAMES += \
 	TestDataLayoutMigration \
-	TestLocalPathResolve
+	TestLocalPathResolve \
+	TestFileOutputStream
 endif
 
 ifeq ($(HAVE_WIN32),y)
@@ -173,10 +200,24 @@ TEST_HEX_STRING_SOURCES = \
 	$(TEST_SRC_DIR)/TestHexString.cpp
 $(eval $(call link-program,TestHexString,TEST_HEX_STRING))
 
+TEST_INFO_BOX_LAYOUT_SOURCES = \
+	$(SRC)/InfoBoxes/InfoBoxLayout.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestInfoBoxLayout.cpp
+$(eval $(call link-program,TestInfoBoxLayout,TEST_INFO_BOX_LAYOUT))
+
 TEST_URI_UTIL_SOURCES = \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestUriUtil.cpp
 $(eval $(call link-program,TestUriUtil,TEST_URI_UTIL))
+
+TEST_SYSTEM_TOOLS_SOURCES = \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestSystemTools.cpp \
+	$(SRC)/SystemTools.cpp \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp
+TEST_SYSTEM_TOOLS_DEPENDS = IO OS UTIL
+$(eval $(call link-program,TestSystemTools,TEST_SYSTEM_TOOLS))
 
 TEST_CRC16_SOURCES = \
 	$(SRC)/util/CRC16CCITT.cpp \
@@ -189,11 +230,56 @@ TEST_FLARM_BINARY_PROTOCOL_SOURCES = \
 	$(TEST_SRC_DIR)/TestFlarmBinaryProtocol.cpp
 $(eval $(call link-program,TestFlarmBinaryProtocol,TEST_FLARM_BINARY_PROTOCOL))
 
+TEST_FLARM_SPOKEN_ALERT_SOURCES = \
+	$(SRC)/FLARM/SpokenAlert.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestFlarmSpokenAlert.cpp
+$(eval $(call link-program,TestFlarmSpokenAlert,TEST_FLARM_SPOKEN_ALERT))
+
+TEST_SPOKEN_AIRSPACE_ALERT_SOURCES = \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestSpokenAirspaceAlert.cpp
+$(eval $(call link-program,TestSpokenAirspaceAlert,TEST_SPOKEN_AIRSPACE_ALERT))
+
+TEST_MOSMIX_STATION_SOURCES = \
+	$(SRC)/Weather/MOSMIX/Station.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestMosmixStation.cpp
+TEST_MOSMIX_STATION_DEPENDS = GEO MATH IO OS UTIL
+$(eval $(call link-program,TestMosmixStation,TEST_MOSMIX_STATION))
+
+TEST_MOSMIX_AUTO_UPDATE_SOURCES = \
+	$(SRC)/Weather/MOSMIX/AutoUpdate.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestMosmixAutoUpdate.cpp
+TEST_MOSMIX_AUTO_UPDATE_DEPENDS = PROFILE TIME MATH IO OS UTIL
+$(eval $(call link-program,TestMosmixAutoUpdate,TEST_MOSMIX_AUTO_UPDATE))
+
+TEST_MOSMIX_FORECAST_SOURCES = \
+	$(SRC)/Weather/MOSMIX/Forecast.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestMosmixForecast.cpp
+TEST_MOSMIX_FORECAST_DEPENDS = TIME IO OS UTIL FMT ZLIB
+$(eval $(call link-program,TestMosmixForecast,TEST_MOSMIX_FORECAST))
+
 TEST_NMEA_CHECKSUM_SOURCES = \
 	$(SRC)/NMEA/Checksum.cpp \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestNMEAChecksum.cpp
 $(eval $(call link-program,TestNMEAChecksum,TEST_NMEA_CHECKSUM))
+
+TEST_DEW_POINT_SOURCES = \
+	$(SRC)/Atmosphere/CuSonde.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestDewPoint.cpp
+$(eval $(call link-program,TestDewPoint,TEST_DEW_POINT))
+
+TEST_CU_SONDE_SOURCES = \
+	$(SRC)/Atmosphere/CuSonde.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestCuSonde.cpp
+TEST_CU_SONDE_DEPENDS = LIBNMEA GEO TIME MATH UTIL UNITS
+$(eval $(call link-program,TestCuSonde,TEST_CU_SONDE))
 
 TEST_CRC8_SOURCES = \
 	$(TEST_SRC_DIR)/tap.c \
@@ -248,6 +334,13 @@ TEST_IGC_PARSER_SOURCES = \
 TEST_IGC_PARSER_DEPENDS = MATH UTIL
 $(eval $(call link-program,TestIGCParser,TEST_IGC_PARSER))
 
+TEST_NANO_FILE_TRANSFER_SOURCES = \
+	$(SRC)/Device/Driver/LX/NanoFileTransfer.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestNanoFileTransfer.cpp
+TEST_NANO_FILE_TRANSFER_DEPENDS = UTIL
+$(eval $(call link-program,TestNanoFileTransfer,TEST_NANO_FILE_TRANSFER))
+
 TEST_IGC_FLIGHT_TIMES_SOURCES = \
 	$(SRC)/IGC/FlightTimes.cpp \
 	$(SRC)/IGC/IGCParser.cpp \
@@ -274,6 +367,24 @@ TEST_METAR_PARSER_SOURCES = \
 TEST_METAR_PARSER_DEPENDS = MATH UTIL UNITS
 $(eval $(call link-program,TestMETARParser,TEST_METAR_PARSER))
 
+TEST_NAMES += TestDeviceFlow
+
+TEST_DEVICE_FLOW_SOURCES = \
+	$(SRC)/net/client/auth/DeviceFlow.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestDeviceFlow.cpp
+TEST_DEVICE_FLOW_DEPENDS = JSON UTIL
+$(eval $(call link-program,TestDeviceFlow,TEST_DEVICE_FLOW))
+
+TEST_NAMES += TestSoaringScoring
+
+TEST_SOARING_SCORING_SOURCES = \
+	$(SRC)/net/client/SoaringScoring/Parse.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestSoaringScoring.cpp
+TEST_SOARING_SCORING_DEPENDS = JSON UTIL
+$(eval $(call link-program,TestSoaringScoring,TEST_SOARING_SCORING))
+
 TEST_NAMES += TestWeatherUIState
 
 TEST_WEATHER_UI_STATE_SOURCES = \
@@ -289,6 +400,16 @@ TEST_SKYSIGHT_FORECAST_UTILS_SOURCES = \
 	$(TEST_SRC_DIR)/TestSkySightForecastUtils.cpp
 TEST_SKYSIGHT_FORECAST_UTILS_DEPENDS = TIME UTIL
 $(eval $(call link-program,TestSkySightForecastUtils,TEST_SKYSIGHT_FORECAST_UTILS))
+
+TEST_NAMES += TestFlarmRangeEstimate
+
+TEST_FLARM_RANGE_ESTIMATE_SOURCES = \
+	$(SRC)/FLARM/RangeEstimate.cpp \
+	$(SRC)/Atmosphere/AirDensity.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestFlarmRangeEstimate.cpp
+TEST_FLARM_RANGE_ESTIMATE_DEPENDS = LIBNMEA GEO MATH IO OS TIME UTIL FMT
+$(eval $(call link-program,TestFlarmRangeEstimate,TEST_FLARM_RANGE_ESTIMATE))
 
 TEST_NAMES += TestSkySightLegendMapping
 
@@ -370,10 +491,18 @@ $(eval $(call link-program,TestNOTAM,TEST_NOTAM))
 endif
 
 TEST_AIRSPACE_PARSER_SOURCES = \
+	$(SRC)/time/Convert.cxx \
+	$(SRC)/time/LocalTime.cpp \
+	$(SRC)/time/BrokenDate.cpp \
+	$(SRC)/time/BrokenDateTime.cpp \
+	$(SRC)/time/BrokenTime.cpp \
+	$(SRC)/Formatter/TimeFormatter.cpp \
+	$(SRC)/time/Zone.cxx \
 	$(SRC)/Airspace/AirspaceParser.cpp \
 	$(SRC)/Atmosphere/Pressure.cpp \
 	$(SRC)/Radio/RadioFrequency.cpp \
 	$(SRC)/Radio/TransponderCode.cpp \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp \
 	$(TEST_SRC_DIR)/FakeDialogs.cpp \
 	$(TEST_SRC_DIR)/FakeTerrain.cpp \
 	$(TEST_SRC_DIR)/FakeLanguage.cpp \
@@ -410,11 +539,61 @@ TEST_OGN_APRS_PARSER_SOURCES = \
 TEST_OGN_APRS_PARSER_DEPENDS = GEO MATH UTIL UNITS
 $(eval $(call link-program,TestOGNAprsParser,TEST_OGN_APRS_PARSER))
 
+TEST_OBSERVATION_STORE_SOURCES = \
+	$(SRC)/Engine/Observation/Store.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestObservationStore.cpp
+TEST_OBSERVATION_STORE_DEPENDS = GEO MATH UTIL
+$(eval $(call link-program,TestObservationStore,TEST_OBSERVATION_STORE))
+
+TEST_AIRSPACE_INTERVAL_MATH_SOURCES = \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestAirspaceIntervalMath.cpp
+TEST_AIRSPACE_INTERVAL_MATH_DEPENDS = GEO MATH UTIL
+$(eval $(call link-program,TestAirspaceIntervalMath,TEST_AIRSPACE_INTERVAL_MATH))
+
+TEST_AIRSPACE_CLEARANCE_SOURCES = \
+	$(SRC)/Radio/TransponderCode.cpp \
+	$(SRC)/Engine/Navigation/Aircraft.cpp \
+	$(SRC)/Atmosphere/Pressure.cpp \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestAirspaceClearance.cpp
+TEST_AIRSPACE_CLEARANCE_DEPENDS = AIRSPACE GLIDE TASK GEO MATH UTIL UNITS TIME FMT
+$(eval $(call link-program,TestAirspaceClearance,TEST_AIRSPACE_CLEARANCE))
+
+TEST_AIRSPACE_BOUNDARY_SOURCES = \
+	$(SRC)/Radio/TransponderCode.cpp \
+	$(SRC)/Engine/Navigation/Aircraft.cpp \
+	$(SRC)/Atmosphere/Pressure.cpp \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestAirspaceBoundary.cpp
+TEST_AIRSPACE_BOUNDARY_DEPENDS = AIRSPACE GLIDE TASK GEO MATH UTIL UNITS TIME FMT
+$(eval $(call link-program,TestAirspaceBoundary,TEST_AIRSPACE_BOUNDARY))
+
+TEST_MAP_ITEM_LIST_SOURCES = \
+	$(SRC)/MapWindow/Items/List.cpp \
+	$(SRC)/MapWindow/Items/MapItem.cpp \
+	$(SRC)/Radio/TransponderCode.cpp \
+	$(SRC)/Atmosphere/Pressure.cpp \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestMapItemList.cpp
+TEST_MAP_ITEM_LIST_DEPENDS = AIRSPACE TASK GEO MATH UTIL TIME FMT
+$(eval $(call link-program,TestMapItemList,TEST_MAP_ITEM_LIST))
+
 TEST_DATE_TIME_SOURCES = \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestDateTime.cpp
 TEST_DATE_TIME_DEPENDS = MATH TIME
 $(eval $(call link-program,TestDateTime,TEST_DATE_TIME))
+
+TEST_SWITCH_STATE_SOURCES = \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestSwitchState.cpp
+TEST_SWITCH_STATE_DEPENDS = 
+$(eval $(call link-program,TestSwitchState,TEST_SWITCH_STATE))
 
 TEST_ISO8601_SOURCES = \
 	$(SRC)/Formatter/TimeFormatter.cpp \
@@ -429,6 +608,18 @@ TEST_POLYLINE_DECODER_SOURCES = \
 	$(TEST_SRC_DIR)/TestPolylineDecoder.cpp
 TEST_POLYLINE_DECODER_DEPENDS = GEO UTIL
 $(eval $(call link-program,TestPolylineDecoder,TEST_POLYLINE_DECODER))
+
+ifeq ($(ZXING),y)
+TEST_NAMES += TestQRCode
+TEST_QR_CODE_SOURCES = \
+	$(SRC)/QR/QRCode.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestQRCode.cpp
+TEST_QR_CODE_CPPFLAGS = $(ZXING_CPPFLAGS)
+TEST_QR_CODE_LDLIBS = $(ZXING_LDLIBS)
+TEST_QR_CODE_DEPENDS = UTIL
+$(eval $(call link-program,TestQRCode,TEST_QR_CODE))
+endif
 
 TEST_TRANSPONDER_CODE_SOURCES = \
 	$(SRC)/Radio/TransponderCode.cpp \
@@ -462,10 +653,14 @@ TEST_WRAP_CLOCK_DEPENDS = MATH TIME
 $(eval $(call link-program,TestWrapClock,TEST_WRAP_CLOCK))
 
 TEST_PROFILE_SOURCES = \
+	$(SRC)/InfoBoxes/InfoBoxSettings.cpp \
 	$(SRC)/LocalPath.cpp \
 	$(SRC)/PageSettings.cpp \
+	$(SRC)/Profile/InfoBoxConfig.cpp \
 	$(SRC)/Profile/PageProfile.cpp \
 	$(SRC)/Profile/Profile.cpp \
+	$(SRC)/Profile/RouteProfile.cpp \
+	$(SRC)/Profile/TaskProfile.cpp \
 	$(SRC)/Profile/WeatherProfile.cpp \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/FakeLogFile.cpp \
@@ -475,12 +670,36 @@ TEST_PROFILE_SOURCES = \
 TEST_PROFILE_DEPENDS = PROFILE MATH IO OS UTIL
 $(eval $(call link-program,TestProfile,TEST_PROFILE))
 
+TEST_SESSION_SOURCES = \
+	$(SRC)/Session/SessionFile.cpp \
+	$(SRC)/LocalPath.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp \
+	$(TEST_SRC_DIR)/TestSession.cpp
+TEST_SESSION_DEPENDS = PROFILE GEO MATH IO OS UTIL
+$(eval $(call link-program,TestSession,TEST_SESSION))
+
 TEST_MAC_CREADY_SOURCES = \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestMacCready.cpp
 TEST_MAC_CREADY_OBJS = $(call SRC_TO_OBJ,$(TEST_MAC_CREADY_SOURCES))
 TEST_MAC_CREADY_DEPENDS = GLIDE GEO MATH UTIL
 $(eval $(call link-program,TestMacCready,TEST_MAC_CREADY))
+
+TEST_FINAL_GLIDE_SOURCES = \
+	$(SRC)/Engine/Task/Stats/ElementStat.cpp \
+	$(SRC)/Engine/Task/Stats/TaskStats.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestFinalGlide.cpp
+TEST_FINAL_GLIDE_DEPENDS = GLIDE GEO MATH UTIL
+$(eval $(call link-program,TestFinalGlide,TEST_FINAL_GLIDE))
+
+TEST_TERRAIN_REACH_SOURCES = \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp \
+	$(TEST_SRC_DIR)/TestTerrainReach.cpp
+TEST_TERRAIN_REACH_DEPENDS = TERRAIN OPERATION IO ZZIP OS ROUTE GLIDE GEO MATH UTIL
+$(eval $(call link-program,TestTerrainReach,TEST_TERRAIN_REACH))
 
 TEST_ORDERED_TASK_SOURCES = \
 	$(SRC)/Engine/Navigation/Aircraft.cpp \
@@ -505,12 +724,15 @@ TEST_TASK_SAVE_SOURCES = \
 	$(SRC)/LocalPath.cpp \
 	$(SRC)/Engine/Util/Gradient.cpp \
 	$(SRC)/XML/Node.cpp \
+	$(SRC)/Waypoint/Factory.cpp \
+	$(SRC)/Radio/RadioFrequency.cpp \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/FakeLogFile.cpp \
+	$(TEST_SRC_DIR)/FakeTerrain.cpp \
 	$(SRC)/Task/SaveFile.cpp \
 	$(TEST_SRC_DIR)/TestTaskSave.cpp
 TEST_TASK_SAVE_OBJS = $(call SRC_TO_OBJ,$(TEST_TASK_SAVE_SOURCES))
-TEST_TASK_SAVE_DEPENDS = TASK TASKFILE ROUTE GLIDE WAYPOINT GEO TIME MATH UTIL XML
+TEST_TASK_SAVE_DEPENDS = TASK TASKFILE ROUTE GLIDE WAYPOINT WAYPOINTFILE GEO TIME MATH UTIL XML FMT UNITS
 $(eval $(call link-program,TestTaskSave,TEST_TASK_SAVE))
 
 TEST_TASKFILE_SEEYOU_PARSING_SOURCES = \
@@ -531,13 +753,16 @@ $(eval $(call link-program,TestTaskFileSeeYouParsing,TEST_TASKFILE_SEEYOU_PARSIN
 
 TEST_PLANES_SOURCES = \
 	$(SRC)/Polar/Parser.cpp \
+	$(SRC)/Polar/Shape.cpp \
+	$(SRC)/Polar/PolarStore.cpp \
 	$(SRC)/Plane/PlaneFileGlue.cpp \
+	$(SRC)/Plane/PlaneGlue.cpp \
 	$(SRC)/Repository/FileType.cpp \
 	$(TEST_SRC_DIR)/FakeLocalPath.cpp \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/FakeLogFile.cpp \
 	$(TEST_SRC_DIR)/TestPlanes.cpp
-TEST_PLANES_DEPENDS = UNITS IO OS MATH UTIL GLIDE
+TEST_PLANES_DEPENDS = PROFILE UNITS IO OS MATH UTIL GLIDE
 $(eval $(call link-program,TestPlanes,TEST_PLANES))
 
 TEST_ZEROFINDER_SOURCES = \
@@ -554,9 +779,10 @@ $(eval $(call link-program,TestTaskPoint,TEST_TASKPOINT))
 
 TEST_TASKWAYPOINT_SOURCES = \
 	$(ENGINE_SRC_DIR)/Waypoint/Waypoint.cpp \
+	$(SRC)/Engine/Util/Gradient.cpp \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestTaskWaypoint.cpp
-TEST_TASKWAYPOINT_DEPENDS = IO OS TASK GEO MATH UTIL
+TEST_TASKWAYPOINT_DEPENDS = IO OS TASK ROUTE GLIDE GEO TIME MATH UTIL
 $(eval $(call link-program,TestTaskWaypoint,TEST_TASKWAYPOINT))
 
 TEST_TEAM_CODE_SOURCES = \
@@ -594,6 +820,7 @@ TEST_ROUTE_SOURCES = \
 	$(TEST_SRC_DIR)/AirspacePrinting.cpp \
 	$(TEST_SRC_DIR)/harness_airspace.cpp \
 	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/FakeLanguage.cpp \
 	$(TEST_SRC_DIR)/test_route.cpp
 TEST_ROUTE_DEPENDS = TERRAIN OPERATION IO ZZIP OS ROUTE AIRSPACE GLIDE GEO MATH UTIL
 $(eval $(call link-program,test_route,TEST_ROUTE))
@@ -632,6 +859,30 @@ TEST_ANGLE_SOURCES = \
 TEST_ANGLE_DEPENDS = MATH
 $(eval $(call link-program,TestAngle,TEST_ANGLE))
 
+TEST_OPERA_RADAR_SOURCES = \
+	$(SRC)/Weather/OPERA/RadarData.cpp \
+	$(SRC)/ui/canvas/custom/GeoBitmapTile.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestOperaRadar.cpp
+TEST_OPERA_RADAR_DEPENDS = GEO MATH TIME FMT UTIL
+$(eval $(call link-program,TestOperaRadar,TEST_OPERA_RADAR))
+
+TEST_EUMETVIEW_SATELLITE_SOURCES = \
+	$(SRC)/Weather/EUMETView/SatelliteData.cpp \
+	$(SRC)/ui/canvas/custom/GeoBitmapTile.cpp \
+	$(SRC)/Geo/Quadrilateral.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestEumetviewSatellite.cpp
+TEST_EUMETVIEW_SATELLITE_DEPENDS = GEO MATH TIME FMT UTIL
+$(eval $(call link-program,TestEumetviewSatellite,TEST_EUMETVIEW_SATELLITE))
+
+TEST_EUMETVIEW_ENHANCE_SOURCES = \
+	$(SRC)/Weather/EUMETView/Enhance.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestEumetviewEnhance.cpp
+TEST_EUMETVIEW_ENHANCE_DEPENDS = MATH UTIL
+$(eval $(call link-program,TestEumetviewEnhance,TEST_EUMETVIEW_ENHANCE))
+
 TEST_ARANGE_SOURCES = \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestARange.cpp
@@ -664,6 +915,13 @@ TEST_GEO_BOUNDS_SOURCES = \
 	$(TEST_SRC_DIR)/TestGeoBounds.cpp
 TEST_GEO_BOUNDS_DEPENDS = GEO MATH
 $(eval $(call link-program,TestGeoBounds,TEST_GEO_BOUNDS))
+
+TEST_PCMET_GEOREFERENCE_SOURCES = \
+	$(SRC)/Weather/PCMet/Georeference.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestPCMetGeoreference.cpp
+TEST_PCMET_GEOREFERENCE_DEPENDS = GEO MATH
+$(eval $(call link-program,TestPCMetGeoreference,TEST_PCMET_GEOREFERENCE))
 
 TEST_FLARM_NET_SOURCES = \
 	$(SRC)/FLARM/FlarmNetReader.cpp \
@@ -715,6 +973,20 @@ TEST_CIRCLING_WIND_SOURCES = \
 TEST_CIRCLING_WIND_DEPENDS = LIBNMEA GEO MATH UTIL TIME FMT UNITS
 $(eval $(call link-program,TestCirclingWind,TEST_CIRCLING_WIND))
 
+TEST_BASIC_COMPUTER_SOURCES = \
+	$(SRC)/Atmosphere/AirDensity.cpp \
+	$(SRC)/Atmosphere/Pressure.cpp \
+	$(SRC)/Computer/BasicComputer.cpp \
+	$(SRC)/Computer/FilteredVarioComputer.cpp \
+	$(SRC)/Computer/GroundSpeedComputer.cpp \
+	$(ENGINE_SRC_DIR)/GlideSolvers/GlidePolar.cpp \
+	$(ENGINE_SRC_DIR)/GlideSolvers/GlideResult.cpp \
+	$(ENGINE_SRC_DIR)/Util/VarioOutputFilter.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestBasicComputer.cpp
+TEST_BASIC_COMPUTER_DEPENDS = LIBNMEA GEO MATH UTIL UNITS TIME
+$(eval $(call link-program,TestBasicComputer,TEST_BASIC_COMPUTER))
+
 TEST_FILTERED_VARIO_COMPUTER_SOURCES = \
 	$(SRC)/Atmosphere/AirDensity.cpp \
 	$(SRC)/Computer/FilteredVarioComputer.cpp \
@@ -740,6 +1012,14 @@ TEST_UNITS_SOURCES = \
 	$(TEST_SRC_DIR)/TestUnits.cpp
 TEST_UNITS_DEPENDS = MATH UNITS
 $(eval $(call link-program,TestUnits,TEST_UNITS))
+
+TEST_HORIZON_READOUT_SOURCES = \
+	$(SRC)/Units/Units.cpp \
+	$(SRC)/Units/Settings.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestHorizonReadout.cpp
+TEST_HORIZON_READOUT_DEPENDS = MATH UNITS
+$(eval $(call link-program,TestHorizonReadout,TEST_HORIZON_READOUT))
 
 TEST_UNITS_FORMATTER_SOURCES = \
 	$(SRC)/Formatter/Units.cpp \
@@ -848,6 +1128,26 @@ TEST_LAYOUT_SOURCES = \
 TEST_LAYOUT_DEPENDS = SCREEN EVENT ASYNC OS IO THREAD MATH UTIL
 $(eval $(call link-program,TestLayout,TEST_LAYOUT))
 
+TEST_CONTAINER_WINDOW_SOURCES = \
+	$(MORE_SCREEN_SOURCES) \
+	$(TEST_SRC_DIR)/FakeAsset.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestContainerWindow.cpp
+TEST_CONTAINER_WINDOW_DEPENDS = SCREEN EVENT ASYNC OS IO THREAD MATH UTIL
+$(eval $(call link-program,TestContainerWindow,TEST_CONTAINER_WINDOW))
+
+TEST_DISPLAY_DPI_SOURCES = \
+	$(SRC)/Hardware/DisplayDPI.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestDisplayDPI.cpp
+TEST_DISPLAY_DPI_DEPENDS = SCREEN EVENT ASYNC OS IO THREAD MATH UTIL
+$(eval $(call link-program,TestDisplayDPI,TEST_DISPLAY_DPI))
+
+TEST_DISPLAY_TYPE_SOURCES = \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestDisplayType.cpp
+$(eval $(call link-program,TestDisplayType,TEST_DISPLAY_TYPE))
+
 ifeq ($(HAVE_WIN32),y)
 TEST_UTF8WIN_SOURCES = \
 	$(TEST_SRC_DIR)/tap.c \
@@ -906,6 +1206,14 @@ TEST_FILE_UTIL_SOURCES = \
 	$(TEST_SRC_DIR)/TestFileUtil.cpp
 TEST_FILE_UTIL_DEPENDS = OS UTIL
 $(eval $(call link-program,TestFileUtil,TEST_FILE_UTIL))
+
+ifeq ($(HAVE_WIN32),n)
+TEST_FILE_OUTPUT_STREAM_SOURCES = \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestFileOutputStream.cpp
+TEST_FILE_OUTPUT_STREAM_DEPENDS = IO OS UTIL
+$(eval $(call link-program,TestFileOutputStream,TEST_FILE_OUTPUT_STREAM))
+endif
 
 TEST_PATH_SOURCES = \
 	$(SRC)/system/Path.cpp \
@@ -986,11 +1294,23 @@ TEST_LOCAL_PATH_RESOLVE_DEPENDS = IO OS UTIL
 $(eval $(call link-program,TestLocalPathResolve,TEST_LOCAL_PATH_RESOLVE))
 
 TEST_TAR_ARCHIVE_SOURCES = \
+	$(SRC)/DataFileLayout.cpp \
+	$(SRC)/DataFilePath.cpp \
+	$(SRC)/LocalPath.cpp \
+	$(SRC)/Repository/FileType.cpp \
+	$(SRC)/SystemTools.cpp \
+	$(SRC)/Formatter/ByteSizeFormatter.cpp \
+	$(SRC)/Operation/Operation.cpp \
+	$(SRC)/io/BackupPaths.cpp \
+	$(SRC)/io/TarBackup.cpp \
 	$(SRC)/io/MemoryReader.cxx \
 	$(SRC)/io/TarArchive.cpp \
+	$(TEST_SRC_DIR)/FakeAsset.cpp \
+	$(TEST_SRC_DIR)/FakeLanguage.cpp \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestTarArchive.cpp
-TEST_TAR_ARCHIVE_DEPENDS = IO UTIL
+TEST_TAR_ARCHIVE_DEPENDS = IO OS UTIL
 $(eval $(call link-program,TestTarArchive,TEST_TAR_ARCHIVE))
 TEST_GEO_POINT_SOURCES = \
 	$(TEST_SRC_DIR)/tap.c \
@@ -1029,6 +1349,12 @@ TEST_THERMALBASE_SOURCES = \
 	$(TEST_SRC_DIR)/FakeTerrain.cpp
 TEST_THERMALBASE_DEPENDS = GEO MATH THREAD
 $(eval $(call link-program,TestThermalBase,TEST_THERMALBASE))
+
+TEST_SPEED_VECTOR_SOURCES = \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestSpeedVector.cpp
+TEST_SPEED_VECTOR_DEPENDS = MATH
+$(eval $(call link-program,TestSpeedVector,TEST_SPEED_VECTOR))
 
 TEST_EARTH_SOURCES = \
 	$(TEST_SRC_DIR)/tap.c \
@@ -1072,6 +1398,15 @@ TEST_WAYPOINT_REACHABILITY_SOURCES = \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestWaypointReachability.cpp
 $(eval $(call link-program,TestWaypointReachability,TEST_WAYPOINT_REACHABILITY))
+
+TEST_WAYPOINT_ELEVATION_SOURCES = \
+	$(SRC)/Waypoint/Factory.cpp \
+	$(TEST_SRC_DIR)/FakeLocalPath.cpp \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestWaypointElevation.cpp
+TEST_WAYPOINT_ELEVATION_DEPENDS = TERRAIN WAYPOINT GLIDE PROFILE OPERATION IO OS ZZIP GEO MATH UTIL
+$(eval $(call link-program,TestWaypointElevation,TEST_WAYPOINT_ELEVATION))
 
 TEST_VARIO_SYNTHESISER_SOURCES = \
 	$(SRC)/Audio/ToneSynthesiser.cpp \
@@ -1124,10 +1459,36 @@ TEST_LOGGER_DEPENDS = IO OS GEO MATH UTIL UNITS
 $(eval $(call link-program,TestLogger,TEST_LOGGER))
 
 TEST_GPS_DEVICE_NAME_SOURCES = \
+	$(SRC)/Atmosphere/AirDensity.cpp \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestGPSDeviceName.cpp
-TEST_GPS_DEVICE_NAME_DEPENDS = UTIL
+TEST_GPS_DEVICE_NAME_DEPENDS = LIBNMEA GEO TIME UNITS MATH UTIL
 $(eval $(call link-program,TestGPSDeviceName,TEST_GPS_DEVICE_NAME))
+
+TEST_GLOAD_SAMPLE_SOURCES = \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestGLoadSample.cpp
+TEST_GLOAD_SAMPLE_DEPENDS = MATH
+$(eval $(call link-program,TestGLoadSample,TEST_GLOAD_SAMPLE))
+
+TEST_BLACKBOARD_SOURCES = \
+	$(SRC)/Atmosphere/AirDensity.cpp \
+	$(SRC)/Blackboard/DeviceBlackboard.cpp \
+	$(SRC)/Blackboard/InterfaceBlackboard.cpp \
+	$(SRC)/Blackboard/LiveBlackboard.cpp \
+	$(SRC)/Computer/GlideComputerBlackboard.cpp \
+	$(SRC)/Device/Simulator.cpp \
+	$(SRC)/Engine/GlideSolvers/GlidePolar.cpp \
+	$(SRC)/Engine/Navigation/TraceHistory.cpp \
+	$(SRC)/Engine/Task/Stats/CommonStats.cpp \
+	$(SRC)/Engine/Task/Stats/ElementStat.cpp \
+	$(SRC)/Engine/Task/Stats/TaskStats.cpp \
+	$(SRC)/Engine/ThermalBand/ThermalBand.cpp \
+	$(SRC)/Engine/ThermalBand/ThermalSlice.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestBlackboard.cpp
+TEST_BLACKBOARD_DEPENDS = LIBNMEA GEO TIME MATH UTIL UNITS THREAD
+$(eval $(call link-program,TestBlackboard,TEST_BLACKBOARD))
 
 TEST_GRECORD_SOURCES = \
 	$(SRC)/Logger/GRecord.cpp \
@@ -1137,6 +1498,13 @@ TEST_GRECORD_SOURCES = \
 	$(TEST_SRC_DIR)/TestGRecord.cpp
 TEST_GRECORD_DEPENDS = IO OS UTIL
 $(eval $(call link-program,TestGRecord,TEST_GRECORD))
+
+TEST_VOLKSLOGGER_GRECORD_SOURCES = \
+	$(SRC)/Device/Driver/Volkslogger/grecord.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestVolksloggerGRecord.cpp
+TEST_VOLKSLOGGER_GRECORD_DEPENDS =
+$(eval $(call link-program,TestVolksloggerGRecord,TEST_VOLKSLOGGER_GRECORD))
 
 TEST_DRIVER_SOURCES = \
 	$(SRC)/Device/Port/NullPort.cpp \
@@ -1186,11 +1554,15 @@ $(eval $(call link-program,TestDriver,TEST_DRIVER))
 TEST_WAY_POINT_FILE_SOURCES = \
 	$(SRC)/Waypoint/CupWriter.cpp \
 	$(SRC)/Waypoint/Factory.cpp \
+	$(SRC)/Waypoint/WaypointDetailsReader.cpp \
 	$(SRC)/Radio/RadioFrequency.cpp \
+	$(IO_SRC_DIR)/MapFile.cpp \
+	$(TEST_SRC_DIR)/FakeLocalPath.cpp \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp \
 	$(TEST_SRC_DIR)/FakeTerrain.cpp \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestWaypointReader.cpp
-TEST_WAY_POINT_FILE_DEPENDS = WAYPOINTFILE OPERATION GEO MATH IO ZZIP OS THREAD UTIL
+TEST_WAY_POINT_FILE_DEPENDS = WAYPOINTFILE PROFILE OPERATION GEO MATH IO ZZIP OS THREAD UTIL
 $(eval $(call link-program,TestWaypointReader,TEST_WAY_POINT_FILE))
 
 TEST_TRACE_SOURCES = \
@@ -1232,6 +1604,19 @@ FLIGHT_TABLE_DEPENDS = GEO MATH IO OS UTIL
 $(eval $(call link-program,FlightTable,FLIGHT_TABLE))
 
 build-check: $(TESTS)
+
+# qemu-user opens the ELF interpreter on the host.  The armhf loader
+# lives in the sysroot, so point QEMU_LD_PREFIX at it for these runs.
+# An already-set prefix is left alone.  Needs qemu-user binfmt.
+ifeq ($(DO_CROSS_COMPILE),y)
+  ifneq ($(SYSROOT),)
+    QEMU_LD_PREFIX ?= $(SYSROOT)
+  endif
+endif
+ifneq ($(QEMU_LD_PREFIX),)
+check check-no-build: export QEMU_LD_PREFIX := $(QEMU_LD_PREFIX)
+testfast testslow: export QEMU_LD_PREFIX := $(QEMU_LD_PREFIX)
+endif
 
 check: $(TESTS) | $(OUT)/test/dirstamp
 	@$(NQ)echo "  TEST    $(notdir $(patsubst %$(TARGET_EXEEXT),%,$^))"
@@ -1284,12 +1669,13 @@ DEBUG_PROGRAM_NAMES += \
 	ReadProfileString ReadProfileInt \
 	KeyCodeDumper \
 	ReadPort RunPortHandler LogPort RunLXNAVPolarEcho \
+	RunLXNAVPlaneSwitch \
 	SplicePorts \
 	RunDeviceDriver RunDeclare RunFlightList RunDownloadFlight \
 	RunEnableNMEA \
 	CAI302Tool \
 	RunIGCWriter \
-	RunFlightLogger RunFlyingComputer \
+	RunFlightLogger RunFlyingComputer RunFlarmRangeEstimate \
 	RunCirclingWind RunWindEKF RunWindComputer \
 	RunExternalWind \
 	RunTask \
@@ -1402,6 +1788,8 @@ DEBUG_REPLAY_SOURCES = \
 	$(SRC)/Engine/Task/Stats/TaskStats.cpp \
 	$(SRC)/Engine/Task/Stats/CommonStats.cpp \
 	$(SRC)/Engine/Task/Stats/ElementStat.cpp \
+	$(TEST_SRC_DIR)/FakeFlarmGlue.cpp \
+	$(TEST_SRC_DIR)/FakeLocalPath.cpp \
 	$(TEST_SRC_DIR)/FakeLogFile.cpp \
 	$(TEST_SRC_DIR)/FakeMessage.cpp \
 	$(TEST_SRC_DIR)/FakeLanguage.cpp \
@@ -1712,10 +2100,18 @@ RUN_FLIGHT_PARSER_DEPENDS = IO OS TIME UTIL
 $(eval $(call link-program,RunFlightParser,RUN_FLIGHT_PARSER))
 
 RUN_AIRSPACE_PARSER_SOURCES = \
+	$(SRC)/time/Convert.cxx \
+	$(SRC)/time/LocalTime.cpp \
+	$(SRC)/time/BrokenDate.cpp \
+	$(SRC)/time/BrokenDateTime.cpp \
+	$(SRC)/time/BrokenTime.cpp \
+	$(SRC)/time/Zone.cxx \
+	$(SRC)/Formatter/TimeFormatter.cpp \
 	$(SRC)/Airspace/AirspaceParser.cpp \
 	$(SRC)/Atmosphere/Pressure.cpp \
 	$(SRC)/Radio/RadioFrequency.cpp \
 	$(SRC)/Radio/TransponderCode.cpp \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp \
 	$(TEST_SRC_DIR)/FakeTerrain.cpp \
 	$(TEST_SRC_DIR)/FakeLanguage.cpp \
 	$(TEST_SRC_DIR)/RunAirspaceParser.cpp
@@ -1779,6 +2175,21 @@ RUN_LXNAV_POLAR_ECHO_SOURCES = \
 	$(TEST_SRC_DIR)/RunLXNAVPolarEcho.cpp
 RUN_LXNAV_POLAR_ECHO_DEPENDS = PORT ASYNC LIBNET OPERATION IO OS THREAD TIME UTIL MATH GLIDE EVENT
 $(eval $(call link-program,RunLXNAVPolarEcho,RUN_LXNAV_POLAR_ECHO))
+
+RUN_LXNAV_PLANE_SWITCH_SOURCES = \
+	$(SRC)/Device/Port/ConfiguredPort.cpp \
+	$(TEST_SRC_DIR)/FakeSpectateFilePort.cpp \
+	$(SRC)/Device/Config.cpp \
+	$(SRC)/Device/Util/NMEAWriter.cpp \
+	$(SRC)/Operation/ConsoleOperationEnvironment.cpp \
+	$(SRC)/Version.cpp \
+	$(SRC)/system/StandardVersion.cpp \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp \
+	$(TEST_SRC_DIR)/FakeLanguage.cpp \
+	$(TEST_SRC_DIR)/DebugPort.cpp \
+	$(TEST_SRC_DIR)/RunLXNAVPlaneSwitch.cpp
+RUN_LXNAV_PLANE_SWITCH_DEPENDS = PORT ASYNC LIBNET OPERATION IO OS THREAD TIME UTIL MATH GLIDE EVENT
+$(eval $(call link-program,RunLXNAVPlaneSwitch,RUN_LXNAV_PLANE_SWITCH))
 
 SPLICE_PORTS_SOURCES = \
 	$(SRC)/Device/Port/ConfiguredPort.cpp \
@@ -2037,6 +2448,16 @@ RUN_FLYING_COMPUTER_SOURCES = \
 RUN_FLYING_COMPUTER_DEPENDS = $(DEBUG_REPLAY_DEPENDS) GEO MATH UTIL UNITS
 $(eval $(call link-program,RunFlyingComputer,RUN_FLYING_COMPUTER))
 
+RUN_FLARM_RANGE_ESTIMATE_SOURCES = \
+	$(DEBUG_REPLAY_SOURCES) \
+	$(SRC)/FLARM/RangeEstimate.cpp \
+	$(SRC)/Radio/TransponderCode.cpp \
+	$(SRC)/Version.cpp \
+	$(SRC)/system/StandardVersion.cpp \
+	$(TEST_SRC_DIR)/RunFlarmRangeEstimate.cpp
+RUN_FLARM_RANGE_ESTIMATE_DEPENDS = $(DEBUG_REPLAY_DEPENDS) GEO MATH UTIL FMT
+$(eval $(call link-program,RunFlarmRangeEstimate,RUN_FLARM_RANGE_ESTIMATE))
+
 RUN_CIRCLING_WIND_SOURCES = \
 	$(DEBUG_REPLAY_SOURCES) \
 	$(SRC)/Formatter/TimeFormatter.cpp \
@@ -2176,7 +2597,7 @@ ANALYSE_FLIGHT_SOURCES = \
 	$(ENGINE_SRC_DIR)/Trace/Point.cpp \
 	$(ENGINE_SRC_DIR)/Trace/Trace.cpp \
 	$(ENGINE_SRC_DIR)/ThermalBand/ThermalBand.cpp \
-    $(ENGINE_SRC_DIR)/ThermalBand/ThermalSlice.cpp \
+	$(ENGINE_SRC_DIR)/ThermalBand/ThermalSlice.cpp \
 	$(ENGINE_SRC_DIR)/ThermalBand/ThermalEncounterBand.cpp \
 	$(ENGINE_SRC_DIR)/ThermalBand/ThermalEncounterCollection.cpp \
 	$(TEST_SRC_DIR)/FakeTerrain.cpp \
@@ -2331,6 +2752,8 @@ RUN_MAP_WINDOW_SOURCES = \
 	$(SRC)/Renderer/WaypointLabelList.cpp \
 	$(SRC)/Renderer/WindArrowRenderer.cpp \
 	$(SRC)/Renderer/WaveRenderer.cpp \
+	$(SRC)/Engine/Observation/Store.cpp \
+	$(SRC)/Observation/Publish.cpp \
 	$(SRC)/Renderer/DistanceRingsRenderer.cpp \
 	$(SRC)/Math/Screen.cpp \
 	$(MORE_SCREEN_SOURCES) \
@@ -2612,8 +3035,11 @@ RUN_HORIZON_RENDERER_SOURCES = \
 	$(SRC)/Math/Screen.cpp \
 	$(MORE_SCREEN_SOURCES) \
 	$(SRC)/Look/HorizonLook.cpp \
+	$(SRC)/Look/AutoFont.cpp \
 	$(SRC)/Look/ButtonLook.cpp \
 	$(SRC)/Renderer/HorizonRenderer.cpp \
+	$(SRC)/Formatter/AngleFormatter.cpp \
+	$(SRC)/Renderer/WarningRibbonRenderer.cpp \
 	$(SRC)/Renderer/RadarRenderer.cpp \
 	$(TEST_SRC_DIR)/Fonts.cpp \
 	$(TEST_SRC_DIR)/FakeAsset.cpp \
@@ -2678,6 +3104,7 @@ RUN_PROGRESS_WINDOW_SOURCES = \
 	$(SRC)/Formatter/ByteSizeFormatter.cpp \
 	$(SRC)/ProgressWindow.cpp \
 	$(SRC)/Gauge/LogoView.cpp \
+	$(SRC)/Renderer/WarningRibbonRenderer.cpp \
 	$(TEST_SRC_DIR)/FakeAsset.cpp \
 	$(TEST_SRC_DIR)/Fonts.cpp \
 	$(TEST_SRC_DIR)/RunProgressWindow.cpp
@@ -2694,6 +3121,7 @@ RUN_JOB_DIALOG_SOURCES = \
 	$(SRC)/Look/ButtonLook.cpp \
 	$(SRC)/Look/CheckBoxLook.cpp \
 	$(SRC)/Gauge/LogoView.cpp \
+	$(SRC)/Renderer/WarningRibbonRenderer.cpp \
 	$(SRC)/Dialogs/ProgressDialog.cpp \
 	$(SRC)/Dialogs/JobDialog.cpp \
 	$(SRC)/Dialogs/DialogSettings.cpp \
@@ -2704,8 +3132,10 @@ RUN_JOB_DIALOG_SOURCES = \
 RUN_JOB_DIALOG_DEPENDS = OPERATION FORM SCREEN EVENT RESOURCE ASYNC OS IO THREAD MATH UTIL
 $(eval $(call link-program,RunJobDialog,RUN_JOB_DIALOG))
 
+# Real LocalPath.cpp below; the replay stub in DEBUG_REPLAY_SOURCES
+# would duplicate those symbols.
 RUN_ANALYSIS_SOURCES = \
-	$(DEBUG_REPLAY_SOURCES) \
+	$(filter-out $(TEST_SRC_DIR)/FakeLocalPath.cpp,$(DEBUG_REPLAY_SOURCES)) \
 	$(SRC)/Engine/Util/Gradient.cpp \
 	$(SRC)/Engine/Trace/Point.cpp \
 	$(SRC)/Engine/Trace/Trace.cpp \
@@ -2753,6 +3183,7 @@ RUN_ANALYSIS_SOURCES = \
 	$(SRC)/Formatter/UserUnits.cpp \
 	$(SRC)/Formatter/HexColor.cpp \
 	$(SRC)/Formatter/TimeFormatter.cpp \
+	$(SRC)/Formatter/LocalTimeFormatter.cpp \
 	$(SRC)/Formatter/GeoPointFormatter.cpp \
 	$(SRC)/Formatter/NMEAFormatter.cpp \
 	$(SRC)/LocalPath.cpp \
@@ -2780,6 +3211,8 @@ RUN_ANALYSIS_SOURCES = \
 	$(SRC)/Renderer/WindChartRenderer.cpp \
 	$(SRC)/Renderer/CuRenderer.cpp \
 	$(SRC)/Renderer/MapScaleRenderer.cpp \
+	$(SRC)/Renderer/LabelBlock.cpp \
+	$(SRC)/Renderer/TextInBox.cpp \
 	$(SRC)/Audio/Settings.cpp \
 	$(SRC)/Audio/VarioSettings.cpp \
 	$(SRC)/UISettings.cpp \
@@ -2926,6 +3359,7 @@ $(eval $(call link-program,RunProfileListDialog,RUN_PROFILE_LIST_DIALOG))
 
 PLAY_TONE_SOURCES = \
 	$(MORE_SCREEN_SOURCES) \
+	$(TEST_SRC_DIR)/FakeAsset.cpp \
 	$(TEST_SRC_DIR)/PlayTone.cpp
 PLAY_TONE_DEPENDS = AUDIO MATH SCREEN EVENT ASYNC THREAD OS IO UTIL
 $(eval $(call link-program,PlayTone,PLAY_TONE))
@@ -2935,6 +3369,7 @@ PLAY_VARIO_SOURCES = \
 	$(SRC)/Formatter/NMEAFormatter.cpp \
 	$(SRC)/Radio/TransponderCode.cpp \
 	$(DEBUG_REPLAY_SOURCES) \
+	$(TEST_SRC_DIR)/FakeAsset.cpp \
 	$(TEST_SRC_DIR)/PlayVario.cpp
 PLAY_VARIO_LDADD = $(AUDIO_LDADD) $(SCREEN_LDADD) $(EVENT_LDADD)
 PLAY_VARIO_DEPENDS = $(DEBUG_REPLAY_DEPENDS) AUDIO GEO MATH SCREEN EVENT ASYNC THREAD OS TIME UTIL

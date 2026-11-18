@@ -2,12 +2,12 @@
 // Copyright The XCSoar Project
 
 #include "../TopWindow.hpp"
+#include "../MinimumSize.hpp"
 #include "ui/canvas/custom/TopCanvas.hpp"
 #include "ui/event/Globals.hpp"
 #include "ui/event/poll/Queue.hpp"
 #include "ui/display/Display.hpp"
 #include "ui/display/wayland/Scale.hpp"
-#include "Asset.hpp"
 #include "LogFile.hpp"
 #include "xdg-shell-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
@@ -23,7 +23,6 @@
 #include <wayland-egl.h>
 
 #include <stdexcept>
-#include <chrono>
 
 namespace UI {
 
@@ -100,6 +99,7 @@ handle_toplevel_configure(void *data,
   auto *window = static_cast<TopWindow *>(data);
 
   bool suspended = false;
+  bool resizable = true;
   const auto *state = static_cast<const uint32_t *>(states->data);
   const auto *const states_end =
     state + states->size / sizeof(uint32_t);
@@ -110,13 +110,19 @@ handle_toplevel_configure(void *data,
       suspended = true;
       break;
 #endif
+    case XDG_TOPLEVEL_STATE_FULLSCREEN:
+    case XDG_TOPLEVEL_STATE_MAXIMIZED:
+      resizable = false;
+      break;
     default:
       break;
     }
   }
 
-  if (event_queue != nullptr)
+  if (event_queue != nullptr) {
     event_queue->SetToplevelState(suspended);
+    event_queue->SetResizeEnabled(resizable);
+  }
 
   window->OnToplevelConfigureSize(width, height);
 }
@@ -198,6 +204,17 @@ handle_preferred_buffer_transform([[maybe_unused]] void *data,
 }
 #endif
 
+static void
+handle_frame_done(void *data, struct wl_callback *callback,
+                  [[maybe_unused]] uint32_t time) noexcept
+{
+  static_cast<TopWindow *>(data)->OnFrameDone(callback);
+}
+
+static const struct wl_callback_listener frame_listener = {
+  .done = handle_frame_done,
+};
+
 static const struct wl_surface_listener wl_surface_output_listener = {
   .enter = handle_surface_enter,
   .leave = handle_surface_leave,
@@ -253,7 +270,6 @@ TopWindow::CreateNative(const char *text, PixelSize size,
 {
   initial_requested_size = size;
   received_first_configure = false;
-  last_resize_flush_time = std::chrono::steady_clock::now();
   scale_120 = display.GetScale120();
 
   auto compositor = event_queue->GetCompositor();
@@ -284,6 +300,8 @@ TopWindow::CreateNative(const char *text, PixelSize size,
 
     xdg_toplevel = xdg_surface_get_toplevel(xdg_surface);
     xdg_toplevel_add_listener(xdg_toplevel, &toplevel_listener, this);
+    if (event_queue != nullptr)
+      event_queue->SetResizeToplevel(xdg_toplevel);
     xdg_toplevel_set_title(xdg_toplevel, text);
     xdg_toplevel_set_app_id(xdg_toplevel, "xcsoar");
 
@@ -298,6 +316,11 @@ TopWindow::CreateNative(const char *text, PixelSize size,
 
     if (style.GetFullScreen())
       xdg_toplevel_set_fullscreen(xdg_toplevel, nullptr);
+
+    const PixelSize min_size = MinimumWindowSize(size);
+    xdg_toplevel_set_min_size(xdg_toplevel,
+                              (int32_t)min_size.width,
+                              (int32_t)min_size.height);
 
     wl_surface_commit(wl_surface);
     wl_display_roundtrip(display.GetWaylandDisplay());
@@ -360,6 +383,42 @@ TopWindow::DisableCapture() noexcept
 }
 
 void
+TopWindow::ArmFrameCallback() noexcept
+{
+  if (wl_surface == nullptr || frame_callback != nullptr)
+    return;
+
+  frame_callback = wl_surface_frame(wl_surface);
+  if (frame_callback == nullptr)
+    return;
+
+  wl_callback_add_listener(frame_callback, &frame_listener, this);
+}
+
+void
+TopWindow::OnFrameDone(struct wl_callback *callback) noexcept
+{
+  if (frame_callback != callback)
+    return;
+
+  frame_callback = nullptr;
+  wl_callback_destroy(callback);
+
+  if (event_queue != nullptr)
+    event_queue->Push(Event::EXPOSE);
+}
+
+void
+TopWindow::ClearFrameCallback() noexcept
+{
+  if (frame_callback == nullptr)
+    return;
+
+  wl_callback_destroy(frame_callback);
+  frame_callback = nullptr;
+}
+
+void
 TopWindow::DestroyNative() noexcept
 {
   if (confined_pointer != nullptr) {
@@ -382,6 +441,8 @@ TopWindow::DestroyNative() noexcept
     zxdg_toplevel_decoration_v1_destroy(xdg_decoration);
     xdg_decoration = nullptr;
   }
+  if (event_queue != nullptr)
+    event_queue->SetResizeToplevel(nullptr);
   if (xdg_toplevel != nullptr) {
     xdg_toplevel_destroy(xdg_toplevel);
     xdg_toplevel = nullptr;
@@ -390,6 +451,7 @@ TopWindow::DestroyNative() noexcept
     xdg_surface_destroy(xdg_surface);
     xdg_surface = nullptr;
   }
+  ClearFrameCallback();
   if (wl_surface != nullptr) {
     wl_surface_destroy(wl_surface);
     wl_surface = nullptr;
@@ -550,23 +612,17 @@ TopWindow::OnResize(PixelSize new_size) noexcept
   event_queue->SetScreenSize(new_size);
   ApplySurfaceScale(CompositorLogicalSize());
 
-  if (screen != nullptr) {
+  if (screen != nullptr)
     Invalidate();
-    if (screen->IsReady() && IsVisible()) {
-      Expose();
-      const auto now = std::chrono::steady_clock::now();
-      const auto time_since_last_flush =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-          now - last_resize_flush_time).count();
-      const int throttle_ms = HasEPaper() ? 100 : 16;
-      if (time_since_last_flush >= throttle_ms) {
-        wl_display_flush(display.GetWaylandDisplay());
-        last_resize_flush_time = now;
-      }
-    } else if (wl_surface != nullptr) {
-      wl_surface_commit(wl_surface);
-    }
-  }
+
+  /* The matching xdg_surface.configure is still queued behind this
+     callback, so its ack has not been sent.  Expose() swaps buffers,
+     and Mesa waits inside that swap until the compositor releases
+     one.  The compositor will not do that before the ack, so the UI
+     thread stalls for the compositor's timeout.  Wake the loop
+     instead; it paints after dispatch has sent the ack. */
+  if (event_queue != nullptr)
+    event_queue->Push(Event::NOP);
 
   ContainerWindow::OnResize(new_size);
 

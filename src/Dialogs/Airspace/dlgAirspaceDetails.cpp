@@ -9,6 +9,8 @@
 #include "Airspace/AbstractAirspace.hpp"
 #include "Airspace/AirspaceClass.hpp"
 #include "Airspace/ProtectedAirspaceWarningManager.hpp"
+#include "Engine/Airspace/AirspaceWarningConfig.hpp"
+#include "Form/Button.hpp"
 #include "Formatter/UserUnits.hpp"
 #include "Formatter/AirspaceFormatter.hpp"
 #include "Formatter/TimeFormatter.hpp"
@@ -117,6 +119,7 @@ public:
      airspace(std::move(_airspace)), warnings(_warnings) {}
 
   void AckDayOrEnable() noexcept;
+  void ToggleClearance() noexcept;
 
   /* virtual methods from class Widget */
   void Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept override;
@@ -131,6 +134,32 @@ AirspaceDetailsWidget::Prepare([[maybe_unused]] ContainerWindow &parent,
   StaticString<64> buffer;
 
   AddMultiLine(airspace->GetName());
+
+  if (airspace->HasActivationTime()) {
+    if (airspace->IsActiveToday()) {
+      char time_buffer[32];
+      const BrokenDate today = BrokenDateTime::NowUTC().GetDate();
+      BrokenDateTime dt = airspace->GetActivationStartTime();
+      if (dt.IsPlausible()) {
+        FormatUTCTime(time_buffer, dt, today);
+        AddReadOnly(_("Starts"), nullptr, time_buffer);
+      } else AddReadOnly(_("Starts"), nullptr, _("undefined"));
+
+      dt = airspace->GetActivationEndTime();
+      if (dt.IsPlausible()) {
+        FormatUTCTime(time_buffer, dt, today);
+        AddReadOnly(_("Ends"), nullptr, time_buffer);
+      } else AddReadOnly(_("Ends"), nullptr, _("undefined"));
+    }
+  }
+
+  if (airspace->IsActive()) buffer = _("active");
+  else buffer = _("inactive");
+  if (warnings != nullptr) {
+    if (warnings->GetAckDay(*airspace)) buffer += _(", dismissed");
+    else buffer += _(", enabled");
+  }
+  AddReadOnly(_("Status"), nullptr, buffer.c_str());
 
   const TransponderCode transponderCode = airspace->GetTransponderCode();
   char buffer2[5];
@@ -250,15 +279,19 @@ dlgAirspaceDetailsModal(ConstAirspacePtr airspace,
 
   if (warnings != nullptr) {
     widget->dialog = &dialog;
-    const char *label = _("Ack Day");
-    try {
-      label = warnings->GetAckDay(*airspace) ? _("Enable") : _("Ack Day");
-    } catch (const std::exception &e) {
-      LogFmt("Failed to query airspace day acknowledgement: {}", e.what());
-    } catch (...) {
-      LogError(std::current_exception(),
-               "Failed to query airspace day acknowledgement");
-    }
+
+    const bool cleared = warnings->GetCleared(*airspace);
+
+    Button *clearance_button =
+      dialog.AddButton(cleared ? _("Revoke Clearance") : _("Set Clearance"),
+                       [widget](){ widget->ToggleClearance(); });
+
+    if (!cleared &&
+        !IsAirspaceClearanceAllowed(airspace->GetTypeOrClass()))
+      clearance_button->SetEnabled(false);
+
+    const char *label = warnings->GetAckDay(*airspace)
+      ? _("Enable") : _("Ack Day");
 
     dialog.AddButton(label, [widget](){ widget->AckDayOrEnable(); });
   }
@@ -271,6 +304,18 @@ dlgAirspaceDetailsModal(ConstAirspacePtr airspace,
   }
 
   return dialog.ShowModal() == mrOK;
+}
+
+void
+AirspaceDetailsWidget::ToggleClearance() noexcept
+{
+  assert(warnings != nullptr);
+
+  const bool cleared = warnings->GetCleared(*airspace);
+  if (!TrySetAirspaceClearance(*warnings, airspace, !cleared))
+    return;
+
+  dialog->SetModalResult(mrOK);
 }
 
 void

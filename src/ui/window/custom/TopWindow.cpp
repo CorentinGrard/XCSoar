@@ -261,6 +261,19 @@ TopWindow::Expose() noexcept
 #endif
 
   if (auto canvas = screen->Lock(); canvas.IsDefined()) {
+#if defined(ANDROID) || (defined(__APPLE__) && TARGET_OS_IPHONE)
+    /* On a device with a display cutout or system bars, XCSoar does
+       not necessarily paint every pixel: the user interface may be
+       restricted to the safe area.  Clear the canvas first, or the
+       remaining areas would keep showing stale frame buffer
+       contents. */
+    if (const PixelRect safe_rc = GetSafeAreaRect(),
+          full_rc = PixelRect{canvas.GetSize()};
+        safe_rc.left > full_rc.left || safe_rc.top > full_rc.top ||
+        safe_rc.right < full_rc.right || safe_rc.bottom < full_rc.bottom)
+      canvas.Clear(COLOR_BLACK);
+#endif
+
     OnPaint(canvas);
 
 #ifdef DRAW_MOUSE_CURSOR
@@ -319,10 +332,21 @@ TopWindow::Refresh() noexcept
     return;
 #endif
 
+#ifdef USE_WAYLAND
+  /* Leave invalidated set.  The frame callback pushes EXPOSE when
+     the compositor is ready for another buffer. */
+  if (IsFramePending())
+    return;
+#endif
+
   if (!invalidated)
     return;
 
   invalidated = false;
+
+#ifdef USE_WAYLAND
+  ArmFrameCallback();
+#endif
 
   Expose();
 }

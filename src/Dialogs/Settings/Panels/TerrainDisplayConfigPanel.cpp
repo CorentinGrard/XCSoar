@@ -31,6 +31,7 @@
 enum ControlIndex {
   EnableTerrain,
   EnableTopography,
+  SPACER_APPEARANCE,
   TerrainColors,
   TerrainSlopeShading,
   TerrainContrast,
@@ -116,14 +117,15 @@ void
 TerrainDisplayConfigPanel::ShowTerrainControls()
 {
   bool show = terrain_settings.enable;
-  SetRowVisible(TerrainColors, show);
-  SetRowVisible(TerrainSlopeShading, show);
-  SetRowVisible(TerrainContrast, show);
-  SetRowVisible(TerrainBrightness, show);
-  SetRowVisible(TerrainContours, show);
+  SetRowAvailable(SPACER_APPEARANCE, show);
+  SetRowAvailable(TerrainColors, show);
+  SetRowAvailable(TerrainSlopeShading, show);
+  SetRowAvailable(TerrainContrast, show);
+  SetRowAvailable(TerrainBrightness, show);
+  SetRowAvailable(TerrainContours, show);
   if (have_terrain_preview) {
-    SetRowVisible(TerrainSpacer, show);
-    SetRowVisible(TerrainPreview, show);
+    SetRowAvailable(TerrainSpacer, show);
+    SetRowAvailable(TerrainPreview, show);
   }
 }
 
@@ -243,6 +245,8 @@ TerrainDisplayConfigPanel::Prepare(ContainerWindow &parent,
              settings_map.topography_enabled);
   GetDataField(EnableTopography).SetListener(this);
 
+  AddSpacer();
+
   static constexpr StaticEnumChoice terrain_ramp_list[] = {
     { 0, N_("Low lands"), },
     { 1, N_("Mountainous"), },
@@ -250,6 +254,7 @@ TerrainDisplayConfigPanel::Prepare(ContainerWindow &parent,
     { 3, N_("Imhof 4"), },
     { 4, N_("Imhof 12"), },
     { 5, N_("Imhof Atlas"), },
+    { 18, N_("Imhof Atlas lite"), },
     { 6, N_("ICAO"), },
     { 9, N_("Vibrant"), },
     { 7, N_("Grey"), },

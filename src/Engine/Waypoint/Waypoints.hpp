@@ -10,6 +10,7 @@
 #include "util/QuadTree.hxx"
 #include "util/Serial.hpp"
 
+#include <optional>
 #include <string_view>
 #include <functional>
 
@@ -122,6 +123,18 @@ public:
   void EraseUserMarkers() noexcept;
 
   /**
+   * Erase every waypoint loaded from one file.
+   * Home is cleared only when that waypoint is the one removed.
+   */
+  void EraseFile(WaypointOrigin origin, uint8_t file_num) noexcept;
+
+  /**
+   * Erase every waypoint from one list.
+   * Home is cleared only when that waypoint is the one removed.
+   */
+  void EraseOrigin(WaypointOrigin origin) noexcept;
+
+  /**
    * Replace waypoint from the internal store.  Requires Optimise() to
    * be called afterwards.
    *
@@ -188,16 +201,19 @@ public:
   /**
    * Generate a temporary waypoint with a given name.
    *
+   * @param terrain_alt the elevation, if known
    * @return waypoint copy
    */
-  Waypoint GenerateTempPoint(const GeoPoint &location, double terrain_alt,
+  Waypoint GenerateTempPoint(const GeoPoint &location,
+                             std::optional<double> terrain_alt,
                              const char *name) const noexcept;
 
   /**
    * Create a temporary point with a given name and replaces the previous one.
    * This modifies the waypoint database.
    */
-  void AddTempPoint(const GeoPoint& location, double terrain_alt,
+  void AddTempPoint(const GeoPoint& location,
+                    std::optional<double> terrain_alt,
                     const char *name) noexcept;
 
   /**

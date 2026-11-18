@@ -2,10 +2,12 @@
 // Copyright The XCSoar Project
 
 #include "AirspaceWarningMonitor.hpp"
+#include "CurrentAirspacesWidget.hpp"
 #include "Interface.hpp"
 #include "Asset.hpp"
 #include "Audio/Sound.hpp"
 #include "Form/Button.hpp"
+#include "Dialogs/Airspace/Airspace.hpp"
 #include "Dialogs/Airspace/AirspaceWarningDialog.hpp"
 #include "ui/event/Idle.hpp"
 #include "Look/Colors.hpp"
@@ -14,15 +16,21 @@
 #include "Screen/Layout.hpp"
 #include "ui/canvas/AnyCanvas.hpp"
 #include "ui/canvas/Font.hpp"
-#include "PageActions.hpp"
 #include "Widget/QuestionWidget.hpp"
+#include "Widget/TextWidget.hpp"
+#include "Form/Frame.hpp"
+#include "Widget/ButtonPanelWidget.hpp"
+#include "Form/ButtonPanel.hpp"
 #include "Language/Language.hpp"
 #include "Engine/Airspace/AirspaceWarning.hpp"
 #include "Engine/Airspace/AirspaceWarningManager.hpp"
 #include "Engine/Airspace/AbstractAirspace.hpp"
+#include "Engine/Airspace/AirspaceWarningConfig.hpp"
 #include "Airspace/ProtectedAirspaceWarningManager.hpp"
+#include "Airspace/SpokenAlert.hpp"
 #include "Formatter/TimeFormatter.hpp"
 #include "Formatter/UserUnits.hpp"
+#include "util/StaticString.hxx"
 #include "Components.hpp"
 #include "BackendComponents.hpp"
 #include "LogFile.hpp"
@@ -31,6 +39,8 @@
 
 #include <exception>
 #include <algorithm>
+
+#include <array>
 
 class AirspaceWarningWidget final
   : public QuestionWidget {
@@ -52,6 +62,15 @@ class AirspaceWarningWidget final
 
   /** width available for the message text, known from Prepare() */
   unsigned message_width = 0;
+
+  /** full banner width; the button rows use this, not #message_width */
+  unsigned banner_width = 0;
+
+  /**
+   * Button rows #ButtonPanel::BottomLayout will use at #banner_width.
+   * One until Prepare().  Two is the 2x2 layout.
+   */
+  unsigned button_rows = 1;
 
   /**
    * True when the name plus the current distance/time do not fit on
@@ -99,7 +118,18 @@ class AirspaceWarningWidget final
    * by the padding on both sides.
    */
   void SetMessageWidth(const PixelRect &rc) noexcept {
-    message_width = rc.GetWidth() - 2 * Layout::GetTextPadding();
+    banner_width = rc.GetWidth();
+    message_width = banner_width - 2 * Layout::GetTextPadding();
+  }
+
+  /** Recount button rows after the banner width or the buttons change. */
+  void UpdateButtonRows() noexcept {
+    if (banner_width == 0)
+      return;
+
+    auto &panel = static_cast<ButtonPanelWidget &>(GetWidget())
+      .GetButtonPanel();
+    button_rows = panel.BottomRowCount(banner_width);
   }
 
   /**
@@ -116,7 +146,7 @@ class AirspaceWarningWidget final
     }
 
     AnyCanvas canvas;
-    canvas.Select(UIGlobals::GetDialogLook().text_font);
+    canvas.Select(UIGlobals::GetDialogLook().bold_font);
 
     StaticString<256> one_line;
     one_line.Format("%s  %s", name_text.c_str(), details_text.c_str());
@@ -132,6 +162,14 @@ class AirspaceWarningWidget final
       buffer.Format("%s  %s", name_text.c_str(), details_text.c_str());
   }
 
+  /** The banner is a warning; the same bold face as the airspace rows. */
+  void SetMessageFont() noexcept {
+    auto &bpw = static_cast<ButtonPanelWidget &>(GetWidget());
+    auto &tw = static_cast<TextWidget &>(bpw.GetWidget());
+    static_cast<WndFrame &>(tw.GetWindow()).SetFont(
+        UIGlobals::GetDialogLook().bold_font);
+  }
+
   /**
    * Mark the message with the same colours the airspace warning list
    * uses for its Inside / Near badge.
@@ -142,12 +180,12 @@ class AirspaceWarningWidget final
          contrast than a dithered fill */
       return;
 
-    /* Black on both fills: 5.7:1 on Inside red and 19.4:1 on Near
-       yellow, whereas white would only reach 3.7:1 on the red. */
-    SetMessageColors(state == AirspaceWarning::WARNING_INSIDE
+    /* White on the Inside red, black on the Near yellow. */
+    const bool inside = state == AirspaceWarning::WARNING_INSIDE;
+    SetMessageColors(inside
                      ? COLOR_AIRSPACE_WARNING_INSIDE
                      : COLOR_AIRSPACE_WARNING_NEAR,
-                     COLOR_BLACK);
+                     inside ? COLOR_WHITE : COLOR_BLACK);
   }
 
 public:
@@ -177,7 +215,7 @@ public:
       }
 
       monitor.Schedule();
-      PageActions::RestoreBottom();
+      CommonInterface::main_window->SetBottomBannerWidget(nullptr);
     });
 
     AddButton(_("Ack Day"), [this](){
@@ -191,8 +229,17 @@ public:
       }
 
       monitor.Schedule();
-      PageActions::RestoreBottom();
+      CommonInterface::main_window->SetBottomBannerWidget(nullptr);
     });
+
+    if (IsAirspaceClearanceAllowed(airspace->GetTypeOrClass()))
+      AddButton(_("Clearance"), [this](){
+        if (!TrySetAirspaceClearance(manager, airspace, true))
+          return;
+
+        monitor.Schedule();
+        CommonInterface::main_window->SetBottomBannerWidget(nullptr);
+      });
 
     AddButton(_("More"), [this](){
       dlgAirspaceWarningsShowModal(manager);
@@ -202,8 +249,8 @@ public:
   }
 
   ~AirspaceWarningWidget() noexcept {
-    assert(monitor.widget == this);
-    monitor.widget = nullptr;
+    assert(monitor.warning_widget == this);
+    monitor.warning_widget = nullptr;
   }
 
   /* virtual methods from class Widget */
@@ -215,6 +262,8 @@ public:
 
     QuestionWidget::Prepare(parent, rc);
     SetMessage(buffer);
+    SetMessageFont();
+    UpdateButtonRows();
   }
 
   void Move(const PixelRect &rc) noexcept override {
@@ -224,14 +273,33 @@ public:
 
     QuestionWidget::Move(rc);
     SetMessage(buffer);
+    SetMessageFont();
+    UpdateButtonRows();
   }
 
   PixelSize GetMinimumSize() const noexcept override {
-    /* QuestionWidget already reserves one text line plus the button
-       row */
+    /* QuestionWidget reserves one text line plus one button row.
+       Each further row can grow to the maximum control height, and
+       that height has to be in the banner or the row covers the
+       text. */
     PixelSize size = QuestionWidget::GetMinimumSize();
+    const DialogLook &dialog_look = UIGlobals::GetDialogLook();
     if (two_lines)
-      size.height += UIGlobals::GetDialogLook().text_font.GetHeight();
+      size.height += dialog_look.bold_font.GetHeight();
+
+    /* the reserved line is the regular face; bold can be taller */
+    const int bold_extra = int(dialog_look.bold_font.GetHeight()) -
+      int(dialog_look.text_font.GetHeight());
+    if (bold_extra > 0)
+      size.height += bold_extra;
+
+    if (button_rows > 1) {
+      const unsigned rows_height =
+        button_rows * Layout::GetMaximumControlHeight();
+      const unsigned reserved = Layout::GetMinimumControlHeight();
+      if (rows_height > reserved)
+        size.height += rows_height - reserved;
+    }
     return size;
   }
 
@@ -268,6 +336,15 @@ AirspaceWarningMonitor::Reset() noexcept
   last = calculated.airspace_warnings.latest;
 }
 
+static void
+SpeakAirspaceWarning(AirspaceWarning::State state,
+                     const AirspaceInterceptSolution &solution) noexcept
+{
+  const auto clips = SpokenAirspaceAlert::From(
+      state, solution, CommonInterface::Basic().nav_altitude).GetClips();
+  PlayResources(clips);
+}
+
 void
 AirspaceWarningMonitor::PlayRepetitiveSound() noexcept
 {
@@ -279,28 +356,37 @@ AirspaceWarningMonitor::PlayRepetitiveSound() noexcept
     return;
   ProtectedAirspaceWarningManager::Lease lease(*manager);
   FloatDuration closest{1000};
-  bool active = false;
+  const AirspaceWarning *top = nullptr;
   for (const auto &warning : *lease.operator->()) {
-    if (!warning.IsActive()) continue;
-    active = true;
-    if (warning.IsInside()) closest = {};
-    else closest = std::min(closest, warning.GetSolution().elapsed_time);
+    if (!warning.IsActive())
+      continue;
+    if (top == nullptr)
+      top = &warning;
+    if (warning.IsInside())
+      closest = {};
+    else
+      closest = std::min(closest, warning.GetSolution().elapsed_time);
   }
-  if (!active) { sound_interval_counter = 0; sound_timer.Cancel(); return; }
+  if (top == nullptr) {
+    sound_interval_counter = 0;
+    sound_timer.Cancel();
+    return;
+  }
   const unsigned interval = ((closest * 3 / config.warning_time) + 1) * 2;
   if (sound_interval_counter >= interval) {
-    PlayResource("IDR_WAV_BEEPBWEEP");
+    SpeakAirspaceWarning(top->GetWarningState(), top->GetSolution());
     sound_interval_counter = 1;
-  } else ++sound_interval_counter;
+  } else
+    ++sound_interval_counter;
 }
 
 void
 AirspaceWarningMonitor::HideWidget() noexcept
 {
-  if (widget == nullptr)
+  if (warning_widget == nullptr && current_widget == nullptr)
     return;
 
-  PageActions::RestoreBottom();
+  CommonInterface::main_window->SetBottomBannerWidget(nullptr);
 }
 
 void
@@ -308,7 +394,8 @@ AirspaceWarningMonitor::Check() noexcept
 {
   const auto &calculated = CommonInterface::Calculated();
 
-  if (widget == nullptr && calculated.airspace_warnings.latest == last)
+  if (warning_widget == nullptr && current_widget == nullptr
+      && calculated.airspace_warnings.latest == last)
     return;
 
   /* there's a new airspace warning */
@@ -328,12 +415,16 @@ AirspaceWarningMonitor::Check() noexcept
       /* already visible */
       return;
 
-    // un-blank the display, play a sound
+    // un-blank the display, speak the warning
     ResetUserIdle();
-    PlayResource("IDR_WAV_BEEPBWEEP");
+    if (const auto spoken = airspace_warnings->GetTopWarning();
+        spoken && spoken->IsActive()) {
+      SpeakAirspaceWarning(spoken->GetWarningState(),
+                           spoken->GetSolution());
 #ifdef HAVE_VIBRATOR
-    PlayHapticFeedback(HapticFeedbackType::ALARM);
+      PlayHapticFeedback(HapticFeedbackType::ALARM);
 #endif
+    }
 
     if (CommonInterface::GetUISettings().enable_airspace_warning_dialog) {
       sound_interval_counter = 0;
@@ -348,37 +439,72 @@ AirspaceWarningMonitor::Check() noexcept
 
   const auto w = airspace_warnings->GetTopWarning();
 
-  if (!w || !w->IsActive()) {
+  if (w && w->IsActive()) {
+    if (current_widget != nullptr) {
+      /* An active warning takes the banner. */
+      CommonInterface::main_window->SetBottomBannerWidget(nullptr);
+      assert(current_widget == nullptr);
+    }
+
+    if (CommonInterface::GetUISettings().enable_airspace_warning_dialog) {
+      if (warning_widget != nullptr) {
+        if (warning_widget->Update(w->GetAirspace(), w->GetWarningState(),
+                                   w->GetSolution()))
+          return;
+
+        HideWidget();
+        assert(warning_widget == nullptr);
+      }
+
+      warning_widget = new AirspaceWarningWidget(*this, *airspace_warnings,
+                                                 w->GetAirspacePtr(),
+                                                 w->GetWarningState(),
+                                                 w->GetSolution());
+      CommonInterface::main_window->SetBottomBannerWidget(warning_widget);
+    }
+
+    // un-blank the display, speak the warning
+    ResetUserIdle();
+    SpeakAirspaceWarning(w->GetWarningState(), w->GetSolution());
+#ifdef HAVE_VIBRATOR
+    PlayHapticFeedback(HapticFeedbackType::ALARM);
+#endif
+
+    if (CommonInterface::GetUISettings().enable_airspace_warning_dialog) {
+      sound_interval_counter = 0;
+      sound_timer.Schedule(std::chrono::milliseconds(500));
+    }
+    return;
+  }
+
+  // No active warning — check for suppressed inside warnings
+
+  std::array<CurrentAirspacesWidget::Entry, 2> entries;
+  const unsigned n = CurrentAirspacesWidget::CollectEntries(*airspace_warnings,
+                                                            entries);
+
+  if (n == 0) {
     HideWidget();
     return;
   }
 
-  if (CommonInterface::GetUISettings().enable_airspace_warning_dialog) {
-    /* show airspace warning */
-    if (widget != nullptr) {
-      if (widget->Update(w->GetAirspace(), w->GetWarningState(),
-                         w->GetSolution()))
-        return;
-
-      HideWidget();
-    }
-
-    widget = new AirspaceWarningWidget(*this, *airspace_warnings,
-                                       w->GetAirspacePtr(),
-                                       w->GetWarningState(),
-                                       w->GetSolution());
-    PageActions::SetCustomBottom(widget);
+  if (warning_widget != nullptr) {
+    CommonInterface::main_window->SetBottomBannerWidget(nullptr);
+    assert(warning_widget == nullptr);
   }
 
-  // un-blank the display, play a sound
-  ResetUserIdle();
-  PlayResource("IDR_WAV_BEEPBWEEP");
-#ifdef HAVE_VIBRATOR
-  PlayHapticFeedback(HapticFeedbackType::ALARM);
-#endif
+  const std::span<const CurrentAirspacesWidget::Entry> entries_span{
+    entries.data(), n};
 
-  if (CommonInterface::GetUISettings().enable_airspace_warning_dialog) {
-    sound_interval_counter = 0;
-    sound_timer.Schedule(std::chrono::milliseconds(500));
+  if (current_widget != nullptr) {
+    if (current_widget->Matches(entries_span))
+      return;
+
+    CommonInterface::main_window->SetBottomBannerWidget(nullptr);
+    assert(current_widget == nullptr);
   }
+
+  current_widget = new CurrentAirspacesWidget(*this, *airspace_warnings,
+                                              entries_span);
+  CommonInterface::main_window->SetBottomBannerWidget(current_widget);
 }

@@ -4,6 +4,9 @@
 #pragma once
 
 #include "LabelShape.hpp"
+#include "ui/canvas/Color.hpp"
+
+#include <cstdint>
 
 struct PixelPoint;
 struct PixelSize;
@@ -14,6 +17,18 @@ void
 RenderShadowedText(Canvas &canvas, const char *text,
                    PixelPoint p,
                    bool inverted) noexcept;
+
+/**
+ * Rounded label box. The corner matches a NOTAM label. OpenGL draws
+ * a shadow and, unless @p solid, a translucent fill. Otherwise the
+ * fill is opaque and a black outline stands in for the shadow.
+ * @p opacity fades the page dots; only OpenGL honours it.
+ */
+void
+DrawRoundedLabel(Canvas &canvas, const PixelRect &rc,
+         uint8_t opacity=0xff,
+         Color fill=COLOR_WHITE,
+         bool solid=false) noexcept;
 
 struct TextInBoxMode {
   enum Alignment : uint8_t {

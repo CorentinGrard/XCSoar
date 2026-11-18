@@ -4,6 +4,7 @@
 #include "FileUtil.hpp"
 #include "util/StringAPI.hxx"
 #include "util/StringCompare.hxx"
+#include "util/ScopeExit.hxx"
 #include "Compatibility/path.h"
 
 #ifdef _WIN32
@@ -231,6 +232,8 @@ ScanDirectories(File::Visitor &visitor, bool recursive,
   if (dir == nullptr)
     return false;
 
+  AtScopeExit(dir) { closedir(dir); };
+
   char FileName[MAX_PATH];
   strcpy(FileName, sPath.c_str());
   size_t FileNameLength = strlen(FileName);
@@ -269,7 +272,6 @@ ScanDirectories(File::Visitor &visitor, bool recursive,
     }
   }
 
-  closedir(dir);
 #else /* !HAVE_POSIX */
   std::string dir;
   if (sPath != nullptr)
@@ -526,6 +528,10 @@ File::ReadString(Path path, char *buffer, size_t size) noexcept
 #endif
 #ifdef O_CLOEXEC
   flags |= O_CLOEXEC;
+#endif
+#ifdef O_BINARY
+  /* Text mode strips CR and breaks an IGC download. */
+  flags |= O_BINARY;
 #endif
 
   int fd = open(path.c_str(), flags);

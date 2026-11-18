@@ -29,10 +29,11 @@ extern GLint invert_projection, invert_texture, invert_translate;
 
 /**
  * A shader that copies the texture's alpha channel, but replaces
- * the color (#Attribute::COLOR).
+ * the *constant* color (uniform alpha_fix_color_color).
  */
-extern GLProgram *alpha_shader;
-extern GLint alpha_projection, alpha_texture, alpha_translate;
+extern GLProgram *alpha_fix_color_shader;
+extern GLint alpha_fix_color_projection, alpha_fix_color_texture,
+  alpha_fix_color_translate, alpha_fix_color_color;
 
 /**
  * A shader that multiplies the texture with #Attribute::COLOR.
@@ -79,6 +80,18 @@ extern GLint filled_circle_projection, filled_circle_translate,
 extern GLProgram *round_line_shader;
 extern GLint round_line_projection, round_line_translate,
   round_line_softness, round_line_min_coverage, round_line_color;
+
+/**
+ * DEM hillshade: height texture + colour ramp, sun as a uniform.
+ * Null if the shader failed to compile (CPU GenerateSlopeImage).
+ */
+extern GLProgram *hillshade_shader;
+extern GLint hillshade_projection, hillshade_translate,
+  hillshade_height_tex, hillshade_ramp_tex,
+  hillshade_texel_step, hillshade_sun, hillshade_contrast,
+  hillshade_height_slope_factor, hillshade_height_div,
+  hillshade_q, hillshade_do_shading, hillshade_contour_div,
+  hillshade_contour_thickness, hillshade_height_texel;
 
 /**
  * Throws on error.

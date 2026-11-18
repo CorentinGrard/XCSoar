@@ -15,7 +15,9 @@
 #include "Renderer/AircraftRenderer.hpp"
 #include "Renderer/WaveRenderer.hpp"
 #include "Operation/Operation.hpp"
-#include "Tracking/SkyLines/Data.hpp"
+#include "Observation/Database.hpp"
+#include "Engine/Observation/Store.hpp"
+#include "Geo/GeoClip.hpp"
 
 #ifdef HAVE_NOAA
 #include "Weather/NOAAStore.hpp"
@@ -172,16 +174,19 @@ MapWindow::RenderNOAAStations(Canvas &canvas) noexcept
 inline void
 MapWindow::DrawWaves(Canvas &canvas) noexcept
 {
+  if (observations == nullptr)
+    return;
+
+  WaveRows waves;
+  observations->CopyWaves(waves);
+
   const WaveRenderer renderer(look.wave);
-
-#ifdef HAVE_SKYLINES_TRACKING
-  if (skylines_data != nullptr) {
-    const std::lock_guard lock{skylines_data->mutex};
-    renderer.Draw(canvas, render_projection, *skylines_data);
+  const GeoClip clip(render_projection.GetScreenBounds().Scale(1.1));
+  for (const auto &wave : waves) {
+    if (!wave.a.IsValid() || !wave.b.IsValid())
+      continue;
+    renderer.Draw(canvas, render_projection, clip, wave.a, wave.b);
   }
-#endif
-
-  renderer.Draw(canvas, render_projection, Calculated().wave);
 }
 
 inline void
@@ -310,12 +315,16 @@ MapWindow::Render(Canvas &canvas, const PixelRect &rc) noexcept
   draw_sw.Mark("RenderMisc2");
   DrawBestCruiseTrack(canvas, aircraft_pos);
 
+  /* the HUD elements stay clear of the areas covered by system UI
+     (display cutout, status bar, home indicator) */
+  const PixelRect hud_rc = GetHudRect(rc);
+
   // Draw wind vector at aircraft
   if (basic.location_available)
-    DrawWind(canvas, aircraft_pos, rc);
+    DrawWind(canvas, aircraft_pos, hud_rc);
 
   // Render compass
-  DrawCompass(canvas, rc);
+  DrawCompass(canvas, hud_rc);
 
   //////////////////////////////////////////////// traffic
   // Draw traffic

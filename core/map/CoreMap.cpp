@@ -532,7 +532,7 @@ Describe(const MapItem &item) noexcept
     o["id"] = waypoint.id;
     o["name"] = waypoint.name.c_str();
     o["landable"] = waypoint.IsLandable();
-    if (waypoint.has_elevation)
+    if (waypoint.HasElevation())
       o["elevation"] = waypoint.elevation;
     char buffer[32];
     if (waypoint.radio_frequency.Format(buffer, sizeof(buffer)) != nullptr)

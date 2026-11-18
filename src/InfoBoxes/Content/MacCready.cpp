@@ -6,6 +6,9 @@
 #include "InfoBoxes/Panel/Panel.hpp"
 #include "InfoBoxes/Panel/MacCreadyEdit.hpp"
 #include "InfoBoxes/Panel/MacCreadySetup.hpp"
+#include "Atmosphere/AirDensity.hpp"
+#include "Engine/Task/TaskType.hpp"
+#include "Formatter/GlideRatioFormatter.hpp"
 #include "Interface.hpp"
 #include "Units/Units.hpp"
 #include "Formatter/UserUnits.hpp"
@@ -40,17 +43,68 @@ InfoBoxContentMacCready::GetDialogContent() noexcept
  * Subpart normal operations
  */
 
+static void
+SetSafetyMacCready(InfoBoxData &data, const DerivedInfo &calculated,
+                   const ComputerSettings &settings) noexcept
+{
+  data.SetTitle(_("Safety MC"));
+  data.SetValueColor(InfoBoxData::COLOR_ORANGE);
+
+  const GlidePolar &safety = calculated.glide_polar_safety;
+  const double mc = safety.IsValid()
+    ? safety.GetMC()
+    : settings.task.safety_mc;
+  SetVSpeed(data, mc);
+
+  /* Still-air glide ratio at the Safety MC speed, the same figure the
+     Safety Factors picker shows beside the value. The comment has no
+     unit slot, so the :1 is part of the text. */
+  if (!safety.IsValid()) {
+    data.SetCommentInvalid();
+    return;
+  }
+
+  char ratio[16];
+  FormatGlideRatio(ratio, sizeof(ratio), safety.GetBestLD());
+  data.FmtComment("{}:1", ratio);
+}
+
 void
 InfoBoxContentMacCready::Update(InfoBoxData &data) noexcept
 {
   const ComputerSettings &settings_computer =
     CommonInterface::GetComputerSettings();
+  const DerivedInfo &calculated = CommonInterface::Calculated();
 
-  data.SetTitle(settings_computer.task.auto_mc ? _("MC AUTO") : _("MC MANUAL"));
-  data.SetValueColor(settings_computer.task.auto_mc ? (2) : (3));
+  if (calculated.common_stats.task_type == TaskType::ABORT) {
+    SetSafetyMacCready(data, calculated, settings_computer);
+    return;
+  }
 
-  SetVSpeed(data, settings_computer.polar.glide_polar_task.GetMC());
+  const bool auto_mc = settings_computer.task.auto_mc;
+  data.SetTitle(auto_mc ? _("MC AUTO") : _("MC MANUAL"));
+  data.SetValueColor(auto_mc ? 2 : 3);
 
-  const CommonStats &common_stats = CommonInterface::Calculated().common_stats;
-  data.SetCommentFromSpeed(common_stats.V_block, false);
+  const auto &polar = settings_computer.polar.glide_polar_task;
+  SetVSpeed(data, polar.GetMC());
+
+  /* without a polar there is no speed to fly */
+  if (!polar.IsValid()) {
+    data.SetCommentInvalid();
+    return;
+  }
+
+  /* V_block is true airspeed. The Setup switch shows it as indicated. */
+  double speed_ms = calculated.common_stats.V_block;
+  const bool as_ias = CommonInterface::GetUISettings().maccready_stf_ias;
+  if (as_ias) {
+    /* shortcut: no altitude leaves IAS equal to TAS */
+    if (const auto altitude = CommonInterface::Basic().GetAnyAltitude())
+      speed_ms /= AirDensityRatio(*altitude);
+  }
+
+  char speed[32];
+  FormatUserSpeed(speed_ms, speed, true, false);
+  /* IAS and TAS are ICAO abbreviations and stay untranslated. */
+  data.FmtComment("{} {}", speed, as_ias ? "IAS" : "TAS");
 }

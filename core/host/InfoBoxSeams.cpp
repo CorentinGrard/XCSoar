@@ -23,6 +23,7 @@
 #include "InfoBoxes/Panel/AltitudeSimulator.hpp"
 #include "InfoBoxes/Panel/ATCReference.hpp"
 #include "InfoBoxes/Panel/ATCSetup.hpp"
+#include "InfoBoxes/Panel/CustomTextEdit.hpp"
 #include "InfoBoxes/Panel/MacCreadyEdit.hpp"
 #include "InfoBoxes/Panel/MacCreadySetup.hpp"
 #include "InfoBoxes/Panel/RadioEdit.hpp"
@@ -169,6 +170,14 @@ LoadATCSetupPanel([[maybe_unused]] unsigned id)
   return nullptr;
 }
 
+/* the free text lives in upstream's InfoBox panels, which the app
+   does not edit */
+std::unique_ptr<Widget>
+LoadCustomTextEditPanel([[maybe_unused]] unsigned id)
+{
+  return nullptr;
+}
+
 std::unique_ptr<Widget>
 LoadMacCreadyEditPanel([[maybe_unused]] unsigned id)
 {
@@ -211,6 +220,14 @@ InfoBoxManager::ScheduleRedraw() noexcept
 {
 }
 
+/* upstream's basic settings dialog (ballast, bugs, QNH, forecast
+   temperature), opened by the ballast and forecast InfoBoxes */
+void
+InputEvents::eventSetup([[maybe_unused]] const char *misc)
+{
+  CoreInfoBoxes::RequestAction("flight_setup");
+}
+
 void
 InputEvents::eventThermalAssistant([[maybe_unused]] const char *misc)
 {
@@ -218,6 +235,11 @@ InputEvents::eventThermalAssistant([[maybe_unused]] const char *misc)
 
 void
 PageActions::Restore()
+{
+}
+
+void
+PageActions::ShowHorizon()
 {
 }
 

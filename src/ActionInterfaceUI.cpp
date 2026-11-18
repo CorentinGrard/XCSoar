@@ -22,6 +22,7 @@
 #include "DataGlobals.hpp"
 #include "PageActions.hpp"
 #include "PageSettings.hpp"
+#include "PageOverlayTitle.hpp"
 #include "Weather/Features.hpp"
 
 using namespace CommonInterface;
@@ -125,18 +126,25 @@ UpdateMapScalePageInfo(UIState &state) noexcept
     ? overlay_layout.overlay
     : PageLayout::Overlay::NONE;
 
-  state.map_scale_page_title.clear();
+  state.map_page_label.clear();
+  state.map_overlay_label.clear();
+  state.map_bottom_label.clear();
 
   if (overlay_layout.IsMapMain() &&
       overlay_layout.overlay != PageLayout::Overlay::NONE) {
     const auto &settings = CommonInterface::GetUISettings();
-    const char *title = overlay_layout.MakeTitle(
-      settings.info_boxes,
-      std::span{state.map_scale_page_title.data(),
-                state.map_scale_page_title.capacity()},
-      DataGlobals::GetRasp().get(), true);
-    if (title != nullptr)
-      state.map_scale_page_title = title;
+    const auto *rasp = DataGlobals::GetRasp().get();
+
+    overlay_layout.FormatInfoTitle(
+      {state.map_page_label.data(), state.map_page_label.capacity()},
+      settings.info_boxes, true);
+
+    FormatOverlayLabel(
+      {state.map_overlay_label.data(), state.map_overlay_label.capacity()},
+      overlay_layout, rasp);
+
+    if (overlay_layout.bottom == PageLayout::Bottom::CROSS_SECTION)
+      state.map_bottom_label = "XS";
   }
 }
 
@@ -154,6 +162,11 @@ ActionInterface::UpdateDisplayMode() noexcept
   state.panel_name = gettext(panel.name);
 
   UpdateMapScalePageInfo(state);
+
+  /* the active panel may have changed, and a panel may override the
+     global InfoBox geometry */
+  if (main_window != nullptr)
+    main_window->CheckInfoBoxGeometry();
 }
 
 void

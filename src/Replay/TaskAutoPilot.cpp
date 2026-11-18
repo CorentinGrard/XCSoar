@@ -5,6 +5,7 @@
 #include "TaskAccessor.hpp"
 #include "Task/Stats/ElementStat.hpp"
 #include "GlideSolvers/GlidePolar.hpp"
+#include "Plane/Plane.hpp"
 
 #include <algorithm> // for std::clamp()
 
@@ -25,7 +26,8 @@ AutopilotParameters::SetRealistic()
 }
 
 TaskAutoPilot::TaskAutoPilot(const AutopilotParameters &_parms)
-  :parms(_parms), heading_filter(8), climb_rate(2.0), speed_factor(1.0) {}
+  :parms(_parms), heading_filter(8), heading_noise_state(1),
+   climb_rate(2.0), speed_factor(1.0) {}
 
 void
 TaskAutoPilot::Start(const TaskAccessor& task)
@@ -66,6 +68,7 @@ TaskAutoPilot::Start(const TaskAccessor& task)
   // reset the heading
   heading = Angle::Zero();
   heading_filter.Reset(0);
+  heading_noise_state = 1;
 
   acstate = Cruise;
 }
@@ -110,7 +113,12 @@ TaskAutoPilot::GetHeadingDeviation()
   auto noise_mag = acstate == Climb
     ? parms.bearing_noise / 2.
     : parms.bearing_noise;
-  auto r = (2 * rand() / RAND_MAX) - 1;
+
+  // Sector aim points use rand(). A shared sequence made a noisy
+  // flight aim at different points than the ideal one.
+  heading_noise_state = heading_noise_state * 1103515245u + 12345u;
+  const double unit = ((heading_noise_state >> 16) & 0x7fffu) / 32768.;
+  const double r = unit * 2. - 1.;
   auto deviation = heading_filter.Update(noise_mag * r);
   return Angle::Degrees(deviation).AsDelta();
 }
@@ -191,18 +199,39 @@ TaskAutoPilot::UpdateCruiseBearing(const TaskAccessor& task,
   heading = heading.AsBearing();
 }
 
+/**
+ * The demo flies a glider even when none is set up.
+ */
+static GlidePolar
+MakeDemoPolar() noexcept
+{
+  GlidePolar polar(0);
+  polar.SetCoefficients(PolarCoefficients(0.00157, -0.0734, 1.48), false);
+  polar.SetReferenceMass(300, false);
+  polar.SetEmptyMass(300, false);
+  polar.SetCrewMass(90, false);
+  polar.SetVMax(DEFAULT_MAX_SPEED, false);
+  polar.Update();
+  polar.SetMC(0);
+  return polar;
+}
+
 void
 TaskAutoPilot::UpdateState(const TaskAccessor& task, AircraftState& state,
                            const FloatDuration timestep) noexcept
 {
-  const GlidePolar &glide_polar = task.GetGlidePolar();
+  static const GlidePolar demo_polar = MakeDemoPolar();
+  const GlidePolar &glide_polar = task.GetGlidePolar().IsValid()
+    ? task.GetGlidePolar()
+    : demo_polar;
 
   switch (acstate) {
   case Cruise:
   case FinalGlide:
   {
     const ElementStat &stat = task.GetLegStats();
-    if (stat.solution_remaining.v_opt > 0)
+    if (stat.solution_remaining.IsDefined() &&
+        stat.solution_remaining.v_opt > 0)
       state.true_airspeed = stat.solution_remaining.v_opt * speed_factor;
     else
       state.true_airspeed = glide_polar.GetVBestLD();

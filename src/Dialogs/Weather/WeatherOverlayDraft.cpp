@@ -3,7 +3,7 @@
 
 #include "WeatherOverlayDraft.hpp"
 
-#include "Dialogs/InternalLink.hpp"
+#include "Dialogs/Dialogs.h"
 #include "Dialogs/Settings/Panels/PagesConfigPanel.hpp"
 #include "PageActions.hpp"
 #include "Form/Button.hpp"
@@ -23,7 +23,7 @@ namespace WeatherOverlayDraft {
 void
 OpenPagesConfig() noexcept
 {
-  ShowConfigPanel(_("Pages"), CreatePagesConfigPanel);
+  dlgConfigurationShowPage(CreatePagesConfigPanel);
 }
 
 static bool
@@ -84,6 +84,8 @@ State::IsDirty() const noexcept
     return draft.skysight_overlay != baseline.skysight_overlay ||
       draft.skysight_time != baseline.skysight_time;
 
+  case PageLayout::Overlay::RADAR:
+  case PageLayout::Overlay::SATELLITE:
   case PageLayout::Overlay::NONE:
   case PageLayout::Overlay::MAX:
     return false;

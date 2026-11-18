@@ -11,6 +11,8 @@
 #include "Simulator.hpp"
 #include "Replay/Replay.hpp"
 #include "Task/ProtectedTaskManager.hpp"
+#include "Engine/Task/TaskManager.hpp"
+#include "Engine/Task/TaskType.hpp"
 #include "BallastDumpManager.hpp"
 #include "Operation/Operation.hpp"
 #include "Tracking/TrackingGlue.hpp"
@@ -19,6 +21,7 @@
 #include "NetComponents.hpp"
 #include "BackendComponents.hpp"
 #include "LogFile.hpp"
+#include "Session/SessionState.hpp"
 
 #ifdef HAVE_HTTP
 #include "NOTAM/NOTAMGlue.hpp"
@@ -44,6 +47,13 @@ BallastDumpProcessTimer() noexcept
   if (!ballast_manager.Update(glide_polar, settings_computer.plane.dump_time))
     // Plane is dry now -> disable ballast_timer
     settings_computer.polar.ballast_timer_active = false;
+
+  /* Each dump step is the crash copy of the remaining ballast.
+     The 30s flush below is too slow for that. */
+  Session::NotePolar(glide_polar.GetBallastLitres(),
+                     glide_polar.GetCrewMass(),
+                     settings_computer.polar.bugs);
+  Session::Flush();
 
   if (backend_components->protected_task_manager != nullptr)
     backend_components->protected_task_manager->SetGlidePolar(glide_polar);
@@ -112,12 +122,56 @@ UTCOffsetProcessTimer() noexcept
     CommonInterface::SetComputerSettings().utc_offset = utc_offset;
 }
 
+static void
+SessionProcessTimer() noexcept
+{
+  if (!Session::IsReady())
+    return;
+
+  const auto &settings = CommonInterface::GetComputerSettings();
+  const auto &polar = settings.polar;
+  const bool flying = CommonInterface::Calculated().flight.flying;
+  if (Session::State().NoteFlying(
+        flying,
+        polar.glide_polar_task.GetBallastLitres(),
+        polar.glide_polar_task.GetCrewMass(),
+        polar.bugs))
+    Session::Flush();
+
+  /* QNH only once it has been set.  The startup default is not known,
+     so automatic QNH can still run. */
+  if (settings.pressure_available)
+    Session::NoteQNH(settings.pressure.GetHectoPascal());
+  Session::NoteMaxTemp(settings.forecast_temperature.ToKelvin());
+
+  if (backend_components->protected_task_manager != nullptr) {
+    const ProtectedTaskManager::Lease
+      lease{*backend_components->protected_task_manager};
+    /* Abort keeps the Goto task.  Resume() puts that mode back. */
+    const auto mode = lease->GetMode();
+    if (mode != TaskType::GOTO && mode != TaskType::ABORT &&
+        Session::State().have_goto)
+      Session::ClearGoto();
+  }
+
+  static PeriodClock clock;
+  if (!Session::State().modified)
+    return;
+
+  if (clock.IsDefined() && clock.Elapsed() < std::chrono::seconds(30))
+    return;
+
+  clock.Update();
+  Session::Flush();
+}
+
 void
 BackendSettingsTimer() noexcept
 {
   UTCOffsetProcessTimer();
   BallastDumpProcessTimer();
   ProcessAutoBugs();
+  SessionProcessTimer();
 }
 
 static void

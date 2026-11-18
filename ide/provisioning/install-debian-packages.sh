@@ -73,6 +73,7 @@ install_linux() {
     imagemagick gettext \
     mesa-common-dev libegl1-mesa-dev libgles2-mesa-dev \
     fonts-dejavu \
+    fonts-dejavu-mono \
     ttf-bitstream-vera \
     fonts-roboto-unhinted \
     xz-utils
@@ -94,7 +95,8 @@ install_debian() {
     libio-captureoutput-perl \
     build-essential \
     xvfb \
-    xauth
+    xauth \
+    curl
   echo
 }
 
@@ -122,7 +124,8 @@ install_arm() {
 install_pi_host() {
   echo Installing host tools for Raspberry Pi cross-compilation and sysroot...
   apt-get install "${APTOPTS[@]}" debootstrap qemu-user-static binfmt-support \
-    g++-arm-linux-gnueabihf libmpc-dev ca-certificates pkg-config
+    g++-arm-linux-gnueabihf g++-aarch64-linux-gnu \
+    libmpc-dev ca-certificates pkg-config
   echo
 }
 
@@ -136,7 +139,8 @@ install_win() {
       zip \
       meson \
       nsis \
-      fonts-dejavu
+      fonts-dejavu \
+      fonts-dejavu-mono
   echo
 }
 

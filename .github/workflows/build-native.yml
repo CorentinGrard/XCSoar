@@ -25,6 +25,7 @@ on:
       - '.github/workflows/build-docs.yml'
       - '.github/workflows/build-unix.yml'
       - '.github/workflows/build-translation.yml'
+      - '.github/workflows/complexity.yml'
       - '.readthedocs.yaml'
       - '.pre-commit-config.yaml'
       - 'renovate.json'
@@ -58,6 +59,7 @@ on:
       - '.github/workflows/build-docs.yml'
       - '.github/workflows/build-unix.yml'
       - '.github/workflows/build-translation.yml'
+      - '.github/workflows/complexity.yml'
       - '.readthedocs.yaml'
       - '.pre-commit-config.yaml'
       - 'renovate.json'
@@ -81,7 +83,6 @@ concurrency:
 
 env:
   DEBUG: y
-  BOOST: boost_1_87_0
   # Names in the run Artifacts list; must match upload + download in
   # "Upload artifact for VirusTotal" and the upload-to-virustotal job.
   VT_ARTIFACT_WIN64OPENGL: virustotal-opengl-WIN64OPENGL
@@ -90,7 +91,7 @@ env:
 jobs:
   release:
     name: "Create Release"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     outputs:
@@ -108,7 +109,7 @@ jobs:
         run: |
           TAG=$(echo "${{ github.ref }}" | cut -f3 -d '/')
           echo "TAG=$TAG" >> $GITHUB_ENV
-          echo "::set-output name=TAG::$TAG"
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
           echo 'CHANGELOGENTRY<<EOF' >> $GITHUB_ENV
           ./tools/changelog.sh "$TAG" >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
@@ -128,7 +129,7 @@ jobs:
           VERSION=$(cat VERSION.txt)
           echo "$VERSION"
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "::set-output name=VERSION::${VERSION}"
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Create release
         id: create_release
@@ -141,6 +142,104 @@ jobs:
           name: Version ${{ github.ref_name }}
           body: ${{ env.CHANGELOGENTRY }}
           prerelease: ${{ env.PRERELEASE }}
+
+  downloads:
+    name: Prefetch third-party downloads
+    runs-on: ubuntu-26.04
+    # One missing tarball must not skip every matrix target; they can
+    # still fetch what they need during the compile.
+    continue-on-error: true
+    outputs:
+      cache-key: ${{ steps.restore.outputs.cache-primary-key }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ (github.event.inputs != null && github.event.inputs.ref) || github.ref }}
+          submodules: false
+
+      - name: Restore downloads cache
+        id: restore
+        uses: actions/cache/restore@v6
+        with:
+          path: output/download
+          key: downloads-union-${{ hashFiles('build/libboost.mk', 'build/kobo.mk', 'build/python/build/libs.py', 'build/python/build/angle.py', 'build/prefetch_downloads.py') }}
+          restore-keys: |
+            downloads-union-
+          enableCrossOsArchive: true
+
+      - name: Fetch missing tarballs
+        if: steps.restore.outputs.cache-hit != 'true'
+        run: python3 build/prefetch_downloads.py
+
+      - name: Save downloads cache
+        if: steps.restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: output/download
+          key: ${{ steps.restore.outputs.cache-primary-key }}
+          enableCrossOsArchive: true
+
+      # Incomplete files must not use the exact union key: the next
+      # run would treat it as a hit and skip the fetch.  restore-keys
+      # downloads-union- still finds this partial blob.
+      - name: Save partial downloads cache
+        if: ${{ failure() && steps.restore.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: output/download
+          key: downloads-union-partial-${{ github.run_id }}-${{ github.run_attempt }}
+          enableCrossOsArchive: true
+
+  android-tools:
+    name: Prefetch Android SDK/NDK
+    runs-on: ubuntu-24.04
+    container: debian:trixie-slim
+    # The Android build can still install the SDK if this job fails.
+    continue-on-error: true
+    outputs:
+      cache-key: ${{ steps.restore.outputs.cache-primary-key }}
+    steps:
+      - name: Install checkout dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates wget unzip zstd default-jdk-headless
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ (github.event.inputs != null && github.event.inputs.ref) || github.ref }}
+          submodules: false
+
+      - name: Restore Android SDK/NDK cache
+        id: restore
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/opt/android-sdk-linux
+            ~/opt/android-ndk-r26d
+            ~/opt/bundletool
+          key: android-tools-r26d-${{ hashFiles('ide/provisioning/install-android-tools.sh', 'build/android.mk', 'build/targets.mk') }}
+          restore-keys: |
+            android-tools-r26d-
+
+      - name: Install Android SDK/NDK
+        if: steps.restore.outputs.cache-hit != 'true'
+        run: |
+          ./ide/provisioning/install-android-tools.sh NDK
+          ./ide/provisioning/install-android-tools.sh SDK
+          ./ide/provisioning/install-android-tools.sh BUNDLETOOL
+
+      - name: Save Android SDK/NDK cache
+        if: steps.restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/opt/android-sdk-linux
+            ~/opt/android-ndk-r26d
+            ~/opt/bundletool
+          key: ${{ steps.restore.outputs.cache-primary-key }}
 
   docs:
     name: "Build and Publish Manuals"
@@ -155,7 +254,8 @@ jobs:
 
   build:
     runs-on: ${{ matrix.os }}
-    needs: release
+    needs: [release, downloads, android-tools]
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
     permissions:
       contents: write
     # On push/tag, one failed matrix leg (e.g. iOS/macOS) must not block
@@ -234,7 +334,7 @@ jobs:
           if [ "${{ matrix.os }}" = 'ubuntu-24.04' ]; then
             apt-get update
             apt-get install -y --no-install-recommends git \
-            ca-certificates rsync openssh-client
+            ca-certificates rsync openssh-client zstd
           fi
 
       - name: Set vars for release
@@ -274,80 +374,23 @@ jobs:
           ccache --set-config hard_link=false
           ccache --set-config compression=true
 
-      - name: "Cache common downloads"
-        uses: actions/cache@v6
+      - name: Restore downloads cache
+        if: ${{ needs.downloads.outputs.cache-key != '' }}
+        uses: actions/cache/restore@v6
         with:
-          key: downloads-common-${{ runner.os }}-${{ hashFiles('build/libboost.mk') }}
-          restore-keys: |
-            downloads-common-${{ runner.os }}-
-          path: ${{ github.workspace }}/output/download
+          path: output/download
+          key: ${{ needs.downloads.outputs.cache-key }}
+          enableCrossOsArchive: true
 
-      - name: "Cache target-specific downloads"
-        uses: actions/cache@v6
+      - name: Restore Android SDK/NDK cache
+        if: ${{ matrix.target == 'ANDROID' && needs.android-tools.outputs.cache-key != '' }}
+        uses: actions/cache/restore@v6
         with:
-          key: downloads-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('build/kobo.mk', 'build/thirdparty.py', 'build/python/build/libs.py') }}
-          # Only this target's own cache, or the shared one.  A bare
-          # "downloads-$os-" would also match another target's cache,
-          # which restores 190 MB without the files this target needs.
-          restore-keys: |
-            downloads-${{ runner.os }}-${{ matrix.target }}-
-            downloads-common-${{ runner.os }}-
-          path: ${{ github.workspace }}/output/download
-
-      - name: "Cache apt packages"
-        if: ${{ matrix.os == 'ubuntu-24.04' }}
-        uses: actions/cache@v6
-        with:
-          key: apt-${{ matrix.target_container }}-${{ hashFiles('ide/provisioning/install-debian-packages.sh') }}
-          restore-keys: |
-            apt-${{ matrix.target_container }}
-            apt
-          path: /var/cache/apt
-
-      - name: "Cache Homebrew packages"
-        if: ${{ startsWith(matrix.os, 'macos-') }}
-        uses: actions/cache@v6
-        with:
-          key: brew-${{ matrix.os }}-${{ hashFiles('ide/provisioning/install-darwin-packages.sh') }}
-          restore-keys: |
-            brew-${{ matrix.os }}
-            brew
-          path: |
-            /opt/homebrew/var/cache
-            /opt/homebrew/var/homebrew/cache
-            /usr/local/var/cache
-            /usr/local/var/homebrew/cache
-            /Users/runner/Library/Caches/Homebrew
-
-      - name: "Cache ANGLE downloads"
-        if: ${{ matrix.target == 'MACOS' }}
-        uses: actions/cache@v6
-        with:
-          key: angle-${{ hashFiles('darwin/fetch-angle-from-chrome.sh') }}
-          restore-keys: angle-
-          path: output/angle-download
-
-      - name: "Cache Boost"
-        uses: actions/cache@v6
-        with:
-          key: ${{ env.BOOST }}-${{ hashFiles('lib/boost/patches/**') }}
-          path: |
-            ${{ github.workspace }}/output/download/${{ env.BOOST }}.tar.bz2
-            ${{ github.workspace }}/output/src/stamp-${{ env.BOOST }}
-            ${{ github.workspace }}/output/src/${{ env.BOOST }}/boost
-
-      - name: "Cache Android SDK/NDK"
-        if: ${{ matrix.target == 'ANDROID' }}
-        uses: actions/cache@v6
-        with:
-          key: android-tools-${{ matrix.ndk }}-${{ hashFiles('ide/provisioning/install-android-tools.sh', 'build/android.mk', 'build/targets.mk') }}
-          restore-keys: |
-            android-tools-${{ matrix.ndk }}-
-            android-tools-
           path: |
             ~/opt/android-sdk-linux
             ~/opt/android-ndk-${{ matrix.ndk }}
             ~/opt/bundletool
+          key: ${{ needs.android-tools.outputs.cache-key }}
 
       - name: "Cache third-party libraries (Android)"
         if: ${{ matrix.target == 'ANDROID' }}
@@ -580,21 +623,23 @@ jobs:
           elif [ ${{ matrix.target }} = "KOBO" ]; then
             make -j$(nproc) TARGET=${{ matrix.target }} DEBUG=${{ env.DEBUG }} USE_CCACHE=y V=2 output/${{ matrix.target }}/${{ matrix.target_bin }}${{ matrix.target_ext }}
           elif [ ${{ matrix.target }} = "MACOS" ]; then
-            gmake -j$(nproc) TARGET=${{ matrix.target }} DEBUG=${{ env.DEBUG }} USE_CCACHE=y V=2 TESTING=y OPTIMIZE="-O0" dmg pkg
+            gmake -j$(nproc) TARGET=${{ matrix.target }} DEBUG=${{ env.DEBUG }} USE_CCACHE=y V=2 TESTING=y dmg pkg
           elif [ ${{ matrix.target }} = "IOS64" ]; then
-            gmake -j$(nproc) TARGET=${{ matrix.target }} DEBUG=${{ env.DEBUG }} USE_CCACHE=y V=2 TESTING=y OPTIMIZE="-O0" ipa ios-dsym
+            gmake -j$(nproc) TARGET=${{ matrix.target }} DEBUG=${{ env.DEBUG }} USE_CCACHE=y V=2 TESTING=y ipa ios-dsym
           elif [ ${{ matrix.target }} = "UNIX" ]; then
-            mkdir -p output/UNIX/DPKG
-            rsync -apt . output/UNIX/DPKG --exclude=output/UNIX/DPKG
-            cd output/UNIX/DPKG
-            DEB_BUILD_OPTIONS=ccache,noopt dpkg-buildpackage --jobs-force=$(nproc) --no-sign
-          fi
-
-      - name: Compile XCSoar - Sanitizer Check
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        run: |
-          if [ ${{ matrix.target }} = "UNIX" ]; then
-            make -j$(nproc) TARGET=${{ matrix.target }} DEBUG=${{ env.DEBUG }} USE_CCACHE=y V=2 everything check VFB=y SANITIZE=y DEBUG_GLIBCXX=y
+            # noopt OpenGL .deb and VFB+ASan do not share ccache hashes.
+            # PRs only run the sanitizer tree; master still builds the
+            # .deb for download.xcsoar.org/testing.
+            if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+              mkdir -p output/UNIX/DPKG
+              rsync -apt . output/UNIX/DPKG --exclude=output/UNIX/DPKG
+              (cd output/UNIX/DPKG &&
+               DEB_BUILD_OPTIONS=ccache,noopt dpkg-buildpackage \
+                 --jobs-force=$(nproc) --no-sign)
+            fi
+            make -j$(nproc) TARGET=${{ matrix.target }} \
+              DEBUG=${{ env.DEBUG }} USE_CCACHE=y V=2 \
+              everything check VFB=y SANITIZE=y DEBUG_GLIBCXX=y
           fi
 
       - name: Compile XCSoar - Release
@@ -669,13 +714,48 @@ jobs:
             DEB_BUILD_OPTIONS=ccache dpkg-buildpackage --jobs-force=$(nproc) --no-sign
           fi
 
+      - name: Stage Win64 OpenGL unit tests
+        if: ${{ success() && matrix.target == 'WIN64OPENGL' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage=output/win64opengl-unit-tests
+          dry=$(mktemp)
+          rm -rf "$stage"
+          mkdir -p "$stage"
+          make -n TARGET=WIN64OPENGL DEBUG="${DEBUG}" check-no-build >"$dry"
+          mapfile -t exes < <(grep -o 'output/WIN64OPENGL/bin/[^[:space:]]*\.exe' "$dry" | sort -u)
+          if [ "${#exes[@]}" -eq 0 ]; then
+            echo "check-no-build listed no test executables"
+            exit 1
+          fi
+          cp -a "${exes[@]}" "$stage/"
+          # TestContainerWindow and TestWrapText import these.
+          cp -a output/WIN64OPENGL/bin/libEGL.dll \
+                output/WIN64OPENGL/bin/libGLESv2.dll "$stage/"
+          # shortcut: libwinpthread only; copy the DLL from the error if a test does not start
+          dll=$(x86_64-w64-mingw32-g++ -print-file-name=libwinpthread-1.dll)
+          if [ -f "$dll" ]; then
+            cp -a "$dll" "$stage/"
+          fi
+          echo "Staged ${#exes[@]} unit tests"
+
+      - name: Upload Win64 OpenGL unit tests
+        if: ${{ success() && matrix.target == 'WIN64OPENGL' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: win64opengl-unit-tests
+          path: output/win64opengl-unit-tests
+          if-no-files-found: error
+
       - name: Run tests before signing
         id: tests
         if: ${{ (matrix.target == 'IOS64' || matrix.target == 'MACOS') && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/apple-testing' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request') }}
         run: |
           echo "Running unit tests..."
           if [ ${{ matrix.target }} = 'IOS64' ]; then
-            gmake check-ios-sim
+            # Nested gmake in check-ios-sim.py reads this from the env.
+            USE_CCACHE=y gmake check-ios-sim
           else
             gmake TARGET=MACOS check
           fi
@@ -749,6 +829,7 @@ jobs:
           security delete-keychain macos-build.keychain || true
 
       - name: Upload artifact
+        if: ${{ matrix.target != 'UNIX' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.target_final }}-${{ env.git_hash }}${{ matrix.target }}${{ matrix.target_ext }}
@@ -845,6 +926,10 @@ jobs:
           REMOTE_USER: ${{ secrets.REPOSITORY_SSH_USER }}
           TARGET: ${{ secrets.REPOSITORY_REMOTE_PATH }}/testing/${{ matrix.target }}/
           SCRIPT_BEFORE: mkdir -p ${{ secrets.REPOSITORY_REMOTE_PATH }}/testing/${{ matrix.target }}
+          # Every uploaded file must be world-readable. Runs on the server,
+          # so macOS openrsync (which ignores --chmod) is covered too.
+          SCRIPT_AFTER: find "${{ secrets.REPOSITORY_REMOTE_PATH }}/testing/${{ matrix.target }}" -type f -exec chmod 644 {} +
+          SCRIPT_AFTER_REQUIRED: "true"
 
       - name: Deploy to Download server - release
         if: ${{ github.repository == 'XCSoar/XCSoar' && startsWith(github.ref, 'refs/tags/v') && matrix.target_upload == true }}
@@ -857,6 +942,8 @@ jobs:
           REMOTE_USER: ${{ secrets.REPOSITORY_SSH_USER }}
           TARGET: ${{ secrets.REPOSITORY_REMOTE_PATH }}/releases/${{ needs.release.outputs.version }}/${{ matrix.target }}/
           SCRIPT_BEFORE: mkdir -p ${{ secrets.REPOSITORY_REMOTE_PATH }}/releases/${{ needs.release.outputs.version }}/${{ matrix.target }}/
+          SCRIPT_AFTER: find "${{ secrets.REPOSITORY_REMOTE_PATH }}/releases/${{ needs.release.outputs.version }}/${{ matrix.target }}" -type f -exec chmod 644 {} +
+          SCRIPT_AFTER_REQUIRED: "true"
 
       - name: Deploy installer to Download server - release
         if: ${{ github.repository == 'XCSoar/XCSoar' && startsWith(github.ref, 'refs/tags/v') && (matrix.target == 'WIN64OPENGL' || matrix.target == 'WIN32OPENGL') }}
@@ -869,9 +956,43 @@ jobs:
           REMOTE_USER: ${{ secrets.REPOSITORY_SSH_USER }}
           TARGET: ${{ secrets.REPOSITORY_REMOTE_PATH }}/releases/${{ needs.release.outputs.version }}/${{ matrix.target }}/
           SCRIPT_BEFORE: mkdir -p ${{ secrets.REPOSITORY_REMOTE_PATH }}/releases/${{ needs.release.outputs.version }}/${{ matrix.target }}
+          SCRIPT_AFTER: find "${{ secrets.REPOSITORY_REMOTE_PATH }}/releases/${{ needs.release.outputs.version }}/${{ matrix.target }}" -type f -exec chmod 644 {} +
+          SCRIPT_AFTER_REQUIRED: "true"
 
       - name: Show ccache stats
         run: ccache --show-stats || true
+
+  # shortcut: WIN64OPENGL only; add WIN32OPENGL the same way when 32-bit tests matter
+  windows-tests:
+    name: Windows unit tests
+    runs-on: windows-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ (github.event.inputs != null && github.event.inputs.ref) || github.ref }}
+          persist-credentials: false
+
+      - name: Download Win64 OpenGL unit tests
+        uses: actions/download-artifact@v8
+        with:
+          name: win64opengl-unit-tests
+          path: win64opengl-unit-tests
+
+      - name: Run unit tests
+        shell: bash
+        run: |
+          # Git Bash perl has no TAP::Harness, so run the executables directly.
+          shopt -s failglob
+          # make check creates this. A checkout does not.
+          mkdir -p output/test
+          failed=0
+          for exe in win64opengl-unit-tests/*.exe; do
+            echo "== $exe"
+            "$exe" || failed=1
+          done
+          exit "$failed"
 
   upload-to-play:
     name: Upload to Google Play
@@ -897,7 +1018,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '4.0.7'
+          ruby-version: '4.0.9'
           bundler-cache: true
 
       - name: Create Play Store key
@@ -941,6 +1062,7 @@ jobs:
           else
             echo "::warning::Native debug symbols not found at $SYMBOLS_ZIP (expected CI artifact layout); Play native stacks may stay obfuscated"
           fi
+          # What's New: fastlane/metadata/android/en-US/changelogs/<versionCode>.txt
           bundle exec fastlane supply \
             --package_name org.xcsoar.play \
             --aab "$AAB_PATH" \
@@ -948,7 +1070,7 @@ jobs:
             --metadata_path fastlane/metadata/android \
             --json_key play-key.json \
             --track "$PLAY_TRACK" \
-            --skip_upload_changelogs true
+            --skip_upload_changelogs false
 
       - name: Remove key
         if: always()

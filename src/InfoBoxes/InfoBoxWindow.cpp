@@ -15,6 +15,7 @@
 #include "Dialogs/dlgInfoBoxAccess.hpp"
 #include "InfoBoxes/InfoBoxManager.hpp"
 #include "InfoBoxes/InfoBoxArrange.hpp"
+#include "InfoBoxes/InfoBoxLayout.hpp"
 #include "Form/Button.hpp"
 #include "Asset.hpp"
 #include "Hardware/CPU.hpp"
@@ -25,8 +26,8 @@
 static constexpr std::chrono::steady_clock::duration FOCUS_TIMEOUT_MAX = std::chrono::seconds(20);
 
 /**
- * How long the InfoBox has to be pressed before the arrange mode
- * starts.  This is the Material long-press timeout.
+ * Still press that arms arrange-on-lift.  The timer does not open
+ * arrange; lift-off does.
  */
 static constexpr auto REORDER_DELAY = InfoBoxArrange::LONG_PRESS;
 
@@ -227,6 +228,9 @@ void
 InfoBoxWindow::SetContentProvider(std::unique_ptr<InfoBoxContent> _content)
 {
   content = std::move(_content);
+  if (content)
+    content->SetSlot(id);
+
   ++content_serial;
 
   data.SetInvalid();
@@ -284,14 +288,56 @@ InfoBoxWindow::ShowDialog()
   FocusParent();
 }
 
-bool
-InfoBoxWindow::HandleKey(InfoBoxContent::InfoBoxKeyCodes keycode)
+void
+InfoBoxWindow::Activate() noexcept
 {
-  if (content && content->HandleKey(keycode)) {
-    UpdateContent();
-    return true;
+  if (content != nullptr && content->HandleClick())
+    return;
+
+  if (GetDialogContent() != nullptr)
+    ShowDialog();
+}
+
+void
+InfoBoxWindow::FinishPress() noexcept
+{
+  long_press_timer.Cancel();
+
+  const bool was_pressed = pressed;
+  pressed = false;
+  Invalidate();
+
+  hold_timer.Cancel();
+  fade_timer.Cancel();
+
+  if (was_pressed && hold_armed) {
+    hold_armed = false;
+    long_press_pending = false;
+    InfoBoxArrange::Begin(id);
+  } else if (was_pressed && long_press_pending) {
+    long_press_pending = false;
+    InfoBoxManager::ClearFocusExcept(id);
+    SetFocus();
+    Activate();
   }
-  return false;
+}
+
+void
+InfoBoxWindow::FocusNeighbour(int dx, int dy) noexcept
+{
+  const auto &layout = InfoBoxManager::layout;
+  if (id >= layout.count)
+    return;
+
+  const int slot = InfoBoxArrange::FindNeighbour(layout.positions,
+                                                 layout.count,
+                                                 layout.positions[id].GetCenter(),
+                                                 dx, dy);
+  if (slot < 0)
+    return;
+
+  if (InfoBoxWindow *window = InfoBoxManager::GetWindow(slot))
+    window->SetFocus();
 }
 
 const InfoBoxPanel *
@@ -307,7 +353,7 @@ void
 InfoBoxWindow::OnDestroy() noexcept
 {
   focus_timer.Cancel();
-  dialog_timer.Cancel();
+  long_press_timer.Cancel();
   PaintWindow::OnDestroy();
 }
 
@@ -351,23 +397,36 @@ InfoBoxWindow::OnKeyDown(unsigned key_code) noexcept
 
   switch (key_code) {
   case KEY_UP:
-    focus_timer.Schedule(FOCUS_TIMEOUT_MAX);
-    return HandleKey(InfoBoxContent::ibkUp);
-
   case KEY_DOWN:
-    focus_timer.Schedule(FOCUS_TIMEOUT_MAX);
-    return HandleKey(InfoBoxContent::ibkDown);
-
   case KEY_LEFT:
-    focus_timer.Schedule(FOCUS_TIMEOUT_MAX);
-    return HandleKey(InfoBoxContent::ibkLeft);
-
-  case KEY_RIGHT:
-    focus_timer.Schedule(FOCUS_TIMEOUT_MAX);
-    return HandleKey(InfoBoxContent::ibkRight);
+  case KEY_RIGHT: {
+    focus_timer.Schedule(HasCursorKeys()
+                         ? FOCUS_TIMEOUT_MAX
+                         : std::chrono::milliseconds(1100));
+    const int dx = key_code == KEY_RIGHT ? 1 :
+                   key_code == KEY_LEFT ? -1 : 0;
+    const int dy = key_code == KEY_DOWN ? 1 :
+                   key_code == KEY_UP ? -1 : 0;
+    FocusNeighbour(dx, dy);
+    return true;
+  }
 
   case KEY_RETURN:
-    ShowDialog();
+    /* repeats while Enter is held must not restart the hold */
+    if (enter_down || dragging)
+      return true;
+
+    enter_down = true;
+    pressed = true;
+    Invalidate();
+    press_start = std::chrono::steady_clock::now();
+    long_press_pending = true;
+    long_press_timer.Schedule(REORDER_DELAY);
+    hold_timer.Schedule(InfoBoxArrange::TAP);
+    PlayHapticFeedback();
+    focus_timer.Schedule(HasCursorKeys()
+                         ? FOCUS_TIMEOUT_MAX
+                         : std::chrono::milliseconds(1100));
     return true;
 
   case KEY_ESCAPE:
@@ -387,9 +446,26 @@ InfoBoxWindow::OnKeyDown(unsigned key_code) noexcept
 }
 
 bool
+InfoBoxWindow::OnKeyUp(unsigned key_code) noexcept
+{
+  if (key_code != KEY_RETURN || !enter_down)
+    return PaintWindow::OnKeyUp(key_code);
+
+  enter_down = false;
+  FinishPress();
+  return true;
+}
+
+bool
 InfoBoxWindow::OnMouseDown(PixelPoint p) noexcept
 {
-  dialog_timer.Cancel();
+  if (enter_down) {
+    enter_down = false;
+    pressed = false;
+    StopLongPress();
+  }
+
+  long_press_timer.Cancel();
 
   if (!dragging) {
     dragging = true;
@@ -403,7 +479,7 @@ InfoBoxWindow::OnMouseDown(PixelPoint p) noexcept
     press_point = p;
     press_start = std::chrono::steady_clock::now();
     long_press_pending = true;
-    dialog_timer.Schedule(REORDER_DELAY);
+    long_press_timer.Schedule(REORDER_DELAY);
     hold_timer.Schedule(InfoBoxArrange::TAP);
   }
 
@@ -413,49 +489,20 @@ InfoBoxWindow::OnMouseDown(PixelPoint p) noexcept
 bool
 InfoBoxWindow::OnMouseUp([[maybe_unused]] PixelPoint p) noexcept
 {
-  dialog_timer.Cancel();
+  if (!dragging)
+    return false;
 
-  if (dragging) {
-    const bool was_pressed = pressed;
-
-    dragging = false;
-    pressed = false;
-    Invalidate();
-
-    ReleaseCapture();
-
-    hold_timer.Cancel();
-    fade_timer.Cancel();
-
-    if (was_pressed && hold_armed) {
-      hold_armed = false;
-      long_press_pending = false;
-      InfoBoxArrange::Begin(id);
-    } else if (was_pressed && long_press_pending) {
-      long_press_pending = false;
-
-      InfoBoxManager::ClearFocusExcept(id);
-      SetFocus();
-
-      const bool click_handled = content != nullptr && content->HandleClick();
-
-      if (!click_handled && GetDialogContent() != nullptr)
-        /* delay the dialog opening to prevent double click detection */
-        dialog_timer.Schedule(std::chrono::milliseconds(300));
-    }
-
-    return true;
-  }
-
-  return false;
+  dragging = false;
+  ReleaseCapture();
+  FinishPress();
+  return true;
 }
 
 bool
 InfoBoxWindow::OnMouseDouble([[maybe_unused]] PixelPoint p) noexcept
 {
-  dialog_timer.Cancel();
+  long_press_timer.Cancel();
   StopLongPress();
-  InputEvents::ShowMenu();
   return true;
 }
 
@@ -465,13 +512,13 @@ InfoBoxWindow::OnMouseMove(PixelPoint p, [[maybe_unused]] unsigned keys) noexcep
   if (dragging) {
     SetPressed(IsInside(p));
     if (!pressed) {
-      dialog_timer.Cancel();
+      long_press_timer.Cancel();
       StopLongPress();
     } else if (long_press_pending && !hold_armed) {
       /* slop before the hold is armed cancels it; after that,
          lift-off commits and sliding off the box cancels */
       if (InfoBoxArrange::PastTouchSlop(p, press_point)) {
-        dialog_timer.Cancel();
+        long_press_timer.Cancel();
         StopLongPress();
       }
     }
@@ -497,7 +544,12 @@ InfoBoxWindow::OnCancelMode() noexcept
     ReleaseCapture();
   }
 
-  dialog_timer.Cancel();
+  if (enter_down) {
+    enter_down = false;
+    pressed = false;
+  }
+
+  long_press_timer.Cancel();
   StopLongPress();
 
   PaintWindow::OnCancelMode();
@@ -521,6 +573,13 @@ InfoBoxWindow::OnKillFocus() noexcept
   PaintWindow::OnKillFocus();
 
   focus_timer.Cancel();
+
+  if (enter_down) {
+    enter_down = false;
+    pressed = false;
+    long_press_timer.Cancel();
+    StopLongPress();
+  }
 
   Invalidate();
 }
@@ -556,10 +615,15 @@ InfoBoxWindow::PaintLongPressGlow(Canvas &canvas) noexcept
     return;
 
   const bool fade = !HasEPaper() && !IsSlowCPU() && !hold_armed;
+  /* e-paper skips the fade, so a full box before the hold is armed
+     would still be a short press */
   const unsigned t = fade
     ? InfoBoxArrange::LongPressFade(press_start)
-    : 256;
-  const PixelRect rc = GetClientRect();
+    : hold_armed ? 256 : 0;
+  /* inside the borders: they are drawn on top of the window edge, so
+     the glow must not reach into the space they reserve */
+  PixelRect rc = title_rect;
+  rc.bottom = comment_rect.bottom;
   const int height = int(rc.GetHeight() * t / 256);
   if (height <= 0)
     return;
@@ -570,23 +634,16 @@ InfoBoxWindow::PaintLongPressGlow(Canvas &canvas) noexcept
 }
 
 void
-InfoBoxWindow::OnDialogTimer() noexcept
+InfoBoxWindow::OnLongPress() noexcept
 {
+  if (!long_press_pending)
+    return;
+
   hold_timer.Cancel();
   fade_timer.Cancel();
 
-  if (long_press_pending) {
-    /* the hold is armed; lifting now opens arrange */
-    hold_armed = true;
-    PlayHapticFeedback(HapticFeedbackType::LONG_PRESS);
-    Invalidate();
-    return;
-  }
-
-  dragging = pressed = false;
+  /* the hold is armed; lifting now opens arrange */
+  hold_armed = true;
+  PlayHapticFeedback(HapticFeedbackType::LONG_PRESS);
   Invalidate();
-  ReleaseCapture();
-
-  if (GetDialogContent() != nullptr)
-    ShowDialog();
 }

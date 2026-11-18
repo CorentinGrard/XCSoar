@@ -8,6 +8,8 @@
 #include "PageState.hpp"
 #include "Weather/WeatherUIState.hpp"
 
+#include <chrono>
+
 /**
  * The state of the user interface.
  */
@@ -56,10 +58,13 @@ struct UIState {
   StaticString<32u> panel_name;
 
   /**
-   * Pre-rendered map page title for the map scale overlay (draw thread).
-   * Empty when the current page has no weather overlay.
+   * Map-page labels for the draw thread, already split. Empty when
+   * the current page has no weather overlay; the map then shows
+   * #panel_name instead of #map_page_label.
    */
-  StaticString<128> map_scale_page_title;
+  StaticString<64> map_page_label;
+  StaticString<128> map_overlay_label;
+  StaticString<8> map_bottom_label;
 
   /**
    * Overlay of the current map page.
@@ -67,6 +72,19 @@ struct UIState {
   PageLayout::Overlay page_overlay;
 
   PagesState pages;
+
+  /**
+   * When did the user last switch between configured pages?  The map
+   * shows the page position (see #page_indicator_count) for a short
+   * while after this.
+   */
+  std::chrono::steady_clock::time_point page_indicator_time;
+
+  /**
+   * The number of configured pages at #page_indicator_time.  The
+   * current one is PagesState::current_index.
+   */
+  unsigned page_indicator_count;
 
   WeatherUIState weather;
 

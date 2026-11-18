@@ -22,6 +22,7 @@ private:
   void TestBallastOverload();
   void TestBugs();
   void TestMC();
+  void TestSafetyMCPastCruise();
   void TestDensityRatio();
   void TestDensityRatioMC();
   void TestNextLegEqThermal();
@@ -185,6 +186,35 @@ GlidePolarTest::TestMC()
 }
 
 void
+GlidePolarTest::TestSafetyMCPastCruise()
+{
+  const double cruise = Units::ToSysUnit(120, Unit::KILOMETER_PER_HOUR);
+  polar.SetDensityRatio(1.0);
+  polar.SetMC(0);
+  polar.SetVMax(cruise);
+
+  polar.SetMC(4);
+  const double expected = sqrt((polar.polar.c + 4) / polar.polar.a);
+  ok1(expected > cruise);
+  ok1(equals(polar.GetVBestLD(), cruise));
+  ok1(equals(polar.GetVMax(), cruise));
+  const double ld_at_cap = polar.GetBestLD();
+
+  polar.SetMCLimitedByCruise(false);
+  ok1(equals(polar.GetVBestLD(), expected));
+  ok1(equals(polar.GetVBestLD(), polar.GetBestGlideRatioSpeed(0)));
+  ok1(equals(polar.GetVMax(), cruise));
+  ok1(polar.GetBestLD() < ld_at_cap);
+  ok1(equals(polar.SpeedToFly(0, 0), cruise));
+
+  polar.SetMCLimitedByCruise(true);
+  ok1(equals(polar.GetVBestLD(), cruise));
+
+  polar.SetMC(0);
+  polar.SetVMax(Units::ToSysUnit(200, Unit::KILOMETER_PER_HOUR));
+}
+
+void
 GlidePolarTest::TestDensityRatio()
 {
   // Baseline values at sea level (density_ratio == 1.0 by default)
@@ -285,6 +315,7 @@ GlidePolarTest::TestNextLegEqThermal()
       Units::ToSysUnit(174.3, Unit::KILOMETER_PER_HOUR),
       Units::ToSysUnit(213.04, Unit::KILOMETER_PER_HOUR),
       -0.77, -1.89, -3.3), false);
+  asw20.SetVMax(75, false);
   asw20.Update();
   asw20.SetMC(1.5);
 
@@ -310,17 +341,47 @@ GlidePolarTest::Run()
   TestBallastOverload();
   TestBugs();
   TestMC();
+  TestSafetyMCPastCruise();
   TestDensityRatio();
   TestDensityRatioMC();
   TestNextLegEqThermal();
 }
 
+/**
+ * Without a plane there is no glider: neither a polar that could be
+ * flown nor its masses.  The settings are kept.
+ */
+static void
+TestNullPolar()
+{
+  const GlidePolar polars[] = {GlidePolar(), GlidePolar(0),
+                               GlidePolar::Invalid()};
+  for (const auto &polar : polars) {
+    ok1(!polar.IsValid());
+    ok1(!polar.IsBallastable());
+    ok1(polar.GetTotalMass() == 0);
+    ok1(polar.GetMaxBallast() == 0);
+  }
+
+  const GlidePolar polar(1.5, 0.9, 20);
+  ok1(!polar.IsValid());
+  ok1(equals(polar.GetMC(), 1.5));
+  ok1(equals(polar.GetBugs(), 0.9));
+  ok1(equals(polar.GetBallastLitres(), 20));
+
+  /* a fraction of an empty capacity is 0 litres */
+  GlidePolar empty;
+  empty.SetBallastFraction(1);
+  ok1(equals(empty.GetBallastLitres(), 0));
+}
+
 int main()
 {
-  plan_tests(69 + 3 + 21);
+  plan_tests(69 + 3 + 21 + 9 + 17);
 
   GlidePolarTest test;
   test.Run();
+  TestNullPolar();
 
   return exit_status();
 }

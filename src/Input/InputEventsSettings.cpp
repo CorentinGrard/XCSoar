@@ -9,6 +9,7 @@
 #include "Interface.hpp"
 #include "MainWindow.hpp"
 #include "ActionInterface.hpp"
+#include "Session/SessionState.hpp"
 #include "Message.hpp"
 #include "Profile/Profile.hpp"
 #include "Profile/Keys.hpp"
@@ -273,8 +274,10 @@ InputEvents::eventBugs(const char *misc)
     Message::AddMessage(_("Bugs performance"), Temp);
   }
 
-  if (BUGS != oldBugs)
+  if (BUGS != oldBugs) {
     ActionInterface::SetBugs(BUGS);
+    Session::Flush();
+  }
 }
 
 // Ballast
@@ -294,21 +297,12 @@ InputEvents::eventBallast(const char *misc)
 
   if (StringIsEqual(misc, "toggle")) {
     if (settings.ballast_timer_active) {
-      settings.ballast_timer_active = false;
+      ActionInterface::SetBallastDump(false);
       Message::AddMessage(_("Ballast dump stopped"));
-      return;
-    }
-
-    if (!polar.HasBallast())
-      return;
-
-    if (computer_settings.plane.dump_time == 0) {
+    } else if (ActionInterface::SetBallastDump(true))
+      Message::AddMessage(_("Ballast dump started"));
+    else if (polar.HasBallast())
       Message::AddMessage(_("Ballast dump time is 0 in plane profile"));
-      return;
-    }
-
-    settings.ballast_timer_active = true;
-    Message::AddMessage(_("Ballast dump started"));
     return;
   }
   
@@ -334,8 +328,10 @@ InputEvents::eventBallast(const char *misc)
     Message::AddMessage(_("Ballast %"), Temp);
   }
 
-  if (ballast_fraction != old_ballast_fraction)
+  if (ballast_fraction != old_ballast_fraction) {
     ActionInterface::SetBallastFraction(ballast_fraction);
+    Session::Flush();
+  }
 }
 
 // ProfileLoad
@@ -348,6 +344,8 @@ InputEvents::eventProfileLoad(const char *misc)
 
     MapFileChanged = true;
     WaypointFileChanged = true;
+    PrimaryWaypointFileChanged = true;
+    WatchedWaypointFileChanged = true;
     AirspaceFileChanged = true;
     AirfieldFileChanged = true;
 

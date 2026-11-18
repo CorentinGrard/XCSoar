@@ -22,8 +22,11 @@
 #include "Task/ProtectedTaskManager.hpp"
 #include "Airspace/ProtectedAirspaceWarningManager.hpp"
 #include "Airspace/AirspaceWarningManager.hpp"
+#include "Engine/Airspace/AbstractAirspace.hpp"
 #include "Look/DialogLook.hpp"
 #include "Renderer/AirspaceWarningStatusRenderer.hpp"
+#include "Asset.hpp"
+#include "Look/Colors.hpp"
 #include "Interface.hpp"
 #include "UIGlobals.hpp"
 #include "Components.hpp"
@@ -36,12 +39,18 @@
 #include "LogFile.hpp"
 #include "Screen/Layout.hpp"
 #include "ui/canvas/Color.hpp"
+#include "Widget/RowFormWidget.hpp"
+#include "Formatter/UserUnits.hpp"
+#include "Formatter/UserGeoPointFormatter.hpp"
+#include "Formatter/TimeFormatter.hpp"
+#include "util/StaticString.hxx"
 #include "Pan.hpp"
 #include "Simulator.hpp"
 #include <Message.hpp>
 
-#include <limits>
+#include <optional>
 #include <exception>
+#include <chrono>
 
 #ifdef HAVE_NOAA
 #include "Dialogs/Weather/NOAADetails.hpp"
@@ -63,13 +72,10 @@ QueryWarningStatusNoThrow(ProtectedAirspaceWarningManager &warnings,
   try {
     const ProtectedAirspaceWarningManager::Lease lease(warnings);
     const AirspaceWarning *warning = lease->GetWarningPtr(airspace);
-    if (warning == nullptr || !warning->IsWarning())
+    if (warning == nullptr)
       return true;
 
-    status.active = warning->IsActive();
-    status.kind = warning->IsInside()
-      ? AirspaceWarningStatusBadge::Kind::Inside
-      : AirspaceWarningStatusBadge::Kind::Near;
+    status = AirspaceWarningStatusFrom(*warning);
     return true;
   } catch (const std::exception &e) {
     LogFmt("Failed to query airspace warning status: {}", e.what());
@@ -86,9 +92,9 @@ HasDetails(const MapItem &item)
 {
   switch (item.type) {
   case MapItem::Type::ARRIVAL_ALTITUDE:
-  case MapItem::Type::THERMAL:
     return false;
 
+  case MapItem::Type::THERMAL:
   case MapItem::Type::SELF:
   case MapItem::Type::LOCATION:
   case MapItem::Type::AIRSPACE:
@@ -118,6 +124,7 @@ class MapItemListWidget final
   Button *settings_button, *details_button, *cancel_button, *goto_button;
   Button *sim_jump_button = nullptr;
   Button *ack_button, *enable_button;
+  Button *clearance_button, *revoke_clearance_button;
 
   WndForm *dialog = nullptr;
   Waypoints *waypoints = nullptr;
@@ -180,11 +187,16 @@ protected:
                                    item->type == MapItem::Type::LOCATION));
     ack_button->SetEnabled(item != nullptr && CanAckItem(*item));
     enable_button->SetEnabled(item != nullptr && CanEnableItem(*item));
+    clearance_button->SetEnabled(item != nullptr &&
+                                 CanSetClearanceItem(*item));
+    revoke_clearance_button->SetEnabled(item != nullptr &&
+                                        CanRevokeClearanceItem(*item));
   }
 
   void OnGotoClicked();
   void OnAckClicked();
   void OnEnableClicked();
+  void OnClearanceClicked(bool set);
 
 public:
   /* virtual methods from class Widget */
@@ -209,10 +221,18 @@ public:
   }
 
   static bool CanGotoItem(const MapItem &item) noexcept {
-    return backend_components != nullptr &&
-           backend_components->protected_task_manager &&
-           (item.type == MapItem::Type::WAYPOINT ||
-            item.type == MapItem::Type::LOCATION);
+    if (backend_components == nullptr ||
+        backend_components->protected_task_manager == nullptr)
+      return false;
+
+    if (item.type == MapItem::Type::THERMAL) {
+      const auto &thermal =
+        static_cast<const ThermalMapItem &>(item).thermal;
+      return thermal.location.IsValid();
+    }
+
+    return item.type == MapItem::Type::WAYPOINT ||
+           item.type == MapItem::Type::LOCATION;
   }
 
   bool CanAckItem(unsigned index) const noexcept {
@@ -260,6 +280,40 @@ public:
       ack_day;
   }
 
+  bool CanSetClearanceItem(unsigned index) const noexcept {
+    return CanSetClearanceItem(*list[index]);
+  }
+
+  static bool CanSetClearanceItem(const MapItem &item) noexcept {
+    if (backend_components == nullptr ||
+        item.type != MapItem::Type::AIRSPACE)
+      return false;
+
+    const AirspaceMapItem &as_item = (const AirspaceMapItem &)item;
+    if (backend_components->GetAirspaceWarnings() == nullptr ||
+        backend_components->GetAirspaceWarnings()
+          ->GetCleared(*as_item.airspace))
+      return false;
+
+    return IsAirspaceClearanceAllowed(
+      as_item.airspace->GetTypeOrClass());
+  }
+
+  bool CanRevokeClearanceItem(unsigned index) const noexcept {
+    return CanRevokeClearanceItem(*list[index]);
+  }
+
+  static bool CanRevokeClearanceItem(const MapItem &item) noexcept {
+    if (backend_components == nullptr ||
+        item.type != MapItem::Type::AIRSPACE)
+      return false;
+
+    const AirspaceMapItem &as_item = (const AirspaceMapItem &)item;
+    return backend_components->GetAirspaceWarnings() != nullptr &&
+      backend_components->GetAirspaceWarnings()
+        ->GetCleared(*as_item.airspace);
+  }
+
   void OnActivateItem(unsigned index) noexcept override;
 };
 
@@ -294,6 +348,15 @@ MapItemListWidget::CreateButtons(WidgetDialog &dialog,
     OnEnableClicked();
   });
 
+  clearance_button = dialog.AddButton(_("Set Clearance"), [this](){
+    OnClearanceClicked(true);
+  });
+
+  revoke_clearance_button =
+    dialog.AddButton(_("Revoke Clearance"), [this](){
+      OnClearanceClicked(false);
+    });
+
   settings_button = dialog.AddButton(_("Settings"), [](){
     ShowMapItemListSettingsDialog();
   });
@@ -321,7 +384,12 @@ MapItemListWidget::Prepare(ContainerWindow &parent,
     }
   }
 
-  // If no waypoint found, fall back to first item with details or can goto
+  /* Then the airspace drawn at the touched location: the smallest
+     of those that contain it */
+  if (selected_index >= list.size())
+    selected_index = list.FindSmallestAirspace();
+
+  // Otherwise, fall back to first item with details or can goto
   if (selected_index >= list.size()) {
     for (unsigned i = 0; i < list.size(); ++i) {
       const MapItem &item = *list[i];
@@ -349,21 +417,31 @@ MapItemListWidget::OnPaintItem(Canvas &canvas, const PixelRect rc,
     return;
   }
 
+  bool cleared = false;
   bool ack_day = false;
   AirspaceWarningStatusBadge warning_status;
   if (item->type == MapItem::Type::AIRSPACE &&
       backend_components != nullptr) {
     if (auto *warnings = backend_components->GetAirspaceWarnings();
         warnings != nullptr) {
-      const auto &as_item = static_cast<const AirspaceMapItem &>(*item);
-      QueryAckDayNoThrow(*warnings, *as_item.airspace, ack_day);
-      QueryWarningStatusNoThrow(*warnings, *as_item.airspace,
-                               warning_status);
+      const auto &as = *static_cast<const AirspaceMapItem &>(*item).airspace;
+      cleared = warnings->GetCleared(as);
+      QueryAckDayNoThrow(*warnings, as, ack_day);
+      QueryWarningStatusNoThrow(*warnings, as, warning_status);
+      /* Outside, with no live warning, clearance is still a badge. */
+      if (cleared && !warning_status.HasStatus())
+        warning_status.kind = AirspaceWarningStatusBadge::Kind::Cleared;
     }
   }
 
-  if (ack_day)
+  if (cleared) {
+    if (!IsDithered())
+      canvas.SetTextColor(AirspaceClearanceTextColor(
+        dialog_look.dark_mode, canvas.GetTextColor()));
+  } else if (ack_day)
     canvas.SetTextColor(COLOR_GRAY);
+  else
+    canvas.SetTextColor(dialog_look.list.text_color);
 
   PixelRect draw_rc = rc;
   PixelRect status_rc{};
@@ -371,7 +449,7 @@ MapItemListWidget::OnPaintItem(Canvas &canvas, const PixelRect rc,
   if (warning_status.HasStatus()) {
     /* Reserve a status column only when the main text still has room. */
     const int needed =
-      AirspaceWarningStatusWidth(canvas, *dialog_look.list.font);
+      AirspaceWarningStatusWidth(*dialog_look.list.font);
     const int min_main = Layout::Scale(80);
     if ((int)rc.GetWidth() > needed + min_main) {
       const auto split = rc.VerticalSplit(rc.right - needed);
@@ -431,28 +509,34 @@ MapItemListWidget::OnGotoClicked()
   auto const &item = *list[index];
 
   assert(item.type == MapItem::Type::WAYPOINT ||
-         item.type == MapItem::Type::LOCATION);
+         item.type == MapItem::Type::LOCATION ||
+         item.type == MapItem::Type::THERMAL);
 
   WaypointPtr waypoint;
 
-  if (item.type == MapItem::Type::LOCATION) {
-    const auto &loc_item = static_cast<const LocationMapItem &>(item);
+  if (item.type == MapItem::Type::LOCATION ||
+      item.type == MapItem::Type::THERMAL) {
+    GeoPoint location;
+    std::optional<double> elevation;
 
-    // Use the stored location directly
-    const GeoPoint &location = loc_item.location;
-
-    // Get terrain elevation (prefer stored elevation, fall back to terrain lookup)
-    double elevation = std::numeric_limits<double>::quiet_NaN();
-    if (loc_item.HasElevation()) {
-      elevation = loc_item.elevation;
-    } else if (data_components->terrain != nullptr) {
-      const auto h = data_components->terrain->GetTerrainHeight(location);
-      if (!h.IsSpecial()) {
-        elevation = h.GetValue();
-      }
+    if (item.type == MapItem::Type::LOCATION) {
+      const auto &loc_item = static_cast<const LocationMapItem &>(item);
+      location = loc_item.location;
+      if (loc_item.HasElevation())
+        elevation = loc_item.elevation;
+    } else {
+      location = static_cast<const ThermalMapItem &>(item).thermal.location;
     }
 
-    // Create temporary goto waypoint (elevation may be NaN if unavailable)
+    if (!location.IsValid())
+      return;
+
+    if (!elevation && data_components->terrain != nullptr) {
+      const auto h = data_components->terrain->GetTerrainHeight(location);
+      if (!h.IsSpecial())
+        elevation = h.GetValue();
+    }
+
     auto &way_points = *data_components->waypoints;
     const char *goto_name = "(goto)";
     {
@@ -578,6 +662,95 @@ MapItemListWidget::OnEnableClicked()
   GetList().Invalidate();
 }
 
+inline void
+MapItemListWidget::OnClearanceClicked(bool set)
+{
+  const MapItem *item = GetItem(GetCursorIndex());
+  if (item == nullptr || item->type != MapItem::Type::AIRSPACE ||
+      backend_components == nullptr)
+    return;
+
+  const auto &as_item = static_cast<const AirspaceMapItem &>(*item);
+  auto *warnings = backend_components->GetAirspaceWarnings();
+  if (warnings == nullptr) {
+    LogFmt("Failed to update airspace clearance: missing warning manager");
+    Message::AddMessage(_("Failed to update airspace clearance"));
+    return;
+  }
+  if (TrySetAirspaceClearance(*warnings, as_item.airspace, set))
+    UpdateButtons();
+}
+
+static const char *
+ThermalOriginLabel(ObservationOrigin origin) noexcept
+{
+  switch (origin) {
+  case ObservationOrigin::OWN:
+    return C_("Observation", "XCSoar");
+  case ObservationOrigin::CLOUD:
+    return C_("Observation", "Cloud");
+  case ObservationOrigin::SKYLINES:
+    return C_("Observation", "SkyLines");
+  case ObservationOrigin::TIM:
+    return _("Thermal Information Map");
+  case ObservationOrigin::COUNT:
+    break;
+  }
+  return _("Thermal");
+}
+
+class ThermalDetailsWidget final : public RowFormWidget {
+  const ObservedThermal thermal;
+
+public:
+  ThermalDetailsWidget(const DialogLook &look, const ObservedThermal &_thermal)
+    :RowFormWidget(look), thermal(_thermal) {}
+
+  void Prepare(ContainerWindow &parent,
+               const PixelRect &rc) noexcept override;
+};
+
+void
+ThermalDetailsWidget::Prepare(ContainerWindow &parent,
+                              const PixelRect &rc) noexcept
+{
+  RowFormWidget::Prepare(parent, rc);
+
+  AddReadOnly(_("Source"), nullptr, ThermalOriginLabel(thermal.origin));
+
+  if (const auto location = FormatGeoPoint(thermal.location);
+      !location.empty())
+    AddReadOnly(_("Location"), nullptr, location.c_str());
+
+  if (thermal.origin == ObservationOrigin::OWN)
+    AddReadOnly(_("Elevation"), nullptr,
+                FormatUserAltitude(thermal.ground_height).c_str());
+
+  AddReadOnly(_("Avg. lift"), nullptr,
+              FormatUserVerticalSpeed(thermal.lift_rate).c_str());
+
+  auto age = std::chrono::steady_clock::now() - thermal.received;
+  if (age.count() < 0)
+    age = {};
+  const auto age_s =
+    std::chrono::duration_cast<std::chrono::seconds>(age);
+  StaticString<64> ago;
+  ago.Format(_("%s ago"), FormatTimespanSmart(age_s).c_str());
+  AddReadOnly(_("Time"), nullptr, ago);
+}
+
+static void
+ShowThermalDetails(const ObservedThermal &thermal) noexcept
+{
+  const DialogLook &look = UIGlobals::GetDialogLook();
+  TWidgetDialog<ThermalDetailsWidget>
+    dialog(WidgetDialog::Auto{}, UIGlobals::GetMainWindow(),
+           look, _("Thermal"));
+  dialog.SetWidget(look, thermal);
+  dialog.AddButton(_("Close"), mrCancel);
+  dialog.ShowModal();
+}
+
 static bool
 ShowMapItemDialog(const MapItem &item,
                   Waypoints *waypoints,
@@ -585,7 +758,10 @@ ShowMapItemDialog(const MapItem &item,
 {
   switch (item.type) {
   case MapItem::Type::ARRIVAL_ALTITUDE:
+    return false;
+
   case MapItem::Type::THERMAL:
+    ShowThermalDetails(static_cast<const ThermalMapItem &>(item).thermal);
     return false;
 
   case MapItem::Type::SELF:
@@ -606,7 +782,7 @@ ShowMapItemDialog(const MapItem &item,
     const GeoPoint &location = loc_item.location;
 
     // Get terrain elevation (prefer stored elevation, fall back to terrain lookup)
-    double elevation = std::numeric_limits<double>::quiet_NaN();
+    std::optional<double> elevation;
     if (loc_item.HasElevation()) {
       elevation = loc_item.elevation;
     } else if (data_components != nullptr &&
@@ -617,7 +793,8 @@ ShowMapItemDialog(const MapItem &item,
       }
     }
 
-    // Create temporary goto waypoint for display (elevation may be NaN if unavailable)
+    // Create temporary goto waypoint for display (without elevation if
+    // unavailable)
     const char *goto_name = "(goto)";
     {
       ScopeSuspendAllThreads suspend;

@@ -82,6 +82,12 @@ GotoTask::TaskSize() const noexcept
   return tp ? 1 : 0;
 }
 
+void
+GotoTask::Clear() noexcept
+{
+  tp.reset();
+}
+
 bool 
 GotoTask::TakeoffAutotask(const GeoPoint& location, const double terrain_alt)
 {

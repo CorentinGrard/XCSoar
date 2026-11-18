@@ -229,6 +229,12 @@ RowFormWidget::SetRowAvailable(unsigned i, bool available) noexcept
 
   row.available = available;
   UpdateLayout();
+
+  /* The scroll panel sized this form while the row was hidden.
+     Ask it to measure again, or the new rows stay inside the old
+     short rectangle. */
+  if (ContainerWindow *parent = GetWindow().GetParent())
+    parent->OnChildContentHeightChanged();
 }
 
 void
@@ -540,4 +546,35 @@ RowFormWidget::HasFocus() const noexcept
   return std::any_of(rows.begin(), rows.end(), [](const auto &r){
     return r.HasFocus();
   });
+}
+
+bool
+RowFormWidget::FocusAdjacent(bool next) noexcept
+{
+  int current = -1;
+  for (unsigned i = 0; i < rows.size(); ++i) {
+    if (rows[i].HasFocus()) {
+      current = (int)i;
+      break;
+    }
+  }
+  if (current < 0)
+    return false;
+
+  const int step = next ? 1 : -1;
+  for (int i = current + step;
+       i >= 0 && i < (int)rows.size(); i += step) {
+    const Row &row = rows[i];
+    if (row.type == Row::Type::DUMMY || row.type == Row::Type::WIDGET)
+      continue;
+
+    Window &window = rows[i].GetWindow();
+    if (!window.IsVisible() || !window.IsEnabled() || !window.IsTabStop())
+      continue;
+
+    window.SetFocus();
+    return true;
+  }
+
+  return false;
 }

@@ -31,6 +31,13 @@ AbstractAirspace::Inside(const AircraftState &state) const noexcept
          Inside(state.location);
 }
 
+double
+AbstractAirspace::DistanceToBoundary(const GeoPoint &loc,
+                                     const FlatProjection &projection) const noexcept
+{
+  return loc.Distance(ClosestPoint(loc, projection));
+}
+
 void
 AbstractAirspace::SetGroundLevel(const double alt) noexcept
 {
@@ -231,5 +238,7 @@ AbstractAirspace::ClearClearance() const noexcept
 void
 AbstractAirspace::SetActivity(const AirspaceActivity mask) const noexcept
 {
-  active = days_of_operation.Matches(mask);
+  active = (has_activation_time) ? active_today :
+                                   days_of_operation.Matches(mask);
 }
+

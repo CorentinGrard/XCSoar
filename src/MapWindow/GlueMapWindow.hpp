@@ -4,6 +4,7 @@
 #pragma once
 
 #include "MapWindow.hpp"
+#include "MapHudLayout.hpp"
 #include "time/PeriodClock.hpp"
 #include "UIUtil/TrackingGestureManager.hpp"
 #include "UIUtil/KineticManager.hpp"
@@ -30,7 +31,9 @@ class TerrainThread;
  * placeholder data, ignoring the conditions that normally make them
  * mutually exclusive — the GPS status only appears without a fix, the
  * pan info only while panning, the final glide bar only with a valid
- * task, and so on.  Enable with:
+ * task, the thermal profile only after climbs, the gesture label only
+ * while a finger traces a gesture, the page indicator only for a
+ * moment after a page switch, and so on.  Enable with:
  *   make DEBUG_ALL_MAP_OVERLAYS=y …
  */
 #ifndef DEBUG_ALL_MAP_OVERLAYS
@@ -140,7 +143,7 @@ private:
 
   /**
    * Re-render terrain at higher OpenGL quantisation after the user
-   * stops interacting (see RasterRenderer::GetQuantisation()).
+   * stops interacting on slow CPUs (see GetQuantisation()).
    */
   UI::Timer terrain_quantisation_timer{
     [this]{ OnTerrainQuantisationTimer(); }};
@@ -169,6 +172,12 @@ private:
   double zoom_from_map_scale = 0;
   double zoom_to_map_scale = 0;
   std::chrono::steady_clock::time_point zoom_start_time{};
+
+  /** Cursor-key pan.  Touch flick keeps using #kinetic_timer. */
+  UI::Timer pan_timer{[this]{ OnPanTimer(); }};
+  GeoPoint pan_from = GeoPoint::Invalid();
+  GeoPoint pan_to = GeoPoint::Invalid();
+  std::chrono::steady_clock::time_point pan_start_time{};
 #endif
 
 #ifdef HAVE_MULTI_TOUCH
@@ -198,16 +207,15 @@ private:
 
   /** True after finger twist crosses the rotate dead zone. */
   bool pinch_rotating = false;
-
-  /**
-   * Hold #manual_rotation_angle instead of the configured orientation.
-   * Cleared by UpdateScreenAngle() when pan mode is left.
-   */
-  bool manual_rotation = false;
-  Angle manual_rotation_angle = Angle::Zero();
 #endif
 
   DisplayMode last_display_mode = DisplayMode::NONE;
+
+  /**
+   * A circling/cruise zoom switch (#SwitchZoomClimb) is due, but was
+   * deferred because pan mode was active.
+   */
+  bool switch_zoom_climb_pending = false;
 
   OffsetHistory offset_history;
 
@@ -245,6 +253,26 @@ private:
   const GestureLook &gesture_look;
 
   UI::Timer map_item_timer{[this]{ OnMapItemTimer(); }};
+
+  /**
+   * Repaints the page indicator while it fades out, and when it
+   * disappears.
+   */
+  UI::Timer page_indicator_timer{[this]{ OnPageIndicatorTimer(); }};
+
+  /**
+   * The UIState::page_indicator_time #page_indicator_timer runs for.
+   * Only used in the main thread.
+   */
+  std::chrono::steady_clock::time_point page_indicator_time{};
+
+  /**
+   * The number of configured pages and the current one, copied from
+   * #UIState for the page indicator.  The count is zero on a "special"
+   * page (e.g. "only map", or panning), which has no position in the
+   * list.  Only used in the main thread.
+   */
+  unsigned page_indicator_count = 0, page_indicator_index = 0;
 
   UI::Notify redraw_notify{[this]{ PartialRedraw(); }};
 
@@ -285,6 +313,18 @@ public:
   void SetTopRightMargin(unsigned margin) noexcept;
 
   /**
+   * Edge-chrome slots for this paint: HUD, margins, vario column and
+   * scale clearance.  Projection-space items are not included.
+   */
+  [[gnu::pure]]
+  MapHudLayout GetHudLayout(PixelRect hud_rc) const noexcept;
+
+  [[gnu::pure]]
+  MapHudLayout GetHudLayout() const noexcept {
+    return GetHudLayout(GetHudRect());
+  }
+
+  /**
    * Update the blackboard from DeviceBlackboard and
    * InterfaceBlackboard.
    */
@@ -320,6 +360,9 @@ public:
   void PartialRedraw() noexcept;
 
   void QuickRedraw() noexcept;
+
+  void SetHudMargins(unsigned left, unsigned top,
+                     unsigned right, unsigned bottom) noexcept override;
 
 #ifdef ENABLE_OPENGL
   /**
@@ -402,21 +445,56 @@ protected:
 
 private:
   void DrawGesture(Canvas &canvas) const noexcept;
-  void DrawMapScale(Canvas &canvas, const PixelRect &rc,
+  void DrawMapScale(Canvas &canvas, const MapHudLayout &layout,
                     const MapWindowProjection &projection) const noexcept;
-  void DrawFlightMode(Canvas &canvas, const PixelRect &rc) const noexcept;
-  void DrawGPSStatus(Canvas &canvas, const PixelRect &rc,
-                     const NMEAInfo &info) const noexcept;
+  void DrawFlightMode(Canvas &canvas,
+                      const MapHudLayout &layout) const noexcept;
+  /** Persistent lower-left faults.  The first is the bottom.
+      Session mode is drawn even when @p faults is false. */
+  void DrawWarnings(Canvas &canvas,
+                    const MapHudLayout &layout,
+                    bool faults) const noexcept;
   void DrawCrossHairs(Canvas &canvas) const noexcept;
-  void DrawPanInfo(Canvas &canvas) const noexcept;
-  void DrawThermalBand(Canvas &canvas, const PixelRect &rc) const noexcept;
-  void DrawFinalGlide(Canvas &canvas, const PixelRect &rc) const noexcept;
-  void DrawVario(Canvas &canvas, const PixelRect &rc) const noexcept;
-  void DrawStallRatio(Canvas &canvas, const PixelRect &rc) const noexcept;
+  void DrawPanInfo(Canvas &canvas,
+                   const MapHudLayout &layout) const noexcept;
+  void DrawThermalBand(Canvas &canvas,
+                       const MapHudLayout &layout) const noexcept;
+  void DrawFinalGlide(Canvas &canvas,
+                      const MapHudLayout &layout) const noexcept;
+  void DrawVario(Canvas &canvas,
+                 const MapHudLayout &layout) const noexcept;
+  void DrawStallRatio(Canvas &canvas,
+                      const MapHudLayout &layout) const noexcept;
+
+  /**
+   * Draw the position of the current page in the list of configured
+   * pages for a short while after switching pages, over the buffered
+   * map (see OnPaint()).
+   */
+  void DrawPageIndicator(Canvas &canvas) const noexcept;
 
   void SwitchZoomClimb() noexcept;
 
   void SaveDisplayModeScales() noexcept;
+
+  /**
+   * Handle a tap at the given position if it hits the on-map compass
+   * (using a hit box somewhat larger than the drawn arrow so it can
+   * be tapped with a finger): while panning, reset a rotated map
+   * back to north-up; otherwise cycle through the map orientations
+   * (#CycleMapOrientation).
+   *
+   * @return true if the position hit the compass and the tap was
+   * handled
+   */
+  bool HandleCompassTap(PixelPoint p) noexcept;
+
+  /**
+   * Switch the orientation setting of the current display mode
+   * (cruise or circling) to the next available one and show a brief
+   * popup message with the new value.
+   */
+  void CycleMapOrientation() noexcept;
 
   /**
    * Persist the current projection scale as the circling or cruise
@@ -426,8 +504,14 @@ private:
 
   /**
    * The attribute visible_projection has been edited.
+   *
+   * Tells the page overlays, which fetch imagery for the visible area
+   * and would otherwise keep showing the section that was on screen
+   * when they last looked.  Runs on the main thread before the redraw
+   * is deferred, so it must stay cheap: it is called on every
+   * projection update, roughly once a second in flight.
    */
-  void OnProjectionModified() noexcept {}
+  void OnProjectionModified() noexcept;
 
   /**
    * Invoke WindowProjection::UpdateScreenBounds() and trigger updates
@@ -500,6 +584,18 @@ public:
    */
   void AnimateFreeMapScale(double scale) noexcept;
 
+  /**
+   * Glide the map centre to a location (cursor keys).
+   * Without OpenGL the location is applied immediately.
+   */
+  void AnimateLocation(const GeoPoint location) noexcept;
+
+  /**
+   * Target of a cursor-key glide still in progress, or Invalid().
+   * A key repeat steps from here so it keeps the rest of that glide.
+   */
+  GeoPoint GetAnimatedPanTarget() const noexcept;
+
 protected:
   DisplayMode GetDisplayMode() const noexcept {
     return GetUIState().display_mode;
@@ -511,11 +607,14 @@ protected:
 
 private:
   void OnMapItemTimer() noexcept;
+  void OnPageIndicatorTimer() noexcept;
 
 #ifdef ENABLE_OPENGL
   void OnKineticTimer() noexcept;
   void CancelZoomAnimation() noexcept;
   void OnZoomTimer() noexcept;
+  void CancelPanAnimation() noexcept;
+  void OnPanTimer() noexcept;
   void NoteTerrainQuantisationUserActivity() noexcept;
   void OnTerrainQuantisationTimer() noexcept;
 #endif

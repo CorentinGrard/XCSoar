@@ -3,6 +3,10 @@
 
 #include "Plane/Plane.hpp"
 #include "Plane/PlaneFileGlue.hpp"
+#include "Plane/PlaneGlue.hpp"
+#include "Computer/Settings.hpp"
+#include "Engine/GlideSolvers/GlidePolar.hpp"
+#include "Polar/PolarGlue.hpp"
 #include "io/FileLineReader.hpp"
 #include "io/KeyValueFileReader.hpp"
 #include "io/KeyValueFileWriter.hpp"
@@ -12,6 +16,13 @@
 #include "util/PrintException.hxx"
 
 #include <stdlib.h>
+
+/* PlaneGlue::FromProfile() reads a pre-6.7 polar; there is none here */
+bool
+PolarGlue::LoadFromProfile([[maybe_unused]] PolarInfo &polar) noexcept
+{
+  return false;
+}
 static void
 TestReader()
 {
@@ -36,6 +47,7 @@ TestReader()
   ok1(equals(plane.dry_mass_obsolete, 302));
   ok1(equals(plane.empty_mass, 212));
   ok1(equals(plane.max_ballast, 100));
+  ok1(equals(plane.max_takeoff_mass, 0));
   ok1(plane.dump_time == 90);
   ok1(equals(plane.max_speed, 41.666));
   ok1(equals(plane.wing_area, 9.8));
@@ -66,6 +78,7 @@ TestWriter()
   plane.dry_mass_obsolete = 302;
   plane.empty_mass = 212;
   plane.max_ballast = 100;
+  plane.max_takeoff_mass = 550;
   plane.dump_time = 90;
   plane.max_speed = 41.666;
   plane.wing_area = 9.8;
@@ -81,6 +94,7 @@ TestWriter()
   bool found5 = false, found6 = false, found7 = false, found8 = false;
   bool found9 = false, found10 = false, found11 = false, found12 = false;
   bool found13 = false, found14 = false, found15 = false;
+  bool found16 = false;
 
   char *line;
   while ((line = reader.ReadLine()) != NULL) {
@@ -102,6 +116,8 @@ TestWriter()
       found8 = true;
     if (StringIsEqual(line, "MaxBallast=\"100.000000\""))
       found9 = true;
+    if (StringIsEqual(line, "MaxTakeoffMass=\"550.000000\""))
+      found15 = true;
     if (StringIsEqual(line, "DumpTime=\"90.000000\""))
       found10 = true;
     if (StringIsEqual(line, "MaxSpeed=\"41.666000\""))
@@ -113,12 +129,12 @@ TestWriter()
     if (StringIsEqual(line, "PolarDryMass=\"302.000000\""))
       found14 = true;
     if (StringIsEqual(line, "DoubleSeater=\"1\""))
-      found15 = true;
+      found16 = true;
 
     count++;
   }
 
-  ok1(count == 15);
+  ok1(count == 16);
   ok1(found1);
   ok1(found2);
   ok1(found3);
@@ -134,17 +150,71 @@ TestWriter()
   ok1(found13);
   ok1(found14);
   ok1(found15);
+  ok1(found16);
 
   Plane read_back{};
   ok1(PlaneGlue::ReadFile(read_back, Path("output/D-4449.xcp")) &&
       read_back.double_seater);
 }
 
+static void
+TestOverMaxTakeoffMass()
+{
+  Plane plane;
+  plane.max_takeoff_mass = 0;
+  ok1(!plane.IsOverMaxTakeoffMass(600));
+
+  plane.max_takeoff_mass = 550;
+  ok1(!plane.IsOverMaxTakeoffMass(550));
+  ok1(!plane.IsOverMaxTakeoffMass(549));
+  ok1(plane.IsOverMaxTakeoffMass(550.1));
+}
+
+static void
+TestSynchronize()
+{
+  ComputerSettings settings{};
+  GlidePolar gp = GlidePolar::Invalid();
+
+  Plane plane;
+  PlaneGlue::ReadFile(plane, Path("test/data/D-4449.xcp"));
+  ok1(PlaneGlue::Synchronize(plane, settings, gp));
+  ok1(gp.IsValid());
+
+  /* positive sink rates, as some development builds wrote them, do
+     not give a polar; the previous plane's must not stay in place */
+  for (unsigned i = 0; i < 3; ++i)
+    plane.polar_shape[i].w = -plane.polar_shape[i].w;
+  ok1(!PlaneGlue::Synchronize(plane, settings, gp));
+  ok1(!gp.IsValid());
+
+  /* valid coefficients, but no mass at all */
+  for (unsigned i = 0; i < 3; ++i)
+    plane.polar_shape[i].w = -plane.polar_shape[i].w;
+  plane.empty_mass = 0;
+  gp.SetCrewMass(0, false);
+  ok1(!PlaneGlue::Synchronize(plane, settings, gp));
+  ok1(!gp.IsValid());
+
+  /* ballast left from the previous plane does not stand in for the
+     dry mass */
+  gp.SetBallastLitres(50);
+  ok1(!PlaneGlue::Synchronize(plane, settings, gp));
+  ok1(!gp.IsValid());
+
+  /* no plane polar at all: wait for one from a device */
+  plane.polar_shape.reference_mass = 0;
+  ok1(PlaneGlue::Synchronize(plane, settings, gp));
+  ok1(!gp.IsValid());
+}
+
 int main()
 try {
-  plan_tests(38);
+  plan_tests(54);
 
   TestReader();
+  TestSynchronize();
+  TestOverMaxTakeoffMass();
   TestWriter();
 
   return exit_status();

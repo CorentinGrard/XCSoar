@@ -417,6 +417,8 @@ class MainActivity : ComponentActivity() {
                                 "altitude" -> screen = Screen.FLIGHT_SETUP
                                 // upstream's MacCready panels: the value and Auto
                                 "maccready" -> screen = Screen.FLIGHT_SETUP
+                                // upstream's basic settings: ballast, bugs, QNH
+                                "flight_setup" -> screen = Screen.FLIGHT_SETUP
                                 // upstream's wind settings dialog
                                 "wind" -> screen = Screen.WIND
                                 // upstream's status dialog, on the page it asks for

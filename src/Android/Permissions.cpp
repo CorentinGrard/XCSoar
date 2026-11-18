@@ -13,6 +13,7 @@
 #include "Look/DialogLook.hpp"
 #include "Language/Language.hpp"
 #include "util/Compiler.h"
+#include "Tracking/Features.hpp"
 
 #include <jni.h>
 #include <mutex>
@@ -59,22 +60,26 @@ IsNotificationPermissionGranted() noexcept
   return env->CallBooleanMethod(permission_manager, mid);
 }
 
-void
-RequestLocationPermissions() noexcept
+static void
+CallPermissionManager(const char *method) noexcept
 {
   if (permission_manager == nullptr)
     return;
 
   JNIEnv *env = Java::GetEnv();
   jclass cls = env->GetObjectClass(permission_manager);
-  jmethodID mid = env->GetMethodID(cls,
-                                   "requestAllLocationPermissionsDirect",
-                                   "()V");
+  jmethodID mid = env->GetMethodID(cls, method, "()V");
   env->DeleteLocalRef(cls);
   if (mid == nullptr)
     return;
 
   env->CallVoidMethod(permission_manager, mid);
+}
+
+void
+RequestLocationPermissions() noexcept
+{
+  CallPermissionManager("requestAllLocationPermissionsDirect");
 }
 
 void
@@ -98,19 +103,7 @@ RequestLocationPermissions(std::function<void(bool)> callback) noexcept
 void
 RequestNotificationPermission() noexcept
 {
-  if (permission_manager == nullptr)
-    return;
-
-  JNIEnv *env = Java::GetEnv();
-  jclass cls = env->GetObjectClass(permission_manager);
-  jmethodID mid = env->GetMethodID(cls,
-                                   "requestNotificationPermissionDirect",
-                                   "()V");
-  env->DeleteLocalRef(cls);
-  if (mid == nullptr)
-    return;
-
-  env->CallVoidMethod(permission_manager, mid);
+  CallPermissionManager("requestNotificationPermissionDirect");
 }
 
 void
@@ -126,19 +119,7 @@ RequestNotificationPermission(std::function<void(bool)> callback) noexcept
 void
 SuppressPermissionDialogs() noexcept
 {
-  if (permission_manager == nullptr)
-    return;
-
-  JNIEnv *env = Java::GetEnv();
-  jclass cls = env->GetObjectClass(permission_manager);
-  jmethodID mid = env->GetMethodID(cls,
-                                   "suppressPermissionDialogs",
-                                   "()V");
-  env->DeleteLocalRef(cls);
-  if (mid == nullptr)
-    return;
-
-  env->CallVoidMethod(permission_manager, mid);
+  CallPermissionManager("suppressPermissionDialogs");
 }
 
 /* ---- Native permission disclosure dialog ---- */
@@ -187,9 +168,15 @@ GetDisclosureText(const char *permission) noexcept
       "the screen is off or another app is in the foreground\n"
       "- **Foreground Service** - Keeps GPS active during your "
       "flight\n\n"
-      "Your location data is stored locally on your device. It is "
-      "not shared unless you explicitly enable tracking in "
-      "[Config > Tracking](xcsoar://config/tracking).\n\n"
+      "Your location data is stored locally on your device."
+#ifdef HAVE_TRACKING
+      " It is "
+      "not shared unless you explicitly enable "
+      "[SkyLines](xcsoar://config/skylines), "
+      "[LiveTrack24](xcsoar://config/livetrack24) or "
+      "[XCSoar Cloud](xcsoar://config/cloud)."
+#endif
+      "\n\n"
       "[Privacy Policy](https://github.com/XCSoar/XCSoar/blob/master/PRIVACY.md)";
 
   if (strstr(permission, "ACCESS_BACKGROUND_LOCATION") != nullptr)

@@ -2893,7 +2893,7 @@ xcs_waypoints_search(xcs_core *core, const char *name, uint32_t filter,
         {"landable", waypoint.IsLandable()},
         {"airport", waypoint.IsAirport()},
       };
-      if (waypoint.has_elevation)
+      if (waypoint.HasElevation())
         o["elevation"] = waypoint.elevation;
 
       if (location.IsValid()) {
