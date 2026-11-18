@@ -25,6 +25,7 @@ unit 24 1 0 :1
 unit 25 1 0 V
 unit 26 1 0 Hz
 unit 27 60 0 rpm
+unit 28 1 0 l
 altitude 9 0 0 0
 relative_altitude 9 0 0 +0
 altitude 9 0.040000000000000001 0 0

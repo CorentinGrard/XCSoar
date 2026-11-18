@@ -11,7 +11,8 @@
  * Usage: xcs-replay [--interval SECONDS] [--mc M/S] DATA_DIR FLIGHT
  *
  * DATA_DIR should be empty (or not exist) to get reproducible results:
- * the core loads its profile, waypoints and task from there.
+ * the core loads its profile, waypoints and task from there.  The
+ * flight is flown with the glider of SetUpGlider(), a plane in DATA_DIR.
  */
 
 #include "xcsoar_core.h"
@@ -150,6 +151,44 @@ OnEvent([[maybe_unused]] void *ctx, const xcs_event *e)
   }
 }
 
+/**
+ * The glider the replays fly: GlidePolar's stand-in until upstream
+ * left it out (8ff0cb4873), the one of test/src/FlyablePolar.hpp.
+ */
+static bool
+SetUpGlider(xcs_core *core) noexcept
+{
+  /* its sink rate, a v² + b v + c, through three speeds */
+  constexpr double a = 0.00157, b = -0.0734, c = 1.48;
+  constexpr double speeds[] = {20, 30, 40};
+  xcs_polar_shape shape{};
+  for (unsigned i = 0; i < 3; ++i) {
+    const double v = speeds[i];
+    shape.speed[i] = v;
+    shape.sink[i] = -(a * v * v + b * v + c);
+  }
+  shape.reference_mass = 300;
+
+  char path[1024];
+  size_t length;
+  if (xcs_plane_save(core, "", "REPLAY", "", "Stand-in", -1, &shape,
+                     "Stand-in", 0, 0,
+                     path, sizeof(path), &length) != XCS_OK)
+    return false;
+
+  xcs_plane_details details{};
+  details.struct_size = sizeof(details);
+  details.dump_time = 90;
+  details.handicap = 100;
+  details.empty_mass = 300;
+  details.reference_mass = 300;
+  details.max_ballast = 90;
+  details.max_speed = 75;
+  return xcs_plane_set_details(core, path, &details) == XCS_OK &&
+    xcs_set_crew_mass(core, 90) == XCS_OK &&
+    xcs_plane_activate(core, path) == XCS_OK;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -167,6 +206,12 @@ main(int argc, char **argv)
   if (xcs_create(&config, &core) != XCS_OK ||
       xcs_start(core) != XCS_OK) {
     fprintf(stderr, "Failed to start the core\n");
+    return EXIT_FAILURE;
+  }
+
+  if (!SetUpGlider(core)) {
+    fprintf(stderr, "Failed to set up the glider\n");
+    xcs_destroy(core);
     return EXIT_FAILURE;
   }
 
