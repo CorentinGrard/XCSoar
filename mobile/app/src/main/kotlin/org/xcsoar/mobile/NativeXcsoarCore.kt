@@ -386,7 +386,8 @@ class NativeXcsoarCore(
     override suspend fun setPlaneDetails(path: String, details: PlaneDetails) = command {
         NativeCore.nativePlaneSetDetails(it, path, details.emptyMass, details.referenceMass,
                                          details.maxBallast, details.dumpTime,
-                                         details.maxSpeed, details.wingArea, details.handicap)
+                                         details.maxSpeed, details.wingArea, details.handicap,
+                                         details.maxTakeoffMass)
     }
 
     override suspend fun crewMass(): Double? = lock.withLock {

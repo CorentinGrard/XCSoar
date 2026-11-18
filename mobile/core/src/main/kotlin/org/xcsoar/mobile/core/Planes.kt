@@ -38,9 +38,11 @@ data class PlaneInfo(
     @SerialName("wing_area") val wingArea: Double = 0.0,
     /** % */
     val handicap: Int = 100,
+    /** kg, 0 if not known */
+    @SerialName("max_takeoff_mass") val maxTakeoffMass: Double = 0.0,
 ) {
     val details get() = PlaneDetails(emptyMass, referenceMass, maxBallast, dumpTime, maxSpeed,
-                                     wingArea, handicap)
+                                     wingArea, handicap, maxTakeoffMass)
 
     val polar get() = PolarPoint.listOf(points)
 }
@@ -80,6 +82,8 @@ data class PlaneDetails(
     val maxSpeed: Double,
     val wingArea: Double,
     val handicap: Int,
+    /** kg, 0 if not known */
+    val maxTakeoffMass: Double = 0.0,
 )
 
 /** One built-in polar and the plane values it brings (`xcs_polar_get`). */

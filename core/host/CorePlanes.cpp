@@ -114,6 +114,7 @@ CorePlanes::List() noexcept
       {"max_speed", plane.max_speed},
       {"wing_area", plane.wing_area},
       {"handicap", plane.handicap},
+      {"max_takeoff_mass", plane.max_takeoff_mass},
     });
 
   return Serialize(boost::json::object{
@@ -185,6 +186,8 @@ try {
       !(d.max_ballast >= 0 && d.max_ballast <= 500) ||
       !(d.max_speed >= 0 && d.max_speed <= 160) ||
       !(d.wing_area >= 0 && d.wing_area <= 40) ||
+      (d.max_takeoff_mass &&
+       !(*d.max_takeoff_mass >= 0 && *d.max_takeoff_mass <= 1000)) ||
       d.dump_time < 10 || d.dump_time > 300 ||
       d.handicap < 50 || d.handicap > 150)
     return false;
@@ -200,6 +203,8 @@ try {
   plane.wing_area = d.wing_area;
   plane.dump_time = d.dump_time;
   plane.handicap = d.handicap;
+  if (d.max_takeoff_mass)
+    plane.max_takeoff_mass = *d.max_takeoff_mass;
   PlaneGlue::WriteFile(plane, Path{path});
 
   if (Profile::GetPathIsEqual(PLANE_PATH, Path{path}))

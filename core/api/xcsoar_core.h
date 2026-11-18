@@ -105,6 +105,9 @@ enum {
       final glide, speed to fly and reach are off (upstream's "No polar
       is set up" warning). */
   XCS_FLAG_NO_POLAR = 1u << 6,
+  /** The all-up mass (glider, crew, water) is above the plane's maximum
+      take-off mass (upstream shows the wing loading in red then). */
+  XCS_FLAG_OVER_MTOW = 1u << 7,
 };
 
 typedef struct xcs_flight_snapshot {
@@ -992,6 +995,11 @@ typedef struct xcs_plane_details {
   double max_speed;
   /** m², 0..40 */
   double wing_area;
+
+  /* appended in API version 1 (struct_size 64); a smaller struct keeps
+     the plane's */
+  /** kg, 0..1000: the maximum take-off mass; 0 if not known */
+  double max_takeoff_mass;
 } xcs_plane_details;
 
 /** Change a plane file's details; the active plane is flown with them at

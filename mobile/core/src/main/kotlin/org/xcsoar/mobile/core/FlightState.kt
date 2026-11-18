@@ -57,6 +57,8 @@ data class FlightState(
     val autoMacCready: Boolean = false,
     /** No glide polar (no plane set up): no final glide, speed to fly or reach. */
     val noPolar: Boolean = false,
+    /** The all-up mass is above the plane's maximum take-off mass. */
+    val overMaxTakeoffMass: Boolean = false,
 
     /** Speed to fly, IAS m/s. */
     val speedToFly: Double? = null,

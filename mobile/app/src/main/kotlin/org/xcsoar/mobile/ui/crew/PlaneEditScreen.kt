@@ -276,6 +276,7 @@ private fun MassesAndLimits(
         onChange { it.copy(emptyMass = m) }
     }
     Explanation("The rigged glider without pilots and water.")
+    MaxTakeoffMass(details.maxTakeoffMass) { kg -> onChange { it.copy(maxTakeoffMass = kg) } }
     MassStepper("reference mass", "Polar reference mass", details.referenceMass, 1.0) { m ->
         onChange { it.copy(referenceMass = m) }
     }
@@ -338,6 +339,29 @@ private fun MassesAndLimits(
             onIncrease = { onChange { it.copy(handicap = step(it.handicap, +1, 50, 150)) } },
             modifier = Modifier.fillMaxWidth())
     Explanation("The contest handicap, for the scores XCSoar computes.")
+}
+
+/**
+ * Typed, as XCSoar's MTOW field (a stepper would take a hundred taps from
+ * zero); empty when not known.
+ */
+@Composable
+private fun MaxTakeoffMass(kg: Double, onChange: (Double) -> Unit) {
+    val unit = Format.unit(UnitGroup.MASS)
+    var text by rememberSaveable {
+        mutableStateOf(if (kg > 0) decimal(unit.toUser(kg), 0) else "")
+    }
+    InputField(text, { typed ->
+        text = typed
+        val value = typed.replace(',', '.').toDoubleOrNull()
+        when {
+            typed.isBlank() -> onChange(0.0)
+            value != null && value >= 0 && unit.toSi(value) <= MAX_MASS ->
+                onChange(unit.toSi(value))
+        }
+    }, "Maximum take-off mass · ${unit.name}", Modifier.fillMaxWidth(),
+               keyboardType = KeyboardType.Decimal)
+    Explanation("Above it, Flight setup shows the wing loading in red.  Empty if not known.")
 }
 
 /* the ranges of XCSoar's plane dialogs */

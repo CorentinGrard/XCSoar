@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -146,7 +147,16 @@ fun FlightSetupContent(
              color = colors.textSecondary, fontSize = 15.sp,
              modifier = Modifier.padding(horizontal = 4.dp))
 
-        setup?.wingLoading?.let { ValueRow("Wing loading", Format.wingLoading(it)) }
+        // upstream's Flight setup: the wing loading in red above MTOW
+        val overMtow = setup?.overMaxTakeoffMass == true
+        setup?.wingLoading?.let {
+            ValueRow("Wing loading", Format.wingLoading(it),
+                     if (overMtow) colors.warning else colors.text)
+        }
+        if (overMtow)
+            Text("Above the glider's maximum take-off mass.",
+                 color = colors.warning, fontSize = 15.sp,
+                 modifier = Modifier.padding(horizontal = 4.dp))
 
         Caption("Altimeter", Modifier.padding(start = 4.dp))
         val qnh = setup?.let { Format.pressure(it.qnh ?: FlightState.STANDARD_QNH) }
@@ -235,7 +245,8 @@ private val AUTO_MODES = listOf(
 
 /** A read-only value, like the wing loading. */
 @Composable
-internal fun ValueRow(label: String, value: Format.Value) {
+internal fun ValueRow(label: String, value: Format.Value,
+                      valueColor: Color = XcsTheme.colors.text) {
     val colors = XcsTheme.colors
     Row(Modifier
             .fillMaxWidth()
@@ -244,7 +255,7 @@ internal fun ValueRow(label: String, value: Format.Value) {
         verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = colors.text, fontSize = 17.sp,
              fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-        Text("${value.text} ${value.unit}", color = colors.text,
+        Text("${value.text} ${value.unit}", color = valueColor,
              style = XcsTheme.numberStyle, fontSize = 20.sp,
              fontWeight = FontWeight.Bold)
     }

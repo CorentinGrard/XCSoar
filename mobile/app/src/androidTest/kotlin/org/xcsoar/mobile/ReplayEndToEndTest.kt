@@ -24,6 +24,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
+import org.xcsoar.mobile.core.PlaneDetails
+import org.xcsoar.mobile.core.PlaneEdit
 import org.xcsoar.mobile.core.TileLayout
 import org.xcsoar.mobile.ui.Format
 
@@ -31,7 +33,8 @@ import org.xcsoar.mobile.ui.Format
  * L5 (mobile/docs/ARCHITECTURE.md §6): the real core, optimised as it
  * flies (build type l5), replays the demo flight through the app, and
  * the flight screen shows it flying, with a vario and a wind estimate;
- * a tap on a tile asks for the page its InfoBox opens.
+ * a tap on a tile asks for the page its InfoBox opens; a plane's details
+ * go through the JNI binding unchanged.
  *
  * Runs on an emulator in CI and on a phone: the l5 app has its own
  * application id, so the pilot's app and data are never touched.
@@ -111,6 +114,31 @@ class ReplayEndToEndTest {
             core.setTile(TileLayout.CIRCLING, 5, type)
             assertEquals("tile type $type", page,
                          core.tapTile(TileLayout.CIRCLING, 5)?.action)
+        }
+    }
+
+    /**
+     * A plane's details through the JNI binding and back: JNI finds the
+     * native function by its name alone, so arguments in the wrong order
+     * would arrive as wrong values, unseen by the host tests.
+     */
+    @Test
+    fun planeDetailsRoundTrip() = runBlocking {
+        startFlightScreen()
+        val core = requireNotNull(ApplicationProvider.getApplicationContext<XcsoarApp>().core) {
+            "no native core"
+        }
+        val path = core.savePlane(PlaneEdit(path = "", registration = "L5-TEST",
+                                            competitionId = "L5", type = "Test", polar = 0,
+                                            weGlideType = 0, doubleSeater = false))
+        try {
+            val details = PlaneDetails(emptyMass = 250.0, referenceMass = 350.0,
+                                       maxBallast = 100.0, dumpTime = 150, maxSpeed = 70.0,
+                                       wingArea = 10.5, handicap = 105, maxTakeoffMass = 525.0)
+            core.setPlaneDetails(path, details)
+            assertEquals(details, core.planes()?.planes?.single { it.path == path }?.details)
+        } finally {
+            core.deletePlane(path)
         }
     }
 

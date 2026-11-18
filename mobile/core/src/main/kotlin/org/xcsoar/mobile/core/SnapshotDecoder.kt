@@ -100,6 +100,7 @@ object SnapshotDecoder {
     const val FLAG_REPLAY = 1 shl 4
     const val FLAG_AUTO_MC = 1 shl 5
     const val FLAG_NO_POLAR = 1 shl 6
+    const val FLAG_OVER_MTOW = 1 shl 7
 
     /**
      * Decode one snapshot.  Reads [SIZE] bytes starting at the buffer's
@@ -179,6 +180,7 @@ object SnapshotDecoder {
             replay = flags and FLAG_REPLAY != 0,
             autoMacCready = flags and FLAG_AUTO_MC != 0,
             noPolar = flags and FLAG_NO_POLAR != 0,
+            overMaxTakeoffMass = flags and FLAG_OVER_MTOW != 0,
         )
     }
 

@@ -128,7 +128,8 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
                     dumpTime = old?.dumpTime ?: 120,
                     maxSpeed = info.maxSpeed.takeIf { it > 0 } ?: old?.maxSpeed ?: 0.0,
                     wingArea = info.wingArea.takeIf { it > 0 } ?: old?.wingArea ?: 0.0,
-                    handicap = info.handicap.takeIf { it > 0 } ?: old?.handicap ?: 100))
+                    handicap = info.handicap.takeIf { it > 0 } ?: old?.handicap ?: 100,
+                    maxTakeoffMass = old?.maxTakeoffMass ?: 0.0))
             }
         }
     }
@@ -167,7 +168,8 @@ class PlaneEditViewModel(private val core: XcsoarCore) : ViewModel() {
                            dumpTime = old?.dumpTime ?: 120,
                            maxSpeed = imported.maxSpeed.takeIf { it > 0 } ?: old?.maxSpeed ?: 0.0,
                            wingArea = imported.wingArea.takeIf { it > 0 } ?: old?.wingArea ?: 0.0,
-                           handicap = old?.handicap ?: 100))
+                           handicap = old?.handicap ?: 100,
+                           maxTakeoffMass = old?.maxTakeoffMass ?: 0.0))
             }
         }
     }

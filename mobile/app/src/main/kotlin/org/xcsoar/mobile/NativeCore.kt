@@ -169,7 +169,8 @@ internal object NativeCore {
     @JvmStatic external fun nativePlaneSetDetails(core: Long, path: String, emptyMass: Double,
                                                   referenceMass: Double, maxBallast: Double,
                                                   dumpTime: Int, maxSpeed: Double,
-                                                  wingArea: Double, handicap: Int): Int
+                                                  wingArea: Double, handicap: Int,
+                                                  maxTakeoffMass: Double): Int
     @JvmStatic external fun nativeSetCrewMass(core: Long, kg: Double): Int
     /** @return kg, or NaN on error */
     @JvmStatic external fun nativeGetCrewMass(core: Long): Double

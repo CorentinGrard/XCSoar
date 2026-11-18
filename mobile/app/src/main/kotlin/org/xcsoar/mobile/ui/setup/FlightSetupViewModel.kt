@@ -36,6 +36,8 @@ data class FlightSetup(
     val autoMacCready: Boolean = false,
     /** null until read from the core. */
     val autoMode: AutoMacCreadyMode? = null,
+    /** The all-up mass is above the plane's maximum take-off mass. */
+    val overMaxTakeoffMass: Boolean = false,
 )
 
 /**
@@ -80,7 +82,8 @@ class FlightSetupViewModel(private val core: XcsoarCore) : ViewModel() {
                         bugs ?: state.bugs, state.wingLoading, crew,
                         qnh ?: state.qnh, state.staticPressure,
                         // computed with the old QNH until the core has the new one
-                        state.baroAltitude.takeIf { qnh == null })
+                        state.baroAltitude.takeIf { qnh == null },
+                        overMaxTakeoffMass = state.overMaxTakeoffMass)
         }
 
     /** `null` until the core has started. */

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 
 struct PolarShape;
@@ -50,6 +51,8 @@ DescribePolar(unsigned index) noexcept;
 struct Details {
   double empty_mass, reference_mass, max_ballast, max_speed, wing_area;
   unsigned dump_time, handicap;
+  /** kg, 0 unknown; nullopt keeps the plane's */
+  std::optional<double> max_takeoff_mass;
 };
 
 /**

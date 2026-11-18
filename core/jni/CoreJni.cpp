@@ -618,7 +618,8 @@ Java_org_xcsoar_mobile_NativeCore_nativePlaneSetDetails(JNIEnv *env, jclass,
                                                         jint dump_time,
                                                         jdouble max_speed,
                                                         jdouble wing_area,
-                                                        jint handicap)
+                                                        jint handicap,
+                                                        jdouble max_takeoff_mass)
 {
   xcs_plane_details details{};
   details.struct_size = sizeof(details);
@@ -629,6 +630,7 @@ Java_org_xcsoar_mobile_NativeCore_nativePlaneSetDetails(JNIEnv *env, jclass,
   details.max_speed = max_speed;
   details.wing_area = wing_area;
   details.handicap = handicap;
+  details.max_takeoff_mass = max_takeoff_mass;
   const auto p = Java::String::GetUTFChars(env, path);
   return xcs_plane_set_details(ToCore(core), p.c_str(), &details);
 }

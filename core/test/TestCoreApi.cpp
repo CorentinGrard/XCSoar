@@ -445,6 +445,36 @@ TestPlanesAndCrew(xcs_core *core)
                          "\"points\":[[") &&
       Contains(planes(), "\"max_ballast\":1E2,\"dump_time\":120"));
 
+  /* the maximum take-off mass, and the snapshot says when the plane is
+     above it */
+  const auto over_mtow = [core](bool expected){
+    for (unsigned i = 0; i < 50; ++i) {
+      xcs_flight_snapshot snapshot{};
+      snapshot.struct_size = sizeof(snapshot);
+      if (xcs_get_snapshot(core, &snapshot) == XCS_OK &&
+          ((snapshot.flags & XCS_FLAG_OVER_MTOW) != 0) == expected)
+        return true;
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    return false;
+  };
+  ok1(over_mtow(false));
+  details.max_takeoff_mass = 1001;
+  ok1(xcs_plane_set_details(core, path, &details) == XCS_ERROR_INVALID_ARGUMENT);
+  /* less than the empty glider alone */
+  details.max_takeoff_mass = 200;
+  ok1(xcs_plane_set_details(core, path, &details) == XCS_OK);
+  ok1(Contains(planes(), "\"max_takeoff_mass\":2E2"));
+  ok1(over_mtow(true));
+  /* a caller of the struct without it keeps it */
+  details.struct_size = offsetof(xcs_plane_details, max_takeoff_mass);
+  details.max_takeoff_mass = 0;
+  ok1(xcs_plane_set_details(core, path, &details) == XCS_OK &&
+      Contains(planes(), "\"max_takeoff_mass\":2E2"));
+  details.struct_size = sizeof(details);
+  ok1(xcs_plane_set_details(core, path, &details) == XCS_OK);
+  ok1(over_mtow(false));
+
   /* a polar of the pilot's: three points; the reference mass stays */
   const xcs_polar_shape shape{{100 / 3.6, 120 / 3.6, 150 / 3.6},
                               {-0.69, -0.87, -1.44}, 0};
@@ -1396,7 +1426,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8);
 
   Recorder recorder;
   TestCreateArguments(recorder);

@@ -135,6 +135,8 @@ static_assert(offsetof(xcs_flight_snapshot, last_thermal_duration) == 360);
 static_assert(offsetof(xcs_flight_snapshot, ballast) == 368);
 static_assert(offsetof(xcs_flight_snapshot, qnh) == 400);
 static_assert(sizeof(xcs_flight_snapshot) == 416);
+static_assert(offsetof(xcs_plane_details, max_takeoff_mass) == 56);
+static_assert(sizeof(xcs_plane_details) == 64);
 
 #ifdef ANDROID
 /* xcs_map_orientation is XCSoar's MapOrientation */
@@ -471,6 +473,10 @@ FillSnapshot(xcs_flight_snapshot &s) noexcept
     flags |= XCS_FLAG_AUTO_MC;
   if (!CommonInterface::GetComputerSettings().polar.glide_polar_task.IsValid())
     flags |= XCS_FLAG_NO_POLAR;
+  if (CommonInterface::GetComputerSettings().plane.IsOverMaxTakeoffMass(
+        CommonInterface::GetComputerSettings().polar.glide_polar_task
+          .GetTotalMass()))
+    flags |= XCS_FLAG_OVER_MTOW;
 
   s.flight_time = calculated.flight.flight_time.count();
   s.valid = valid;
@@ -1358,13 +1364,16 @@ xcs_plane_set_details(xcs_core *core, const char *path,
                       const xcs_plane_details *details)
 {
   if (core == nullptr || path == nullptr || details == nullptr ||
-      details->struct_size < sizeof(xcs_plane_details))
+      details->struct_size < offsetof(xcs_plane_details, max_takeoff_mass))
     return XCS_ERROR_INVALID_ARGUMENT;
 
   const CorePlanes::Details d{
     details->empty_mass, details->reference_mass, details->max_ballast,
     details->max_speed, details->wing_area,
     details->dump_time, details->handicap,
+    details->struct_size >= sizeof(xcs_plane_details)
+    ? std::optional{details->max_takeoff_mass}
+    : std::nullopt,
   };
   return RunOnMain(*core, [path, d]{
     return CorePlanes::SetDetails(path, d)

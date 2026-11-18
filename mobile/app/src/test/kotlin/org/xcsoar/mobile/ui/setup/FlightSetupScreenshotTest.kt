@@ -29,6 +29,20 @@ class FlightSetupScreenshotTest {
         }
     }
 
+    /** Full water above the glider's MTOW: the wing loading in red. */
+    @Test
+    @Config(qualifiers = "w390dp-h1100dp-xxhdpi")
+    fun overMaxTakeoffMass() =
+        captureRoboImage("src/test/screenshots/flight_setup_over_mtow.png") {
+            XcsTheme(dark = false) {
+                FlightSetupContent(
+                    FlightSetup(ballast = 150.0, maxBallast = 150.0, bugs = 1.0,
+                                wingLoading = 52.4, crewMass = 95.0, qnh = 1013.0,
+                                overMaxTakeoffMass = true),
+                    {}, {}, {}, {}, {}, {})
+            }
+        }
+
     @Test
     fun noBarometer() = captureRoboImage("src/test/screenshots/flight_setup_no_baro.png") {
         XcsTheme(dark = false) {
