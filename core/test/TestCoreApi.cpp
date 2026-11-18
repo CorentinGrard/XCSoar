@@ -1170,6 +1170,12 @@ TestReplayControls(xcs_core *core)
   /* nothing to skip without a replay */
   ok1(xcs_replay_fast_forward(core, 600) == XCS_ERROR_FAILED);
 
+  /* a replay is no flight to take up again after a restart: it leaves
+     the session file alone */
+  const auto session_path =
+    std::filesystem::path{DATA_PATH} / "xcsoar-session.txt";
+  const auto session_written = std::filesystem::last_write_time(session_path);
+
   ok1(xcs_replay_start(core, FLIGHT, 1) == XCS_OK);
   ok1(xcs_replay_fast_forward(core, 600) == XCS_OK);
 
@@ -1184,6 +1190,21 @@ TestReplayControls(xcs_core *core)
   }
   ok1(barogram);
   xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, InfoBoxFactory::e_WindSpeed_Est);
+
+  /* past the take-off (about 16 minutes into the file); once flying,
+     the timer would note it within a second */
+  ok1(xcs_replay_fast_forward(core, 900) == XCS_OK);
+  bool flying = false;
+  for (unsigned i = 0; i < 200 && !flying; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    xcs_flight_snapshot snapshot{};
+    snapshot.struct_size = sizeof(snapshot);
+    flying = xcs_get_snapshot(core, &snapshot) == XCS_OK &&
+      (snapshot.flags & XCS_FLAG_FLYING) != 0;
+  }
+  ok1(flying);
+  std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+  ok1(std::filesystem::last_write_time(session_path) == session_written);
 
   /* 0 pauses */
   ok1(xcs_replay_set_time_scale(core, 0) == XCS_OK);
@@ -1432,7 +1453,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3);
 
   Recorder recorder;
   TestCreateArguments(recorder);

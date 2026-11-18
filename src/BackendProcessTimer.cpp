@@ -125,7 +125,9 @@ UTCOffsetProcessTimer() noexcept
 static void
 SessionProcessTimer() noexcept
 {
-  if (!Session::IsReady())
+  /* a replay flies too, but is no flight to take up again: its QNH
+     and ballast would be restored for the next real one */
+  if (!Session::IsReady() || CommonInterface::Basic().gps.replay)
     return;
 
   const auto &settings = CommonInterface::GetComputerSettings();
