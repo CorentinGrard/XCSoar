@@ -311,8 +311,8 @@ GESTURES := $(patsubst gesture_%,%,$(shell sed -n \
 $(DATA)/graphics2/gesture_%.svg: $(topdir)/tools/GenerateGestureSvg.py \
 	| $(DATA)/graphics2/dirstamp
 	@$(NQ)echo "  GEN     $@"
-	$(Q)/usr/bin/env python3 $< $* > $@.tmp
-	$(Q)mv $@.tmp $@
+	$(Q)/usr/bin/env python3 $< $* > $@.$(RANDOM_NUMBER).tmp
+	$(Q)mv $@.$(RANDOM_NUMBER).tmp $@
 
 ifeq ($(TARGET_IS_ANDROID),n)
 ifneq ($(TARGET),IOS)
