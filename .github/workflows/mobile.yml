@@ -383,6 +383,9 @@ jobs:
           api-level: 36
           target: google_apis
           arch: x86_64
+          # a phone's screen (the Pixel 7's size): the default 320x640 dp
+          # leaves no room for the vario bar beside the map
+          profile: pixel_6
           disable-animations: true
           script: |
             adb install -r $(find apk -name app-l5.apk)
