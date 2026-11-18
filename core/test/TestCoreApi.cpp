@@ -395,6 +395,17 @@ TestPlanesAndCrew(xcs_core *core)
   ok1(xcs_plane_activate(core, path) == XCS_OK);
   ok1(Contains(planes(), std::string{"\"active\":\""} + path + "\""));
 
+  /* a polar now, also in the snapshot */
+  bool have_polar = false;
+  for (unsigned i = 0; i < 50 && !have_polar; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    xcs_flight_snapshot snapshot{};
+    snapshot.struct_size = sizeof(snapshot);
+    have_polar = xcs_get_snapshot(core, &snapshot) == XCS_OK &&
+      (snapshot.flags & XCS_FLAG_NO_POLAR) == 0;
+  }
+  ok1(have_polar);
+
   /* the plane's polar, in upstream's analysis pages */
   const auto analysis = GetJson([core](char *b, size_t s, size_t *l){
     return xcs_get_analysis(core, b, s, l);
@@ -1185,6 +1196,8 @@ TestStarted(xcs_core *core, Recorder &recorder)
   /* that flight's settings are back */
   ok1(std::fabs(s.bugs - 0.85) < 0.001);
   ok1(std::fabs(s.qnh - 1003) < 0.01);
+  /* no plane yet: no polar */
+  ok1((s.flags & XCS_FLAG_NO_POLAR) != 0);
 
   ok1(xcs_set_mac_cready(core, -1) == XCS_ERROR_INVALID_ARGUMENT);
   ok1(xcs_set_mac_cready(core, 6) == XCS_ERROR_INVALID_ARGUMENT);
@@ -1383,7 +1396,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2);
 
   Recorder recorder;
   TestCreateArguments(recorder);

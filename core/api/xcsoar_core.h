@@ -101,6 +101,10 @@ enum {
   XCS_FLAG_REPLAY = 1u << 4,
   /** XCSoar sets the MacCready itself (xcs_mac_cready_set_option()). */
   XCS_FLAG_AUTO_MC = 1u << 5,
+  /** No glide polar: no plane is set up (or its polar is invalid), so
+      final glide, speed to fly and reach are off (upstream's "No polar
+      is set up" warning). */
+  XCS_FLAG_NO_POLAR = 1u << 6,
 };
 
 typedef struct xcs_flight_snapshot {

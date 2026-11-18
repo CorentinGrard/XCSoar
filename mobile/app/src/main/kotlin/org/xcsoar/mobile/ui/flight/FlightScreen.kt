@@ -148,6 +148,7 @@ fun FlightScreen(
         onAcknowledge = viewModel::acknowledgeAirspace,
         onNextWaypoint = onOpenWaypoints,
         onWind = onOpenWind,
+        onNoPolar = onOpenCrew,
         replay = ReplayControls(replaySpeed, viewModel::pauseReplay, viewModel::setReplaySpeed,
                                 viewModel::skipReplay, viewModel::stopReplay),
         menuOpen = menuOpen,
@@ -262,6 +263,8 @@ fun FlightContent(
     onAcknowledge: (AirspaceWarningInfo, day: Boolean) -> Unit = { _, _ -> },
     onNextWaypoint: () -> Unit = {},
     onWind: () -> Unit = {},
+    /** the "NO POLAR" chip: set up a plane */
+    onNoPolar: () -> Unit = {},
     tiles: List<TileValue>? = null,
     onEditTile: (Int) -> Unit = {},
     onTapTile: (Int) -> Unit = {},
@@ -281,7 +284,8 @@ fun FlightContent(
         val mapArea = @Composable { showNext: Boolean, modifier: Modifier,
                                     insets: WindowInsets ->
             MapArea(state, lastEvent, circling, map, warnings, airspaceHideTimer,
-                    airspaceAlertsOff, onAcknowledge, onNextWaypoint, onWind, onSetMacCready, showNext,
+                    airspaceAlertsOff, onAcknowledge, onNextWaypoint, onWind, onNoPolar,
+                    onSetMacCready, showNext,
                     vario, replay, modifier, insets)
         }
 
@@ -355,6 +359,7 @@ private fun MapArea(
     onAcknowledge: (AirspaceWarningInfo, day: Boolean) -> Unit,
     onNextWaypoint: () -> Unit,
     onWind: () -> Unit,
+    onNoPolar: () -> Unit,
     onSetMacCready: (Double) -> Unit,
     /** false in landscape, where the side panel shows it */
     showNext: Boolean,
@@ -428,6 +433,11 @@ private fun MapArea(
                     else -> {
                         WindChip(state.wind, onClick = onWind)
                         if (state.position == null) StatusChip("NO GPS", colors.caution)
+                        // upstream's "No polar is set up, so final glide and speed to
+                        // fly are off"
+                        if (state.noPolar)
+                            StatusChip("NO POLAR", colors.caution, onClick = onNoPolar,
+                                       onClickLabel = "Set up a plane")
                         if (alertsOff) StatusChip("AIRSPACE ALERTS OFF", colors.caution)
                         if (state.replay && replay == null)
                             StatusChip("REPLAY", colors.neutralSafe)

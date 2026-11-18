@@ -99,6 +99,7 @@ object SnapshotDecoder {
     const val FLAG_FINAL_GLIDE = 1 shl 3
     const val FLAG_REPLAY = 1 shl 4
     const val FLAG_AUTO_MC = 1 shl 5
+    const val FLAG_NO_POLAR = 1 shl 6
 
     /**
      * Decode one snapshot.  Reads [SIZE] bytes starting at the buffer's
@@ -177,6 +178,7 @@ object SnapshotDecoder {
             aboveFinalGlide = flags and FLAG_FINAL_GLIDE != 0,
             replay = flags and FLAG_REPLAY != 0,
             autoMacCready = flags and FLAG_AUTO_MC != 0,
+            noPolar = flags and FLAG_NO_POLAR != 0,
         )
     }
 

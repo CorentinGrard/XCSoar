@@ -179,8 +179,10 @@ fun WindChip(wind: Wind?, modifier: Modifier = Modifier, onClick: (() -> Unit)? 
 
 /** A short status word over the map ("REPLAY", "NO GPS"). */
 @Composable
-fun StatusChip(text: String, color: Color, modifier: Modifier = Modifier) {
-    FloatingCard(modifier, RoundedCornerShape(12.dp)) {
+fun StatusChip(text: String, color: Color, modifier: Modifier = Modifier,
+               onClick: (() -> Unit)? = null, onClickLabel: String? = null) {
+    FloatingCard(modifier, RoundedCornerShape(12.dp), onClick = onClick,
+                 onClickLabel = onClickLabel) {
         Text(text, color = color, fontSize = 14.sp, fontWeight = FontWeight.Bold,
              maxLines = 1, overflow = TextOverflow.Ellipsis,
              modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp))

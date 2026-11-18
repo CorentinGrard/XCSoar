@@ -127,6 +127,16 @@ class FlightScreenScreenshotTest {
         }
     }
 
+    /** No plane set up: no polar, so no final glide or speed to fly. */
+    @Test
+    @Config(qualifiers = "w390dp-h844dp-xxhdpi")
+    fun noPolar() = capture("no_polar_chip") {
+        XcsTheme(dark = false) {
+            FlightContent(FakeXcsoarCore.syntheticState(120).copy(noPolar = true), null,
+                          circling = false, {})
+        }
+    }
+
     /** The menu open over the flight screen. */
     @Test
     @Config(qualifiers = "w390dp-h844dp-xxhdpi")

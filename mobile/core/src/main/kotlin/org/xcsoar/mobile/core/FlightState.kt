@@ -55,6 +55,8 @@ data class FlightState(
     val replay: Boolean,
     /** XCSoar sets the MacCready itself. */
     val autoMacCready: Boolean = false,
+    /** No glide polar (no plane set up): no final glide, speed to fly or reach. */
+    val noPolar: Boolean = false,
 
     /** Speed to fly, IAS m/s. */
     val speedToFly: Double? = null,

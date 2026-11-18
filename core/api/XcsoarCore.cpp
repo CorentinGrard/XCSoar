@@ -469,6 +469,8 @@ FillSnapshot(xcs_flight_snapshot &s) noexcept
     flags |= XCS_FLAG_CIRCLING;
   if (CommonInterface::GetComputerSettings().task.auto_mc)
     flags |= XCS_FLAG_AUTO_MC;
+  if (!CommonInterface::GetComputerSettings().polar.glide_polar_task.IsValid())
+    flags |= XCS_FLAG_NO_POLAR;
 
   s.flight_time = calculated.flight.flight_time.count();
   s.valid = valid;
