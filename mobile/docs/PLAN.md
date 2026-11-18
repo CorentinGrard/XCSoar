@@ -23,8 +23,9 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** the L5 CI job's first run (needs a push of
-`mobile`), then M6 / M7 polish.  Open: the map that stopped drawing once
+**Current focus:** CI after the first upstream merge (2026-11-18),
+then M6 / M7 polish and the upstream startup changes the core does not
+follow yet (Log, 2026-11-18).  Open: the map that stopped drawing once
 (M3, not reproduced; next idea: screen off/on cycles during a replay,
 which locks the phone, so only with the pilot's OK).
 M5 is on hold: no external device to test with.
@@ -34,7 +35,9 @@ M5 is on hold: no external device to test with.
 ## M0 — Foundations
 - [x] Fork `XCSoar/XCSoar` on GitHub; `origin` → fork, `upstream` → XCSoar
 - [x] Create a long-lived `mobile` branch (pushed to `origin/mobile`, 2026-09-30);
-      decide on a regular upstream-merge routine
+      decide on a regular upstream-merge routine (merge, not rebase:
+      `mobile` is pushed; first merge 2026-11-18, on a `mobile-sync`
+      branch tested before `mobile` moves)
 - [x] macOS prerequisites: `./ide/provisioning/install-darwin-packages.sh BASE MACOS`
       plus `cmake ninja ccache` (the script only installs cmake/ninja for `IOS`,
       but the MACOS target builds SDL2 with them)
@@ -721,6 +724,28 @@ the core already links but that has never run in this app:
 ---
 
 ## Log
+
+- 2026-11-18 — First upstream merge: 804 commits (7.46, 7.46.1 and
+  7.47 so far), `upstream` remote added.  Upstream's changes to code
+  `mobile` had moved went to the new files (ActionInterfaceUI.cpp,
+  BackendProcessTimer.cpp).  The core follows new APIs and seams (the
+  map's thermals and waves now come from one list, ObservationDatabase);
+  the new Ballast and Forecast temperature tiles open Flight setup, and
+  Custom text is not offered (its text lives in upstream's InfoBox
+  panels).  Upstream builds zxing as a new third-party library: a local
+  Android build made before needs its stamp removed once
+  (`output/ANDROID/*/lib/*/stamp`).  Checked: upstream `make check` (but
+  TestWrapText, no font on this host), core-check, app tests, L5 on the
+  phone, the demo replay's map on the phone.  Not yet in the core's
+  startup (CoreStartup.cpp), which mirrors upstream's Startup(): no
+  stand-in polar without a plane (`GlidePolar::Invalid()`), task MC no
+  longer copied from Safety MC, the session restore after a crash, the
+  FLARM range file.  Fixed on the way: TestCoreApi's wind arrow check
+  needed the replay's wind, which ResetFlight() at the replay's end
+  clears (the CI failure); a JVM test failed at random when the
+  native core could not load twice.  The pilot's app was not on the
+  phone any more (gone with its XCSoarData before this session); a
+  fresh release build is installed.
 
 - 2026-10-20 — Tile pages: team code, radio, ATC radial and nearest
   airspace, like upstream's dialogs; checked on the phone.  Fixed on
