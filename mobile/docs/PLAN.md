@@ -743,7 +743,16 @@ the core already links but that has never run in this app:
   FlyablePolar glider as a plane (with Safety MC 0.5 they give the old
   files exactly; the new files follow the default of 3.2), the gesture
   icons' build race (two makes, one temporary file), and the L5
-  emulator has a phone's screen (pixel_6).
+  emulator has a phone's screen (pixel_6).  Also from upstream: the
+  plane's maximum take-off mass (plane editor; Flight setup shows the
+  wing loading in red above it), the tile picker by upstream's topics,
+  "Flight state" on the Times status page.  A replay no longer counts
+  as a flight for the session restore (its QNH would have come back
+  for the next real flight).  Branch `upstream-fixes` (local, not
+  pushed; on upstream/master, `make check` passes but TestWrapText):
+  the TriangleContest use-after-free and its test, the Trace thinning
+  hang, the gesture icons' build race, three small fixes, ready for
+  pull requests if the pilot wants them.
 
 - 2026-11-18 — First upstream merge: 804 commits (7.46, 7.46.1 and
   7.47 so far), `upstream` remote added.  Upstream's changes to code
