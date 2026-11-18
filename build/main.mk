@@ -470,6 +470,7 @@ XCSOAR_SOURCES := \
 	\
 	$(SRC)/Markers/Markers.cpp \
 	$(SRC)/Session/SessionFile.cpp \
+	$(SRC)/Session/Restore.cpp \
 	\
 	$(SRC)/FlightStatistics.cpp \
 	$(SRC)/FlightInfo.cpp \

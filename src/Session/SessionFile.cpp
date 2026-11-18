@@ -349,6 +349,13 @@ SetReady() noexcept
 }
 
 void
+Reset() noexcept
+{
+  session_state = {};
+  session_ready = false;
+}
+
+void
 DeclineRestore() noexcept
 {
   if (!session_state.flying)

@@ -138,6 +138,13 @@ IsReady() noexcept;
 void
 SetReady() noexcept;
 
+/**
+ * Forget the state and stop recording until SetReady(), for another
+ * start in the same process.
+ */
+void
+Reset() noexcept;
+
 /** Forget the in-flight snapshot.  The next start will not ask. */
 void
 DeclineRestore() noexcept;
