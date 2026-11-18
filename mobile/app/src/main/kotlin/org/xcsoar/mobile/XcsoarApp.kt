@@ -49,7 +49,10 @@ class XcsoarApp : Application() {
             NativeCore.nativeInit(this, permissionManager)
             CoreBattery.register(this)
             NativeXcsoarCore(xcsoarDataDir.path, profile?.takeIf { File(it).isFile })
-        } catch (e: UnsatisfiedLinkError) {
+        } catch (e: LinkageError) {
+            /* UnsatisfiedLinkError the first time; NoClassDefFoundError
+               for every later app in the same process (JVM tests), as
+               NativeCore's initialiser failed */
             Log.w(TAG, "no native core, using the fake one", e)
             null
         }
