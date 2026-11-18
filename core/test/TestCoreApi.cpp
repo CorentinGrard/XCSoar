@@ -772,7 +772,8 @@ TestTiles(xcs_core *core)
     return xcs_tiles_update(core, XCS_TILES_CRUISE, b, s, l);
   });
   ok1(Contains(tiles, "{\"type\":" + std::to_string(e_Speed_GPS) + ",\"title\":\"V GND\""));
-  ok1(Contains(tiles, "\"title\":\"Vopt\"") && Contains(tiles, "\"unit\":\"km/h\""));
+  /* without GPS since the replay ended, so no speeds */
+  ok1(Contains(tiles, "\"title\":\"Vopt\""));
   ok1(Contains(tiles, "\"graphic\":null"));
 
   /* a graphical InfoBox: what it draws, as data */
@@ -782,6 +783,8 @@ TestTiles(xcs_core *core)
       return xcs_tiles_update(core, XCS_TILES_CIRCLING, b, s, l);
     });
   };
+  /* a value with its unit, also without GPS */
+  ok1(Contains(graphic(e_MacCready), "\"unit\":\"m/s\""));
   ok1(Contains(graphic(e_Vario_spark),
                "\"graphic\":{\"kind\":\"spark\",\"values\":["));
   /* the replay's wind went with its flight (ResetFlight() at its end):
@@ -1016,6 +1019,29 @@ TestSafety(xcs_core *core)
   ok1(xcs_safety_set_option(core, XCS_SAFETY_ARRIVAL_HEIGHT, arrival) == XCS_OK);
   ok1(xcs_safety_set_option(core, XCS_SAFETY_MC, mc) == XCS_OK);
   ok1(xcs_safety_set_option(core, XCS_SAFETY_ALTERNATES, alternates) == XCS_OK);
+
+  /* the MacCready at start, which sets the one now too, as upstream's
+     "Startup Task MC" */
+  xcs_flight_snapshot snapshot{};
+  snapshot.struct_size = sizeof(snapshot);
+  ok1(xcs_get_snapshot(core, &snapshot) == XCS_OK);
+  const double mc_now = snapshot.mac_cready;
+  double startup = -1;
+  ok1(xcs_safety_get_option(core, XCS_SAFETY_STARTUP_MC, &startup) == XCS_OK &&
+      startup >= 0 && startup <= 5);
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_STARTUP_MC, 5.1) == XCS_ERROR_INVALID_ARGUMENT);
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_STARTUP_MC, 1.2) == XCS_OK);
+  ok1(xcs_safety_get_option(core, XCS_SAFETY_STARTUP_MC, &value) == XCS_OK &&
+      std::fabs(value - 1.2) < 0.01);
+  bool mc_set = false;
+  for (unsigned i = 0; i < 50 && !mc_set; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    mc_set = xcs_get_snapshot(core, &snapshot) == XCS_OK &&
+      std::fabs(snapshot.mac_cready - 1.2) < 0.01;
+  }
+  ok1(mc_set);
+  ok1(xcs_safety_set_option(core, XCS_SAFETY_STARTUP_MC, startup) == XCS_OK);
+  ok1(xcs_set_mac_cready(core, mc_now) == XCS_OK);
 }
 
 static void
@@ -1354,7 +1380,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9);
 
   Recorder recorder;
   TestCreateArguments(recorder);

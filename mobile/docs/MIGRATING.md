@@ -37,7 +37,7 @@ over USB. The folders inside are XCSoar's (`maps`, `airspace`,
 | Wind settings | Menu → Wind, or tap the wind over the map. |
 | Map item list | Hold the map and lift: a card with what is under your finger. |
 | Airspace warnings and filters | The banner over the cards (Ack, Day); Menu → Airspace. |
-| Safety factors | Menu → Safety heights. |
+| Safety factors | Menu → Safety heights (Startup Task MC is "MacCready at start" there). |
 | Logger | Automatic: it starts at take-off and stops after landing. Menu → Flights lists, shares and uploads to WeGlide. |
 | Replay | Menu → Replay (on the ground). |
 

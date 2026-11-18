@@ -126,7 +126,8 @@ class FakeXcsoarCore(
     private val safety = mutableMapOf(
         SafetyOption.ARRIVAL_HEIGHT to 300.0, SafetyOption.TERRAIN_HEIGHT to 150.0,
         SafetyOption.MC to 0.5, SafetyOption.RISK_FACTOR to 0.0,
-        SafetyOption.ALTERNATES to 0.0, SafetyOption.TURN_BACK_MARKER to 1.0)
+        SafetyOption.ALTERNATES to 0.0, SafetyOption.TURN_BACK_MARKER to 1.0,
+        SafetyOption.STARTUP_MC to 0.5)
 
     override suspend fun safetyOption(option: SafetyOption): Double? = safety[option]
 

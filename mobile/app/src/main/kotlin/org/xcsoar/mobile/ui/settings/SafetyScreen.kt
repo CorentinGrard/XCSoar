@@ -117,6 +117,24 @@ fun SafetyContent(
                 modifier = Modifier.fillMaxWidth())
         Explanation("The MacCready of the reach and of the arrival heights at fields.")
 
+        val startup = values[SafetyOption.STARTUP_MC]
+        val startupText = startup?.let { Format.macCready(it).text } ?: Format.INVALID
+        Stepper("MacCready at start", "MacCready at start · $mcUnit", startupText,
+                "$startupText $mcUnit",
+                canDecrease = startup != null && startup > 0,
+                canIncrease = startup != null && startup < STARTUP_MC_MAX,
+                onDecrease = {
+                    startup?.let { onSet(SafetyOption.STARTUP_MC, Format.stepVerticalSpeed(it, -1)
+                        .coerceIn(0.0, STARTUP_MC_MAX)) }
+                },
+                onIncrease = {
+                    startup?.let { onSet(SafetyOption.STARTUP_MC, Format.stepVerticalSpeed(it, +1)
+                        .coerceIn(0.0, STARTUP_MC_MAX)) }
+                },
+                modifier = Modifier.fillMaxWidth())
+        Explanation("The MacCready for speed to fly when the app starts; changing it " +
+                        "sets the MacCready now too.")
+
         val risk = values[SafetyOption.RISK_FACTOR]
         val riskText = risk?.let { String.format(Locale.ROOT, "%.1f", it) } ?: Format.INVALID
         Stepper("risk factor", "Speed to fly risk factor", riskText, riskText,
@@ -145,6 +163,9 @@ fun SafetyContent(
         }
     }
 }
+
+/** TaskBehaviour::TASK_MC_MAX */
+private const val STARTUP_MC_MAX = 5.0
 
 private fun tenths(value: Double) = ((value * 10).roundToInt() / 10.0).coerceIn(0.0, 1.0)
 

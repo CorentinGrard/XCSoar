@@ -2420,6 +2420,9 @@ SafetyRange(uint32_t option, double &min, double &max) noexcept
   case XCS_SAFETY_TURN_BACK_MARKER:
     min = 0, max = 1;
     return true;
+  case XCS_SAFETY_STARTUP_MC:
+    min = 0, max = TaskBehaviour::TASK_MC_MAX;
+    return true;
   default:
     return false;
   }
@@ -2468,6 +2471,13 @@ xcs_safety_set_option(xcs_core *core, uint32_t option, double value)
       Profile::Set(ProfileKeys::TurnBackMarkerEnabled,
                    task.turn_back_marker_enabled);
       break;
+
+    case XCS_SAFETY_STARTUP_MC:
+      task.task_mc = std::round(value * 10) / 10;
+      Profile::Set(ProfileKeys::TaskMacCready, iround(value * 10));
+      /* "Changing it here also sets the live MacCready" */
+      ActionInterface::SetMacCready(task.task_mc);
+      break;
     }
 
     Profile::Save();
@@ -2502,6 +2512,9 @@ xcs_safety_get_option(xcs_core *core, uint32_t option, double *value_r)
       break;
     case XCS_SAFETY_TURN_BACK_MARKER:
       *value_r = task.turn_back_marker_enabled;
+      break;
+    case XCS_SAFETY_STARTUP_MC:
+      *value_r = task.task_mc;
       break;
     }
     return XCS_OK;

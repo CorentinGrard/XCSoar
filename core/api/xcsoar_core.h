@@ -554,6 +554,9 @@ typedef enum xcs_safety_option {
   XCS_SAFETY_ALTERNATES = 5,
   /** 0/1: the turn back marker on the map [TurnBackMarkerEnabled] */
   XCS_SAFETY_TURN_BACK_MARKER = 6,
+  /** m/s, 0..5, in 0.1 steps: MacCready at start; setting it also sets
+      the MacCready now [TaskMacCready] */
+  XCS_SAFETY_STARTUP_MC = 7,
 } xcs_safety_option;
 
 /** Set a safety option; saved in the profile.  XCS_ERROR_INVALID_ARGUMENT

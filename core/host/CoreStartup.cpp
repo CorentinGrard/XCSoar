@@ -204,8 +204,10 @@ CoreStartup(OperationEnvironment &operation, bool open_devices)
 
   GlidePolar &gp =
     CommonInterface::SetComputerSettings().polar.glide_polar_task;
-  gp = GlidePolar(0);
-  gp.SetMC(computer_settings.task.safety_mc);
+  /* no polar until a plane profile or a device supplies one, and the
+     pilot's Startup Task MC, not Safety MC (as upstream's Startup()) */
+  gp = GlidePolar::Invalid();
+  gp.SetMC(computer_settings.task.task_mc);
   gp.SetBugs(computer_settings.polar.degradation_factor);
   gp.SetCrewMass(computer_settings.logger.crew_mass_template);
   PlaneGlue::FromProfile(CommonInterface::SetComputerSettings().plane,

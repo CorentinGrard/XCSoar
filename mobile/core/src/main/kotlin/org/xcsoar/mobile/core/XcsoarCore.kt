@@ -484,6 +484,8 @@ enum class SafetyOption(val code: Int) {
     ALTERNATES(5),
     /** 0/1: the turn back marker on the map */
     TURN_BACK_MARKER(6),
+    /** m/s, 0..5: MacCready at start; setting it sets the MacCready now too */
+    STARTUP_MC(7),
 }
 
 /** Values of `xcs_mac_cready_option` (core/api/xcsoar_core.h). */
