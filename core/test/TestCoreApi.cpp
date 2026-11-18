@@ -783,6 +783,10 @@ TestTiles(xcs_core *core)
     return xcs_tiles_types(core, b, s, l);
   });
   ok1(Contains(types, "{\"id\":" + std::to_string(e_Speed_GPS) + ",\"name\":"));
+  /* by upstream's topics, in the order of its content picker */
+  ok1(types.find("\"group\":\"Altitude\"") <
+      types.find("\"group\":\"Vario and thermal\"") &&
+      types.find("\"group\":\"Vario and thermal\"") != std::string::npos);
   /* graphics the app does not draw yet: not offered; the barogram is */
   ok1(!Contains(types, "{\"id\":" + std::to_string(e_Horizon) + ",") &&
       Contains(types, "{\"id\":" + std::to_string(e_Barogram) + ","));
@@ -1426,7 +1430,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1);
 
   Recorder recorder;
   TestCreateArguments(recorder);

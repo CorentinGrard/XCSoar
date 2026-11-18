@@ -43,6 +43,7 @@ import org.xcsoar.mobile.core.TileLayout
 import org.xcsoar.mobile.core.TileType
 import org.xcsoar.mobile.core.XcsoarCore
 import org.xcsoar.mobile.ui.InputField
+import org.xcsoar.mobile.ui.flight.Caption
 import org.xcsoar.mobile.ui.ScreenHeader
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
@@ -115,10 +116,18 @@ fun TilePickerContent(
         LazyColumn(Modifier
             .fillMaxWidth()
             .background(colors.panel, RoundedCornerShape(14.dp))) {
-            items(shown, key = { it.id }) { type ->
-                TypeRow(type, selected = type.id == state.current) { onPick(type) }
-                HorizontalDivider(color = colors.panelBorder,
-                                  modifier = Modifier.padding(horizontal = 14.dp))
+            // by XCSoar's topics, as its content picker
+            shown.groupBy { it.group }.forEach { (group, types) ->
+                if (group.isNotEmpty())
+                    item(key = "group $group") {
+                        Caption(group, Modifier.padding(start = 14.dp, top = 14.dp,
+                                                        bottom = 4.dp))
+                    }
+                items(types, key = { it.id }) { type ->
+                    TypeRow(type, selected = type.id == state.current) { onPick(type) }
+                    HorizontalDivider(color = colors.panelBorder,
+                                      modifier = Modifier.padding(horizontal = 14.dp))
+                }
             }
         }
     }

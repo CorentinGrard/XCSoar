@@ -40,15 +40,20 @@ class TilesScreenshotTest {
     fun picker() = captureRoboImage("src/test/screenshots/tile_picker.png") {
         XcsTheme(dark = false) {
             TilePickerContent(TilePickerState(
+                // as the core sends them: by XCSoar's topics
                 TileLayout.CRUISE, tile = 4, current = 6, types = listOf(
                     TileType(118, "Altitude (auto)", "Alt",
-                             "The altitude XCSoar uses: barometric if available, else GPS."),
-                    TileType(65, "Battery", "Battery", "Battery level of the device."),
-                    TileType(43, "Speed dolphin", "Vopt",
-                             "Instantaneous MacCready speed-to-fly, making use of netto vario."),
-                    TileType(6, "Speed ground", "V GND", "Ground speed measured by the GPS."),
+                             "The altitude XCSoar uses: barometric if available, else GPS.",
+                             "Altitude"),
                     TileType(7, "Thermal last", "TL Avg",
-                             "Total altitude gain/loss in the last thermal divided by the time."),
+                             "Total altitude gain/loss in the last thermal divided by the time.",
+                             "Vario and thermal"),
+                    TileType(43, "Speed dolphin", "Vopt",
+                             "Instantaneous MacCready speed-to-fly, making use of netto vario.",
+                             "Speed and attitude"),
+                    TileType(6, "Speed ground", "V GND", "Ground speed measured by the GPS.",
+                             "Speed and attitude"),
+                    TileType(65, "Battery", "Battery", "Battery level of the device.", "System"),
                 )), {}, {})
         }
     }

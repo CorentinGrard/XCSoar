@@ -4,6 +4,7 @@
 #include "CoreInfoBoxes.hpp"
 #include "InfoBoxes/Content/Base.hpp"
 #include "InfoBoxes/Content/Factory.hpp"
+#include "InfoBoxes/Content/Group.hpp"
 #include "InfoBoxes/Data.hpp"
 #include "Math/Angle.hpp"
 #include "Engine/Navigation/TraceHistory.hpp"
@@ -129,7 +130,10 @@ CoreInfoBoxes::DescribeTypes() noexcept
     if (IsTileType(i))
       types.push_back(Type(i));
 
+  /* by upstream's topics, in the order of its content picker */
   std::sort(types.begin(), types.end(), [](Type a, Type b){
+    if (GetGroup(a) != GetGroup(b))
+      return GetGroup(a) < GetGroup(b);
     return StringCollate(gettext(GetName(a)), gettext(GetName(b))) < 0;
   });
 
@@ -141,6 +145,7 @@ CoreInfoBoxes::DescribeTypes() noexcept
       {"name", gettext(GetName(type))},
       {"caption", gettext(GetCaption(type))},
       {"description", description != nullptr ? gettext(description) : ""},
+      {"group", gettext(GetGroupName(GetGroup(type)))},
     });
   }
   return Serialize(a);

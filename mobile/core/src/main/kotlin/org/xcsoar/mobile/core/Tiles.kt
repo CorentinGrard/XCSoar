@@ -25,6 +25,8 @@ data class TileType(
     /** The tile's title, e.g. "V GND". */
     val caption: String = "",
     val description: String = "",
+    /** XCSoar's topic for it, e.g. "Altitude"; the list comes in their order. */
+    val group: String = "",
 ) {
     companion object {
         fun parseList(text: String): List<TileType> =
