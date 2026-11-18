@@ -34,6 +34,8 @@
 #include "io/async/GlobalAsioThread.hpp"
 #include "net/http/Init.hpp"
 #include "NetComponents.hpp"
+#include "Tracking/TrackingGlue.hpp"
+#include "net/client/tim/Glue.hpp"
 #include "Terrain/RasterTerrain.hpp"
 #include "Waypoint/Waypoints.hpp"
 #include "Waypoint/WaypointGlue.hpp"
@@ -298,6 +300,10 @@ CoreStartup(OperationEnvironment &operation, bool open_devices)
   net_components = new NetComponents(*asio_thread, *Net::curl,
                                      computer_settings.tracking,
                                      computer_settings.airspace.notam);
+  /* their thermals and waves join the map's one list, as Startup() */
+  net_components->tracking->SetObservations(
+    data_components->observations.get());
+  net_components->tim->SetObservations(data_components->observations.get());
 #endif
 
   assert(!global_running);

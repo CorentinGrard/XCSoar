@@ -5,8 +5,9 @@
  * The core's NetComponents (replaces src/NetComponents.cpp, a link-time
  * seam, mobile/docs/DECISIONS.md D5): live tracking, the thermal info
  * map and NOTAMs, which the backend timer and the merge thread feed.
- * The weather downloads (RASP, xctherm, EDL) are left out: their glue
- * reaches dialogs and the main window.
+ * The weather downloads (RASP, xctherm, EDL, OPERA radar, EUMETView
+ * satellite) are left out: their glue reaches dialogs and the main
+ * window.
  */
 
 #include "NetComponents.hpp"
@@ -17,6 +18,10 @@
 #include "Weather/xctherm/XCThermDownloadGlue.hpp"
 #ifdef HAVE_EDL
 #include "Weather/EDL/DownloadGlue.hpp"
+#endif
+#ifdef HAVE_WEATHER_OVERLAY
+#include "Weather/OPERA/RadarPageOverlay.hpp"
+#include "Weather/EUMETView/SatellitePageOverlay.hpp"
 #endif
 
 NetComponents::NetComponents(EventLoop &event_loop, CurlGlobal &curl,

@@ -17,6 +17,7 @@
 #include "DataComponents.hpp"
 #include "NetComponents.hpp"
 #include "Tracking/TrackingGlue.hpp"
+#include "Observation/Database.hpp"
 #include "Weather/NOAAGlue.hpp"
 #include "CoreRasp.hpp"
 #include "MapWindow/MapWindow.hpp"
@@ -171,12 +172,10 @@ struct Graphics {
     map->SetNOAAStore(noaa_store);
     map->SetRasp(CoreRasp::Get());
 
-    /* live tracking: SkyLines traffic and thermals (the cloud's traffic
-       comes with the FLARM traffic, merged by the merge thread) */
-    if (net_components != nullptr) {
-      map->SetSkyLinesData(&net_components->tracking->GetSkyLinesData());
-      map->SetThermalInfoMap(net_components->tim.get());
-    }
+    /* thermals and waves: our own, the cloud's, SkyLines' and the
+       thermal info map's, in one list (the cloud's traffic comes with
+       the FLARM traffic, merged by the merge thread) */
+    map->SetObservations(data.observations.get());
 
     if (!CommonInterface::Basic().location_available)
       CentreWithoutFix();
@@ -583,8 +582,9 @@ CoreMap::ItemsAt(int x, int y) noexcept
                                &backend.glide_computer->GetAirspaceWarnings(),
                                computer_settings.airspace, settings.airspace,
                                basic, calculated);
-    if (projection.GetMapScale() <= 4000)
-      builder.AddThermals(calculated.thermal_locator, basic, calculated);
+    if (projection.GetMapScale() <= 4000 && data.observations != nullptr)
+      builder.AddThermals(*data.observations, basic, calculated,
+                          computer_settings);
     builder.AddWaypoints(*data.waypoints,
                          &backend.glide_computer->GetProtectedRoutePlanner(),
                          basic, calculated, computer_settings);
