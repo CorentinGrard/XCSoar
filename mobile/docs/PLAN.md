@@ -23,9 +23,9 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M7 | Cockpit polish and beta release | ☐ |
 | M8 | iOS | ☐ |
 
-**Current focus:** CI after the first upstream merge (2026-11-18),
-then M6 / M7 polish and the upstream startup changes the core does not
-follow yet (Log, 2026-11-18).  Open: the map that stopped drawing once
+**Current focus:** M6 / M7 polish after the first upstream merge
+(2026-11-18).  Open: the vario bar is left out on short screens (M7,
+cockpit UX), the map that stopped drawing once
 (M3, not reproduced; next idea: screen off/on cycles during a replay,
 which locks the phone, so only with the pilot's OK).
 M5 is on hold: no external device to test with.
@@ -708,7 +708,12 @@ the core already links but that has never run in this app:
       it (chips are cards).  Landscape: the side panel's instruments sit
       at its bottom, MacCready and the menu under the hand as in
       portrait; tablet screenshots (10", both ways).  Left: one-handed
-      quick actions; tablets could show more tiles
+      quick actions; tablets could show more tiles.  Short screens
+      (2026-11-18): below about 120 dp between the cards and the map
+      buttons the vario and final glide bars are left out, e.g. on the
+      emulator's default 320x640 dp in a replay (cards + replay bar +
+      chips + tiles), which a pilot with a small phone would lose:
+      fewer tile rows or a narrower card stack there
 - [x] Screen always on.  Orientation lock and a brightness shortcut: not
       wanted, the phone does both (pilot, 2026-10-07)
 - [ ] Crash reporting (opt-in, privacy-friendly) + native crash symbolication
@@ -725,6 +730,21 @@ the core already links but that has never run in this app:
 
 ## Log
 
+- 2026-11-18 (night) — CI green again after the merge, and the core's
+  startup follows upstream's: no polar without a plane (GlidePolar has
+  no stand-in glider any more; the flight screen says "NO POLAR", the
+  analysis leaves the polar out), MacCready at start from the new
+  Startup Task MC (Safety heights page) instead of Safety MC, a
+  restart in flight takes the flight up again from upstream's session
+  file (bugs, ballast, crew, QNH, temperature, ATC, Go To; upstream's
+  restore moved to Session/Restore.cpp, shared), the FLARM range file.
+  CI fixes: TestCoreApi starts from an empty data directory (it had
+  passed here on an old profile's plane), golden replays fly upstream's
+  FlyablePolar glider as a plane (with Safety MC 0.5 they give the old
+  files exactly; the new files follow the default of 3.2), the gesture
+  icons' build race (two makes, one temporary file), and the L5
+  emulator has a phone's screen (pixel_6).
+
 - 2026-11-18 — First upstream merge: 804 commits (7.46, 7.46.1 and
   7.47 so far), `upstream` remote added.  Upstream's changes to code
   `mobile` had moved went to the new files (ActionInterfaceUI.cpp,
@@ -735,17 +755,15 @@ the core already links but that has never run in this app:
   panels).  Upstream builds zxing as a new third-party library: a local
   Android build made before needs its stamp removed once
   (`output/ANDROID/*/lib/*/stamp`).  Checked: upstream `make check` (but
-  TestWrapText, no font on this host), core-check, app tests, L5 on the
-  phone, the demo replay's map on the phone.  Not yet in the core's
-  startup (CoreStartup.cpp), which mirrors upstream's Startup(): no
-  stand-in polar without a plane (`GlidePolar::Invalid()`), task MC no
-  longer copied from Safety MC, the session restore after a crash, the
-  FLARM range file.  Fixed on the way: TestCoreApi's wind arrow check
-  needed the replay's wind, which ResetFlight() at the replay's end
-  clears (the CI failure); a JVM test failed at random when the
-  native core could not load twice.  The pilot's app was not on the
-  phone any more (gone with its XCSoarData before this session); a
-  fresh release build is installed.
+  TestWrapText, no font on this host), TestCoreApi (but not the golden
+  replays of core-check, which failed unseen: fixed the same night),
+  app tests, L5 on the phone, the demo replay's map on the phone.
+  Fixed on the way: TestCoreApi's wind arrow check needed the replay's
+  wind, which ResetFlight() at the replay's end clears (the CI
+  failure); a JVM test failed at random when the native core could
+  not load twice.  The pilot's app was not on the phone any more (gone
+  with its XCSoarData before this session); a fresh release build is
+  installed.
 
 - 2026-10-20 — Tile pages: team code, radio, ATC radial and nearest
   airspace, like upstream's dialogs; checked on the phone.  Fixed on
