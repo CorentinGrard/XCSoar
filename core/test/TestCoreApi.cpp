@@ -774,7 +774,22 @@ TestTiles(xcs_core *core)
   };
   ok1(Contains(graphic(e_Vario_spark),
                "\"graphic\":{\"kind\":\"spark\",\"values\":["));
-  ok1(Contains(graphic(WIND_ARROW), "\"graphic\":{\"kind\":\"wind_arrow\",\"angle\":"));
+  /* the replay's wind went with its flight (ResetFlight() at its end):
+     a manual wind, in use from the next calculation, which without GPS
+     only a setting such as the MacCready starts */
+  ok1(xcs_wind_set_manual(core, 5, 270) == XCS_OK);
+  xcs_flight_snapshot snapshot{};
+  snapshot.struct_size = sizeof(snapshot);
+  ok1(xcs_get_snapshot(core, &snapshot) == XCS_OK);
+  bool wind_arrow = false;
+  for (unsigned i = 0; i < 50 && !wind_arrow; ++i) {
+    xcs_set_mac_cready(core, snapshot.mac_cready);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    wind_arrow = Contains(graphic(WIND_ARROW),
+                          "\"graphic\":{\"kind\":\"wind_arrow\",\"angle\":");
+  }
+  ok1(wind_arrow);
+  ok1(xcs_wind_clear_manual(core) == XCS_OK);
   /* nothing to draw without GPS, as upstream */
   ok1(Contains(graphic(e_Barogram), "\"title\":\"Barogram\",\"value\":\"\"") &&
       Contains(graphic(e_Barogram), "\"graphic\":null}]"));
@@ -1331,7 +1346,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 5);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8);
 
   Recorder recorder;
   TestCreateArguments(recorder);
