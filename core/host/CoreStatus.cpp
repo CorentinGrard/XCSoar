@@ -299,6 +299,8 @@ TimesPage() noexcept
                 basic.date_time_utc.month, basic.date_time_utc.day);
   rows.Add(_("UTC date"), temp);
 
+  rows.Add(_("Flight state"), flight.flying ? _("In flight") : _("On ground"));
+
   temp.clear();
   if (flight.flight_time.count() > 0) {
     if (flight.takeoff_time.IsDefined() && flight.landing_time.IsDefined()) {

@@ -772,6 +772,8 @@ TestStatusPages(xcs_core *core)
   for (const char *page : {"flight", "system", "task", "rules", "times"})
     ok1(Contains(json, std::string{"\"name\":\""} + page + "\""));
   ok1(Contains(json, "{\"label\":\"GPS lock\",\"value\":"));
+  /* upstream's Times page says whether XCSoar thinks it is flying */
+  ok1(Contains(json, "{\"label\":\"Flight state\",\"value\":\"On ground\"}"));
 }
 
 static void
@@ -1430,7 +1432,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1);
 
   Recorder recorder;
   TestCreateArguments(recorder);
