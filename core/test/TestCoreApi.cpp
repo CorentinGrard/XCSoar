@@ -1182,6 +1182,9 @@ TestStarted(xcs_core *core, Recorder &recorder)
   ok1(s.struct_size == sizeof(s));
   ok1(s.api_version == XCS_API_VERSION);
   ok1(s.sequence >= 1);
+  /* that flight's settings are back */
+  ok1(std::fabs(s.bugs - 0.85) < 0.001);
+  ok1(std::fabs(s.qnh - 1003) < 0.01);
 
   ok1(xcs_set_mac_cready(core, -1) == XCS_ERROR_INVALID_ARGUMENT);
   ok1(xcs_set_mac_cready(core, 6) == XCS_ERROR_INVALID_ARGUMENT);
@@ -1380,14 +1383,18 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2);
 
   Recorder recorder;
   TestCreateArguments(recorder);
   TestRepositoryList();
 
-  /* start as on a new phone (and in CI): no profile, no plane */
+  /* start as on a new phone (and in CI): no profile, no plane; but
+     with the session file of a flight that Android ended the app in */
   std::filesystem::remove_all(DATA_PATH);
+  std::filesystem::create_directories(DATA_PATH);
+  std::ofstream{std::filesystem::path{DATA_PATH} / "xcsoar-session.txt"}
+    << "Flying=\"1\"\nBugs=\"0.85\"\nQNH=\"1003\"\n";
 
   const auto config = MakeConfig(recorder);
   xcs_core *core = nullptr;

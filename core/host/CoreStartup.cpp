@@ -62,6 +62,8 @@
 #include "Logger/GlueFlightLogger.hpp"
 #include "Replay/Replay.hpp"
 #include "Plane/PlaneGlue.hpp"
+#include "Session/SessionState.hpp"
+#include "Session/Restore.hpp"
 #include "CorePlanes.hpp"
 #include "CoreWeather.hpp"
 #include "CoreRasp.hpp"
@@ -183,6 +185,8 @@ CoreStartup(OperationEnvironment &operation, bool open_devices)
   backend_components->protected_task_manager =
     std::make_unique<ProtectedTaskManager>(*task_manager,
                                            computer_settings.task);
+  backend_components->protected_task_manager->SetGotoPersistedHandler(
+    Session::NoteGoto);
 
   LoadTerrain(operation);
   CoreRasp::Load();
@@ -196,11 +200,16 @@ CoreStartup(OperationEnvironment &operation, bool open_devices)
   backend_components->glide_computer->SetTerrain(data_components->terrain.get());
   backend_components->glide_computer->SetLogger(backend_components->igc_logger.get());
   backend_components->glide_computer->Initialise();
+  backend_components->glide_computer->GetFlarmRange()
+    .Load(LocalPath("flarm-range.txt"));
 
   backend_components->replay =
     std::make_unique<Replay>(*backend_components->device_blackboard,
                              backend_components->igc_logger.get(),
                              *backend_components->protected_task_manager);
+
+  /* what the last run noted, for a restart in flight */
+  Session::Load();
 
   GlidePolar &gp =
     CommonInterface::SetComputerSettings().polar.glide_polar_task;
@@ -214,6 +223,11 @@ CoreStartup(OperationEnvironment &operation, bool open_devices)
                          Profile::map);
   PlaneGlue::Synchronize(computer_settings.plane,
                          CommonInterface::SetComputerSettings(), gp);
+  /* a restart in flight (e.g. Android ended the app) takes the flight
+     up again; upstream asks first, and restores when nobody answers */
+  if (Session::State().flying)
+    LogString("Restoring the settings of an unfinished flight");
+  Session::RestoreComputer(gp);
   task_manager->SetGlidePolar(gp);
 
   /* topography is only used for drawing the map; it is loaded by the
@@ -239,6 +253,8 @@ CoreStartup(OperationEnvironment &operation, bool open_devices)
   WaypointGlue::SetHome(*data_components->waypoints,
                         settings.poi, settings.team_code,
                         false);
+  Session::RestoreGoto(*task_manager, *data_components->waypoints);
+  Session::SetReady();
   ActionInterface::SetStartupLocation();
 
   backend_components->device_blackboard->Merge();
@@ -458,8 +474,10 @@ CoreShutdown() noexcept
   SaveFlarmColors();
   SaveFlarmMessaging();
   Profile::Save();
+  Session::Flush();
   /* the core may be started again in this process */
   Profile::Clear();
+  Session::Reset();
 
   if (backend_components != nullptr &&
       backend_components->devices != nullptr) {
@@ -486,6 +504,9 @@ CoreShutdown() noexcept
       backend_components->calculation_thread->Join();
       backend_components->calculation_thread.reset();
     }
+
+    if (backend_components->glide_computer)
+      backend_components->glide_computer->GetFlarmRange().Close();
   }
 
   CoreDeinitNotify();
