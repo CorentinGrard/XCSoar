@@ -385,6 +385,44 @@ TestFieldsBeforeName()
 }
 
 static void
+TestBoundingBox()
+{
+  char input[] =
+    "name = FRA_FULL.xcm\n"
+    "uri = http://x/FRA_FULL.xcm\n"
+    "bbox = -5,42,9,51.5\n"
+    "\n"
+    "name = no-bbox.cup\n"
+    "uri = http://x/no-bbox.cup\n"
+    "\n"
+    "name = bad-bbox.cup\n"
+    "uri = http://x/bad-bbox.cup\n"
+    "bbox = -5,42,9\n"
+    "\n"
+    "name = south-above-north.cup\n"
+    "uri = http://x/south-above-north.cup\n"
+    "bbox = -5,52,9,42\n";
+  StringLineReader reader(input);
+  FileRepository repo;
+
+  ok1(ParseFileRepository(repo, reader));
+
+  const auto *f = repo.FindByName("FRA_FULL.xcm");
+  ok1(f != nullptr);
+  ok1(f->bounds.IsValid());
+  /* Grenoble is inside, Berlin is not */
+  ok1(f->bounds.IsInside(GeoPoint(Angle::Degrees(5.73),
+                                  Angle::Degrees(45.19))));
+  ok1(!f->bounds.IsInside(GeoPoint(Angle::Degrees(13.40),
+                                   Angle::Degrees(52.52))));
+  ok1(equals(f->bounds.GetNorth(), 51.5));
+
+  ok1(!repo.FindByName("no-bbox.cup")->bounds.IsValid());
+  ok1(!repo.FindByName("bad-bbox.cup")->bounds.IsValid());
+  ok1(!repo.FindByName("south-above-north.cup")->bounds.IsValid());
+}
+
+static void
 TestRaspForecastOutOfDate()
 {
   const BrokenDate today(2026, 9, 21);
@@ -428,10 +466,15 @@ TestAvailableFile()
   f.sha256_hash[15] = std::byte{0x42};
   ok1(f.HasHash());
 
+  f.bounds = GeoBounds(GeoPoint(Angle::Degrees(-5), Angle::Degrees(51.5)),
+                       GeoPoint(Angle::Degrees(9), Angle::Degrees(42)));
+  ok1(f.bounds.IsValid());
+
   f.Clear();
   ok1(f.IsEmpty());
   ok1(!f.HasHash());
   ok1(f.type == FileType::UNKNOWN);
+  ok1(!f.bounds.IsValid());
 }
 
 int main()
@@ -454,8 +497,9 @@ int main()
     4 +   // TestWhitespaceHandling
     5 +   // TestFindByName
     3 +   // TestFieldsBeforeName
+    9 +   // TestBoundingBox
     7 +   // TestRaspForecastOutOfDate
-    10    // TestAvailableFile
+    12    // TestAvailableFile
   );
 
   TestEmpty();
@@ -475,6 +519,7 @@ int main()
   TestWhitespaceHandling();
   TestFindByName();
   TestFieldsBeforeName();
+  TestBoundingBox();
   TestRaspForecastOutOfDate();
   TestAvailableFile();
 

@@ -1237,7 +1237,7 @@ TEST_REPOSITORY_SOURCES = \
 	$(SRC)/system/Path.cpp \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestRepository.cpp
-TEST_REPOSITORY_DEPENDS = UTIL
+TEST_REPOSITORY_DEPENDS = MATH UTIL
 $(eval $(call link-program,TestRepository,TEST_REPOSITORY))
 
 TEST_FILE_TYPE_SOURCES = \

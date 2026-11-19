@@ -6,6 +6,7 @@
 #include "io/LineReader.hpp"
 #include "util/StringStrip.hxx"
 #include "util/HexString.hpp"
+#include "util/NumberParser.hpp"
 #include "system/Path.hpp"
 
 /**
@@ -31,6 +32,36 @@ ParseLine(char *line)
   char *value = const_cast<char *>(StripLeft(separator + 1));
   StripRight(value);
   return value;
+}
+
+/**
+ * Parses a bounding box: "west,south,east,north" in degrees.
+ *
+ * @return an invalid #GeoBounds if the value is malformed
+ */
+static GeoBounds
+ParseBounds(const char *value) noexcept
+{
+  double degrees[4];
+  for (unsigned i = 0; i < 4; ++i) {
+    char *endptr;
+    degrees[i] = ParseDouble(value, &endptr);
+    if (endptr == value || *endptr != (i < 3 ? ',' : '\0'))
+      return GeoBounds::Invalid();
+
+    if (i < 3)
+      value = endptr + 1;
+  }
+
+  const GeoPoint north_west(Angle::Degrees(degrees[0]),
+                            Angle::Degrees(degrees[3]));
+  const GeoPoint south_east(Angle::Degrees(degrees[2]),
+                            Angle::Degrees(degrees[1]));
+  if (!north_west.Check() || !south_east.Check() ||
+      degrees[1] > degrees[3])
+    return GeoBounds::Invalid();
+
+  return GeoBounds(north_west, south_east);
 }
 
 static bool
@@ -80,6 +111,8 @@ ParseFileRepository(FileRepository &repository, NLineReader &reader)
       file.description.assign(value);
     } else if (StringIsEqual(name, "area")) {
       file.area = value;
+    } else if (StringIsEqual(name, "bbox")) {
+      file.bounds = ParseBounds(value);
     } else if (StringIsEqual(name, "type")) {
       if (StringIsEqual(value, "airspace"))
         file.type = FileType::AIRSPACE;

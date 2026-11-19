@@ -5,6 +5,7 @@
 
 #include "util/StaticString.hxx"
 #include "FileType.hpp"
+#include "Geo/GeoBounds.hpp"
 #include "time/BrokenDate.hpp"
 
 #include <string>
@@ -33,6 +34,12 @@ struct AvailableFile {
    * global.
    */
   StaticString<8> area;
+
+  /**
+   * The region this file covers (the repository's "bbox").  Invalid
+   * if the repository does not say.
+   */
+  GeoBounds bounds = GeoBounds::Invalid();
 
   FileType type;
 
@@ -65,6 +72,7 @@ struct AvailableFile {
     name.clear();
     uri.clear();
     area.clear();
+    bounds = GeoBounds::Invalid();
     type = FileType::UNKNOWN;
     update_date = BrokenDate::Invalid();
     sha256_hash.fill(std::byte{0});
