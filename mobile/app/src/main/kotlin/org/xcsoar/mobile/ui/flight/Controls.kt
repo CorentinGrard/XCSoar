@@ -37,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -231,15 +230,14 @@ fun MenuTile(onClick: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/** A white button floating over the map. */
+/** A white button floating over the map, flat like the cards. */
 @Composable
 private fun Modifier.mapButton(): Modifier {
     val colors = XcsTheme.colors
     val shape = RoundedCornerShape(16.dp)
     return this
-        .shadow(8.dp, shape, ambientColor = colors.text, spotColor = colors.text)
         .background(colors.card, shape)
-        .border(1.dp, colors.panelBorder, shape)
+        .border(1.dp, colors.outline, shape)
         .clip(shape)
 }
 
@@ -340,9 +338,8 @@ fun SetMacCreadyButton(lift: Double, onClick: () -> Unit, modifier: Modifier = M
     Column(
         modifier
             .heightIn(min = TOUCH)
-            .shadow(8.dp, RoundedCornerShape(16.dp), ambientColor = colors.text,
-                    spotColor = colors.text)
-            .background(colors.updraft, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.updraft)
             .clickable(role = Role.Button, onClickLabel = "Set MacCready to ${value.text}",
                        onClick = onClick)
             .padding(horizontal = 12.dp),

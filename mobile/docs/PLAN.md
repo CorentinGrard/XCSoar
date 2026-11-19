@@ -689,7 +689,11 @@ the core already links but that has never run in this app:
       the libraries' rules: an app profile (a Macrobenchmark module
       flying the demo replay) would compile the flight screen from the
       first start; the cards' shadows and overdraw are the next suspects
-      on such GPUs
+      on such GPUs.  Without the shadows (flat cards, 2026-11-19; same
+      replay, 20 minutes in, compiled with its profile, dark theme): a
+      frame 26-27 ms instead of 28-29 (median), 34-36 instead of 38-40
+      (95th percentile), CPU the same 13 %: a small gain, the shadows
+      were not the main cost
 - [~] Design rework: brief written (2026-10-03, claude.ai doc "XCSoar
       Mobile — Product and Design Brief",
       https://claude.ai/code/artifact/76556a35-f3d5-43f3-acfb-8ee40fc07ff5):
@@ -758,7 +762,9 @@ caution).  From a fresh install tested on a Redmi 5 and the Pixel 7.
    each cast a drop shadow; on a low-end phone the render thread is the
    slow part of every frame (PLAN, Performance).  Tonal surfaces
    (Material 3 surface tones, a 1 dp outline) look more current, cost
-   less, and keep the map readable.
+   less, and keep the map readable.  **Done** (2026-11-19): cards, map
+   buttons, edge bars and the sheet are flat with an outline; frames
+   2-4 ms faster on the Redmi 5 (Performance).
 3. **Spoken callouts** (Android text-to-speech, each one switchable):
    airspace ahead and inside, final glide reached, task point reached,
    the average when leaving a climb ("climb 2.1, gained 450").  Eyes

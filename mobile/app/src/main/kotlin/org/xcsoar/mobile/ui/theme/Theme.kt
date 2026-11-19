@@ -53,8 +53,13 @@ data class XcsColors(
     /** InfoBoxes and control groups on the sheet. */
     val panel: Color,
     val panelBorder: Color,
-    /** Cards floating over the map; opaque, or the shadow shows through. */
+    /** Cards floating over the map; opaque, so the map never shows
+        through their text. */
     val card: Color,
+    /** The 1 dp edge of what floats over the map (cards, map buttons,
+        the sheet): flat surfaces, no drop shadows, which cost the render
+        thread most on slow phones (mobile/docs/PLAN.md, Performance). */
+    val outline: Color,
     /** Face of a button sitting on a [panel]. */
     val control: Color,
     /** Selected segment, primary action button. */
@@ -90,6 +95,7 @@ internal val sunlight = XcsColors(
     panel = Color(0xFFF3F5F0),
     panelBorder = Color(0x1F0E1210),
     card = Color(0xFFFFFFFF),
+    outline = Color(0x3D0E1210),
     control = Color(0xFFFFFFFF),
     selected = Color(0xFF0E1210),
     onSelected = Color(0xFFFFFFFF),
@@ -116,6 +122,7 @@ internal val night = XcsColors(
     panel = Color(0xFF1C211E),
     panelBorder = Color(0x33E6E6E6),
     card = Color(0xFF181D1A),
+    outline = Color(0x47E6E6E6),
     control = Color(0xFF2A302C),
     selected = Color(0xFFE6E6E6),
     onSelected = Color(0xFF0B0D0C),

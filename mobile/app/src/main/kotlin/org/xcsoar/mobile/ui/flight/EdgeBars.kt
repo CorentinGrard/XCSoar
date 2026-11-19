@@ -19,7 +19,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -116,7 +115,7 @@ fun FinalGlideBar(finalGlide: FinalGlide?, modifier: Modifier = Modifier) {
     }
 }
 
-/** A narrow white card floating over the map. */
+/** A narrow white card floating over the map, flat like the others. */
 @Composable
 private fun EdgeCard(modifier: Modifier, content: @Composable ColumnScope.() -> Unit) {
     val colors = XcsTheme.colors
@@ -124,9 +123,8 @@ private fun EdgeCard(modifier: Modifier, content: @Composable ColumnScope.() -> 
     Column(
         modifier
             .width(EDGE_BAR_WIDTH)
-            .shadow(8.dp, shape, ambientColor = colors.text, spotColor = colors.text)
             .background(colors.card, shape)
-            .border(1.dp, colors.panelBorder, shape)
+            .border(1.dp, colors.outline, shape)
             .padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),

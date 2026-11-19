@@ -5,6 +5,7 @@ package org.xcsoar.mobile.ui.flight
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,7 +41,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -333,9 +333,9 @@ fun FlightContent(
                     Modifier
                         .fillMaxWidth()
                         .heightIn(max = sheetMax)
-                        .shadow(16.dp, sheetShape, ambientColor = colors.text,
-                                spotColor = colors.text)
+                        // flat: an outline where it meets the map
                         .background(colors.sheet, sheetShape)
+                        .border(1.dp, colors.outline, sheetShape)
                         .windowInsetsPadding(WindowInsets.safeDrawing.only(
                             WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
                         .verticalScroll(rememberScrollState())

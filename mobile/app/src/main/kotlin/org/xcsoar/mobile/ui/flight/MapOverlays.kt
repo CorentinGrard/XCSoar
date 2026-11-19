@@ -23,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -50,11 +49,10 @@ import org.xcsoar.mobile.ui.theme.XcsTheme
  */
 
 /**
- * A white card floating over the map; with [elevated] false, a flat
- * panel on the instrument sheet instead.
+ * A white card floating over the map, flat with a thin outline; with
+ * [elevated] false, a panel on the instrument sheet instead.
  *
  * @param onClick makes the card a button, its ripple inside the shape
- * (after the shadow, which a clip in [modifier] would cut off)
  * @param description what a screen reader says for the whole card
  */
 @Composable
@@ -72,9 +70,8 @@ fun FloatingCard(
         modifier = modifier
             .then(if (elevated)
                 Modifier
-                    .shadow(8.dp, shape, ambientColor = colors.text, spotColor = colors.text)
                     .background(colors.card, shape)
-                    .border(1.dp, colors.panelBorder, shape)
+                    .border(1.dp, colors.outline, shape)
             else Modifier.background(colors.panel, shape))
             .then(if (onClick != null)
                 Modifier.clip(shape)
