@@ -28,6 +28,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.xcsoar.mobile.core.ChartPoint
+import org.xcsoar.mobile.core.XY
 import org.xcsoar.mobile.core.TaskLeg
 import org.xcsoar.mobile.core.Trend
 import org.xcsoar.mobile.core.UnitInfo
@@ -111,6 +112,18 @@ fun DrawScope.trend(m: ChartMapper, trend: Trend, color: Color) =
          color, width = 2f, dashed = true)
 
 /** A horizontal reference line (MacCready, estimated speed). */
+/** The area between the height axis and a profile of [XY.x] by [XY.y]. */
+fun DrawScope.profile(m: ChartMapper, points: List<XY>, color: Color) {
+    if (points.size < 2) return
+    val path = Path().apply {
+        moveTo(m.x(0.0), m.y(points.first().y))
+        for (p in points) lineTo(m.x(p.x), m.y(p.y))
+        lineTo(m.x(0.0), m.y(points.last().y))
+        close()
+    }
+    drawPath(path, color)
+}
+
 fun DrawScope.level(m: ChartMapper, y: Double, color: Color) =
     line(m, listOf(ChartPoint(m.xMin, y), ChartPoint(m.xMax, y)), color, width = 2f,
          dashed = true)

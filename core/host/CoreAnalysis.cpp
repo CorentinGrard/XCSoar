@@ -316,9 +316,10 @@ ThermalProfile(const ThermalBand &band, double hoffset) noexcept
  * above the terrain base; "range" is the chart's height range, which
  * the risk MacCready line spans.
  */
-static boost::json::object
-ThermalBandChart(const MoreData &basic, const DerivedInfo &calculated,
-                 const ComputerSettings &settings) noexcept
+boost::json::object
+CoreAnalysis::ThermalBandChart(const MoreData &basic,
+                               const DerivedInfo &calculated,
+                               const ComputerSettings &settings) noexcept
 {
   boost::json::object o;
   /* no climbs recorded */

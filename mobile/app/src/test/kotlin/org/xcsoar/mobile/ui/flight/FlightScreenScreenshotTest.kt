@@ -12,6 +12,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.MapOrientation
+import org.xcsoar.mobile.core.ThermalBandInfo
 import org.xcsoar.mobile.core.TileGraphic
 import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.ui.theme.XcsTheme
@@ -109,14 +110,20 @@ class FlightScreenScreenshotTest {
     }
 
     /**
-     * Task progress (five points, two achieved, the third active) and the
-     * climb percentage pie, drawn from the core's data.
+     * Task progress (five points, two achieved, the third active), the
+     * climb percentage pie and the thermal band, drawn from the core's
+     * data.
      */
     @Test
     @Config(qualifiers = "w390dp-h844dp-xxhdpi")
     fun graphicTilesTaskAndClimb() = capture("tiles_graphic_task_climb") {
         val task = listOf(listOf(0.0, 1.0), listOf(0.3, 1.0), listOf(0.55, 0.0),
                           listOf(0.8, 0.0), listOf(1.0, 0.0))
+        // climbs strongest in the middle of the band, this one weaker
+        val band = ThermalBandInfo(
+            height = 900.0, macCready = 1.5, range = listOf(0.0, 1600.0),
+            collectionRaw = (0..15).map { listOf(2.4 * sin(it / 15.0 * 3.1), it * 100.0) },
+            currentRaw = (0..9).map { listOf(1.4 * sin(it / 9.0 * 3.1), it * 100.0) })
         XcsTheme(dark = false) {
             FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {},
                           tiles = listOf(
@@ -127,7 +134,9 @@ class FlightScreenScreenshotTest {
                               TileValue(0, "Climb %", "",
                                         graphic = TileGraphic(TileGraphic.CLIMB_PERCENT,
                                                               listOf(28.0, 41.0, 9.0))),
-                              TileValue(6, "V GND", "130", "km/h"),
+                              TileValue(0, "Th Band", "",
+                                        graphic = TileGraphic(TileGraphic.THERMAL_BAND,
+                                                              band = band)),
                               TileValue(6, "V GND", "130", "km/h"),
                               TileValue(6, "V GND", "130", "km/h"),
                               TileValue(6, "V GND", "130", "km/h")))

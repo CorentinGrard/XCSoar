@@ -54,12 +54,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import org.xcsoar.mobile.core.ChartPoint
+import org.xcsoar.mobile.core.ThermalBandInfo
 import org.xcsoar.mobile.core.TileGraphic
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.analysis.ChartMapper
 import org.xcsoar.mobile.ui.analysis.area
 import org.xcsoar.mobile.ui.analysis.level
 import org.xcsoar.mobile.ui.analysis.line
+import org.xcsoar.mobile.ui.analysis.profile
 import org.xcsoar.mobile.ui.theme.XcsColors
 import org.xcsoar.mobile.ui.theme.XcsTheme
 
@@ -163,7 +165,26 @@ private fun TileDrawing(graphic: TileGraphic, modifier: Modifier) {
         TileGraphic.BAROGRAM -> Canvas(modifier) { barogram(graphic, colors) }
         TileGraphic.TASK_PROGRESS -> Canvas(modifier) { taskProgress(graphic, colors) }
         TileGraphic.CLIMB_PERCENT -> Canvas(modifier) { climbPercent(graphic, colors) }
+        TileGraphic.THERMAL_BAND ->
+            graphic.band?.let { band -> Canvas(modifier) { thermalBand(band, colors) } }
     }
+}
+
+/**
+ * DrawThermalBandSpark(): the analysis page's thermal band, small: the
+ * climbs so far by height in grey, this climb in blue, and a dot at
+ * the height now and the MacCready.
+ */
+private fun DrawScope.thermalBand(b: ThermalBandInfo, colors: XcsColors) {
+    val range = b.range ?: return
+    val all = b.collection + b.current
+    val m = ChartMapper(0f, 0f, size.width, size.height,
+                        xMin = minOf(0.0, all.minOfOrNull { it.x } ?: 0.0),
+                        xMax = maxOf(0.5, b.macCready, all.maxOfOrNull { it.x } ?: 0.0) * 1.1,
+                        yMin = range[0], yMax = maxOf(range[1], range[0] + 1))
+    profile(m, b.collection, colors.textSecondary.copy(alpha = 0.35f))
+    profile(m, b.current, colors.updraft.copy(alpha = 0.6f))
+    b.height?.let { h -> drawCircle(colors.text, 2.5.dp.toPx(), m.at(ChartPoint(b.macCready, h))) }
 }
 
 /** The circle of the round drawings, centred in the tile. */

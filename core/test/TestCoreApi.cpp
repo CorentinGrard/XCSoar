@@ -806,7 +806,8 @@ TestTiles(xcs_core *core)
   ok1(!Contains(types, "{\"id\":" + std::to_string(e_Horizon) + ",") &&
       Contains(types, "{\"id\":" + std::to_string(e_Barogram) + ",") &&
       Contains(types, "{\"id\":" + std::to_string(e_TaskProgress) + ",") &&
-      Contains(types, "{\"id\":" + std::to_string(e_Climb_Perc_Chart) + ","));
+      Contains(types, "{\"id\":" + std::to_string(e_Climb_Perc_Chart) + ",") &&
+      Contains(types, "{\"id\":" + std::to_string(e_ThermalBand) + ","));
 
   auto layouts = [core]{
     return GetJson([core](char *b, size_t s, size_t *l){
@@ -1232,6 +1233,8 @@ TestReplayControls(xcs_core *core)
                "\"graphic\":{\"kind\":\"climb_percent\",\"values\":["));
   ok1(Contains(graphic(InfoBoxFactory::e_TaskProgress),
                "\"graphic\":{\"kind\":\"task_progress\",\"points\":["));
+  ok1(Contains(graphic(InfoBoxFactory::e_ThermalBand),
+               "\"graphic\":{\"kind\":\"thermal_band\",\"band\":{"));
   xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, InfoBoxFactory::e_WindSpeed_Est);
 
   /* 0 pauses */
@@ -1497,7 +1500,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 2);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 3);
 
   Recorder recorder;
   TestCreateArguments(recorder);

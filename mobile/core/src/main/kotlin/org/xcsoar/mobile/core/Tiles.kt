@@ -89,6 +89,7 @@ data class TileValue(
  *    [active] one, and the share of the task [remaining] (0..1).
  *  - "climb_percent": the time circling and climbing, circling at all,
  *    and climbing without circling, % ([values]).
+ *  - "thermal_band": the analysis page's thermal band ([band]).
  */
 @Serializable
 data class TileGraphic(
@@ -103,6 +104,7 @@ data class TileGraphic(
     val angle: Double = 0.0,
     val active: Int = -1,
     val remaining: Double = 1.0,
+    val band: ThermalBandInfo? = null,
 ) {
     val points get() = pointsRaw.map { ChartPoint(it[0], it[1]) }
     val terrain get() = terrainRaw.map { ChartPoint(it[0], it[1]) }
@@ -114,6 +116,7 @@ data class TileGraphic(
         const val NEXT_ARROW = "next_arrow"
         const val TASK_PROGRESS = "task_progress"
         const val CLIMB_PERCENT = "climb_percent"
+        const val THERMAL_BAND = "thermal_band"
     }
 }
 

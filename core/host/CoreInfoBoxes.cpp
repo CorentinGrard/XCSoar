@@ -2,6 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "CoreInfoBoxes.hpp"
+#include "CoreAnalysis.hpp"
 #include "InfoBoxes/Content/Base.hpp"
 #include "InfoBoxes/Content/Factory.hpp"
 #include "InfoBoxes/Content/Group.hpp"
@@ -50,7 +51,7 @@ static constexpr Type DEFAULT_LAYOUTS[CoreInfoBoxes::LAYOUT_COUNT]
 /** Types that only draw (OnCustomPaint()) and whose drawing the app
     does not have yet (Graphic()): not offered for a tile. */
 static constexpr Type GRAPHIC_TYPES[] = {
-  e_ThermalBand, e_Horizon, THERMAL_ASSISTANT,
+  e_Horizon, THERMAL_ASSISTANT,
 };
 
 static bool
@@ -291,6 +292,18 @@ Graphic(Type type, const InfoBoxData &data) noexcept
       {"points", std::move(points)},
       {"active", summary.active},
       {"remaining", summary.p_remaining},
+    };
+  }
+
+  case e_ThermalBand: {
+    /* DrawThermalBandSpark(): the analysis page's band, small */
+    const auto &settings = CommonInterface::GetComputerSettings();
+    auto band = CoreAnalysis::ThermalBandChart(basic, calculated, settings);
+    if (band.empty())
+      return nullptr;
+    return boost::json::object{
+      {"kind", "thermal_band"},
+      {"band", std::move(band)},
     };
   }
 

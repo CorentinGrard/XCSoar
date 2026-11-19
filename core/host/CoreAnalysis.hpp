@@ -5,6 +5,11 @@
 
 #include <string>
 
+struct MoreData;
+struct DerivedInfo;
+struct ComputerSettings;
+namespace boost::json { class object; }
+
 /**
  * The data behind XCSoar's analysis dialog (src/Dialogs/dlgAnalysis.cpp)
  * for the barograph, climb history, task speed and contest pages,
@@ -46,5 +51,14 @@ namespace CoreAnalysis {
  */
 std::string
 Describe() noexcept;
+
+/**
+ * The thermal band page ("thermal_band" above): climb rate by height
+ * above the terrain base; empty before the first climb.  Also the
+ * thermal band InfoBox's drawing.
+ */
+boost::json::object
+ThermalBandChart(const MoreData &basic, const DerivedInfo &calculated,
+                 const ComputerSettings &settings) noexcept;
 
 } // namespace CoreAnalysis

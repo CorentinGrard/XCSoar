@@ -49,18 +49,6 @@ private fun List<XY>.points() = map { ChartPoint(it.x, it.y) }
 /** "V km/h": an axis' name and the pilot's unit. */
 private fun axisName(name: String, group: UnitGroup) = "$name ${Format.unit(group).name}"
 
-/** The area between the height axis and a profile of [XY.x] by [XY.y]. */
-private fun DrawScope.profile(m: ChartMapper, points: List<XY>, color: Color) {
-    if (points.size < 2) return
-    val path = Path().apply {
-        moveTo(m.x(0.0), m.y(points.first().y))
-        for (p in points) lineTo(m.x(p.x), m.y(p.y))
-        lineTo(m.x(0.0), m.y(points.last().y))
-        close()
-    }
-    drawPath(path, color)
-}
-
 /** ThermalBandRenderer: climb rate by height above the terrain base. */
 @Composable
 internal fun ThermalBandPage(a: Analysis) {
