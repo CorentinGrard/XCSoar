@@ -24,8 +24,7 @@ nothing counts as done without its tests (levels L0–L5 in ARCHITECTURE §6).
 | M8 | iOS | ☐ |
 
 **Current focus:** M6 / M7 polish after the first upstream merge
-(2026-11-18).  Open: the vario bar is left out on short screens (M7,
-cockpit UX), the map that stopped drawing once
+(2026-11-18).  Open: the map that stopped drawing once
 (M3, not reproduced; next idea: screen off/on cycles during a replay,
 which locks the phone, so only with the pilot's OK).
 M5 is on hold: no external device to test with.
@@ -711,11 +710,12 @@ the core already links but that has never run in this app:
       at its bottom, MacCready and the menu under the hand as in
       portrait; tablet screenshots (10", both ways).  Left: one-handed
       quick actions; tablets could show more tiles.  Short screens
-      (2026-11-18): below about 120 dp between the cards and the map
-      buttons the vario and final glide bars are left out, e.g. on the
-      emulator's default 320x640 dp in a replay (cards + replay bar +
-      chips + tiles), which a pilot with a small phone would lose:
-      fewer tile rows or a narrower card stack there
+      (2026-11-19, a Redmi 5, 360x720 dp): in a replay the vario and final
+      glide bars went (less than 120 dp above the map buttons); they now
+      shrink instead, the vario last (its number stays down to 72 dp),
+      with a screenshot test of that phone.  The status bar's icons, light
+      in dark mode, were invisible on the white map: a strip in the
+      theme's colour now sits behind them
 - [x] Screen always on.  Orientation lock and a brightness shortcut: not
       wanted, the phone does both (pilot, 2026-10-07)
 - [ ] Crash reporting (opt-in, privacy-friendly) + native crash symbolication
