@@ -8,16 +8,14 @@ What changes is how you reach them.
 Buteo is not made by the XCSoar project: please report its problems at
 https://github.com/CorentinGrard/XCSoar/issues, not to XCSoar.
 
-Both apps install side by side (Buteo is
-`io.github.corentingrard.buteo`), so you can keep XCSoar while you try
-it.
+Both apps install side by side (Buteo is `app.corentin.buteo`), so
+you can keep XCSoar while you try it.
 
 ## Bring your data
 
 The app keeps its files in its own `XCSoarData` folder:
-`Android/data/io.github.corentingrard.buteo/files/XCSoarData`, visible
-from a computer
-over USB. The folders inside are XCSoar's (`maps`, `airspace`,
+`Android/data/app.corentin.buteo/files/XCSoarData`, visible from a
+computer over USB. The folders inside are XCSoar's (`maps`, `airspace`,
 `waypoints`, `tasks`, `profiles`, `logs`).
 
 | What | How |

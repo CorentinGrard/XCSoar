@@ -75,7 +75,7 @@ the build to CMake.
 **Status:** Accepted (2026-11-19)
 
 An application ID of its own, so the app installs alongside upstream
-XCSoar: `io.github.corentingrard.buteo` since D23 (was
+XCSoar: `app.corentin.buteo` since D23 (was
 `org.xcsoar.mobile`). It reads the same `XCSoarData` layout and `.prf`
 profiles, so pilots can migrate by copying files.
 
@@ -330,9 +330,8 @@ that thermals over every airfield.  No aviation app of that name was
 found (2026-11-19).  It says what it is built on: XCSoar's flight
 computer, under the GPL.
 
-- Application ID `io.github.corentingrard.buteo` (the L5 app's:
-  `.l5`), a namespace the author controls.  A store keeps it for good
-  after the first upload.
+- Application ID `app.corentin.buteo` (the L5 app's: `.l5`), the
+  author's choice.  A store keeps it for good after the first upload.
 - Unchanged, because they are XCSoar's, not the app's identity: the
   Kotlin package `org.xcsoar.mobile` and the reused Java classes in
   `org.xcsoar` (D13); the `XCSoarData` folder and its formats (D8);

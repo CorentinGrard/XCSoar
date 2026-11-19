@@ -21,7 +21,7 @@ android {
     defaultConfig {
         // Buteo, an app of its own beside XCSoar (mobile/docs/DECISIONS.md
         // D8, D23); fixed for good once uploaded to a store
-        applicationId = "io.github.corentingrard.buteo"
+        applicationId = "app.corentin.buteo"
         minSdk = 26
         targetSdk = 37
         versionCode = 1
