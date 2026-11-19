@@ -871,6 +871,17 @@ caution).  From a fresh install tested on a Redmi 5 and the Pixel 7.
 
 ## Log
 
+- 2026-11-19 (evening) — The five ideas the pilot chose (Ideas,
+  below): flat cards without drop shadows (frames 2-4 ms faster on the
+  Redmi 5), a first start that sets up units, pilot and glider and
+  downloads the map, airspace and airfields for where the phone is
+  (the repository's bounding boxes, now parsed upstream-style in
+  `Repository: Parse the bounding box of each file`), spoken callouts,
+  the thermal assistant on the glider while circling (and as a tile),
+  and a flight summary after landing or at a replay's end.  Each
+  checked on the Redmi 5; core-check, the app tests and L5 (3/3 on the
+  Redmi) pass.  Not pushed.
+
 - 2026-11-18 (night) — CI green again after the merge, and the core's
   startup follows upstream's: no polar without a plane (GlidePolar has
   no stand-in glider any more; the flight screen says "NO POLAR", the

@@ -18,7 +18,7 @@ over USB. The folders inside are XCSoar's (`maps`, `airspace`,
 | What | How |
 |---|---|
 | Your settings | Menu → Profiles → Import a .prf file…, and pick your profile. The app reads XCSoar's profile keys, so your units, safety heights, airspace filters and so on come along. |
-| Map, airspace, waypoints, RASP | Menu → Data files: download them from XCSoar's repository, or pick a file on the phone. |
+| Map, airspace, waypoints, RASP | The first start offers the map, airspace and airfields for where you are. Later, Menu → Data files: download them from XCSoar's repository, or pick a file on the phone. |
 | Planes | Menu → Aircraft & crew, or copy your `.xcp` files into `XCSoarData/profiles/planes`. A plane can use a built-in polar, three points of your own, or a WinPilot `.plr` file (Import a polar file (.plr)). |
 | Tasks | Copy `.tsk` (or SeeYou `.cup`) files into `XCSoarData/tasks`, then Menu → Task → Load…. WeGlide tasks are listed there too. |
 
@@ -38,7 +38,10 @@ over USB. The folders inside are XCSoar's (`maps`, `airspace`,
 | Map item list | Hold the map and lift: a card with what is under your finger. |
 | Airspace warnings and filters | The banner over the cards (Ack, Day); Menu → Airspace. |
 | Safety factors | Menu → Safety heights (Startup Task MC is "MacCready at start" there). |
-| Logger | Automatic: it starts at take-off and stops after landing. Menu → Flights lists, shares and uploads to WeGlide. |
+| Logger | Automatic: it starts at take-off and stops after landing. After the landing, a summary of the flight shares it and uploads it to WeGlide; Menu → Flights has all of them. |
+| Thermal assistant | While circling, on the glider over the map (Menu → Map → Thermal assistant), and as a tile. |
+| Circling zoom | Menu → Map → Zoom of its own. |
+| Sounds of events | Menu → Voice callouts: airspace, final glide, task points and climbs, spoken. |
 | Replay | Menu → Replay (on the ground). |
 
 ## Not there yet
@@ -48,9 +51,8 @@ over USB. The folders inside are XCSoar's (`maps`, `airspace`,
   GPS and barometer are used.
 - Your own menus and input events (`.xci` files), InfoBox page sets, and
   more or fewer than six tiles.
-- Some graphical InfoBoxes (thermal assistant, thermal band, task
-  progress, horizon, climb percentage chart). The barogram, the vario
-  traces and the wind and next waypoint arrows are there.
+- The horizon InfoBox (the phone has no attitude data); the other
+  graphical InfoBoxes are there.
 - XCSoar's simulator mode.
 - Translations of the app's own words: XCSoar's parts (tile names,
   airspace classes, status pages) follow the phone's language, the
