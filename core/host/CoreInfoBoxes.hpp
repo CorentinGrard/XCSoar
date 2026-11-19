@@ -64,6 +64,14 @@ Click(unsigned layout, unsigned tile) noexcept;
 void
 RequestAction(const char *action, const char *page = nullptr) noexcept;
 
+/**
+ * The thermal assistant's data (ThermalAssistantRenderer), for its tile
+ * and the map: {"kind": "thermal_assistant", "circling": true,
+ * "left": true, "heading": 274.0, "average": 1.2, "lift": [36 m/s]}.
+ */
+std::string
+ThermalAssistant() noexcept;
+
 /** Forget the content objects (on shutdown). */
 void
 Clear() noexcept;

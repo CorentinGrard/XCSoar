@@ -7,6 +7,7 @@ import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.transform
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -33,11 +35,13 @@ import org.xcsoar.mobile.core.CoreEvent
 import org.xcsoar.mobile.core.FlightState
 import org.xcsoar.mobile.core.GlideComputerEvent
 import org.xcsoar.mobile.core.MapItemInfo
+import org.xcsoar.mobile.core.MapOption
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SoundOption
 import org.xcsoar.mobile.core.Thermal
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.core.TileAction
+import org.xcsoar.mobile.core.TileGraphic
 import org.xcsoar.mobile.core.TileLayout
 import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.core.XcsoarCore
@@ -63,6 +67,42 @@ class FlightViewModel(
     val flightState: StateFlow<FlightState?> = core.flightState  // conflated
         .transform { emit(it); delay(UI_INTERVAL_MS) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, core.flightState.value)
+
+    /**
+     * The state as fast as the vario: what turns with the map (the
+     * thermal assistant) follows it; only while something collects it.
+     */
+    val liveState: StateFlow<FlightState?> = core.flightState
+        .transform { emit(it); delay(VARIO_INTERVAL_MS) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * The thermal assistant to draw around the glider: while circling,
+     * once a second, unless the pilot turned it off (Map settings).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val thermalAssistant: StateFlow<TileGraphic?> = core.flightState
+        .map { it?.circling == true }
+        .distinctUntilChanged()
+        .transformLatest { circling ->
+            emit(null)
+            if (!circling) return@transformLatest
+            val wanted = try {
+                core.mapOption(MapOption.THERMAL_ASSISTANT)
+            } catch (_: Exception) {
+                null
+            }
+            if (wanted == 0) return@transformLatest
+            while (true) {
+                emit(try {
+                    core.thermalAssistant()?.takeIf { it.circling }
+                } catch (_: Exception) {
+                    null
+                })
+                delay(TILES_INTERVAL_MS)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** The vario, faster ([VARIO_INTERVAL_MS]): only its panel follows it. */
     val vario: StateFlow<VarioValues?> = core.flightState

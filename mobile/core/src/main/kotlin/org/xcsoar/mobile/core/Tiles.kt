@@ -105,11 +105,23 @@ data class TileGraphic(
     val active: Int = -1,
     val remaining: Double = 1.0,
     val band: ThermalBandInfo? = null,
+    /** Thermal assistant: the climb on each heading, from north in 10° steps (m/s). */
+    val lift: List<Double> = emptyList(),
+    /** Thermal assistant: turning left (else right). */
+    val left: Boolean = false,
+    val circling: Boolean = false,
+    /** Thermal assistant: the glider's heading, degrees true. */
+    val heading: Double = 0.0,
+    /** Thermal assistant: the 30 s average climb (m/s). */
+    val average: Double = 0.0,
 ) {
     val points get() = pointsRaw.map { ChartPoint(it[0], it[1]) }
     val terrain get() = terrainRaw.map { ChartPoint(it[0], it[1]) }
 
     companion object {
+        /** `xcs_thermal_assistant_get`'s answer. */
+        fun parse(text: String): TileGraphic = json.decodeFromString(serializer(), text)
+
         const val SPARK = "spark"
         const val BAROGRAM = "barogram"
         const val WIND_ARROW = "wind_arrow"
@@ -117,6 +129,7 @@ data class TileGraphic(
         const val TASK_PROGRESS = "task_progress"
         const val CLIMB_PERCENT = "climb_percent"
         const val THERMAL_BAND = "thermal_band"
+        const val THERMAL_ASSISTANT = "thermal_assistant"
     }
 }
 

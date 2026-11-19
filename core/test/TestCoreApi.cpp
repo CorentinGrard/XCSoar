@@ -804,6 +804,7 @@ TestTiles(xcs_core *core)
       types.find("\"group\":\"Vario and thermal\"") != std::string::npos);
   /* graphics the app does not draw yet: not offered; the barogram is */
   ok1(!Contains(types, "{\"id\":" + std::to_string(e_Horizon) + ",") &&
+      Contains(types, "{\"id\":" + std::to_string(THERMAL_ASSISTANT) + ",") &&
       Contains(types, "{\"id\":" + std::to_string(e_Barogram) + ",") &&
       Contains(types, "{\"id\":" + std::to_string(e_TaskProgress) + ",") &&
       Contains(types, "{\"id\":" + std::to_string(e_Climb_Perc_Chart) + ",") &&
@@ -1246,6 +1247,31 @@ TestReplayControls(xcs_core *core)
                "\"graphic\":{\"kind\":\"task_progress\",\"points\":["));
   ok1(Contains(graphic(InfoBoxFactory::e_ThermalBand),
                "\"graphic\":{\"kind\":\"thermal_band\",\"band\":{"));
+
+  /* in a climb: the thermal assistant's lift around the circle, for
+     its tile and the map */
+  const auto assistant = [core]{
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_thermal_assistant_get(core, b, s, l);
+    });
+  };
+  bool circling = false;
+  for (unsigned i = 0; i < 400 && !circling; ++i) {
+    if (i % 20 == 19)
+      xcs_replay_fast_forward(core, 60);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    circling = Contains(assistant(), "\"circling\":true");
+  }
+  ok1(circling);
+  {
+    const auto json = assistant();
+    const auto lift = json.find("\"lift\":[");
+    const auto end = json.find(']', lift);
+    ok1(lift != std::string::npos && end != std::string::npos &&
+        std::count(json.begin() + lift, json.begin() + end, ',') == 35);
+  }
+  ok1(Contains(graphic(InfoBoxFactory::THERMAL_ASSISTANT),
+               "\"graphic\":{\"kind\":\"thermal_assistant\",\"circling\":true,"));
   xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, InfoBoxFactory::e_WindSpeed_Est);
 
   /* 0 pauses */
@@ -1515,7 +1541,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 3 + 3);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 3 + 3 + 3);
 
   Recorder recorder;
   TestCreateArguments(recorder);

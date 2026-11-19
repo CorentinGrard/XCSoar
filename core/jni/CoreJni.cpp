@@ -884,6 +884,15 @@ Java_org_xcsoar_mobile_NativeCore_nativeTilesTypes(JNIEnv *env, jclass,
 }
 
 JNIEXPORT jstring JNICALL
+Java_org_xcsoar_mobile_NativeCore_nativeThermalAssistantGet(JNIEnv *env, jclass,
+                                                            jlong core)
+{
+  return GetJson(env, [core](char *buffer, size_t size, size_t *length){
+    return xcs_thermal_assistant_get(ToCore(core), buffer, size, length);
+  });
+}
+
+JNIEXPORT jstring JNICALL
 Java_org_xcsoar_mobile_NativeCore_nativeTilesLayouts(JNIEnv *env, jclass,
                                                      jlong core)
 {

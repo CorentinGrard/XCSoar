@@ -167,6 +167,11 @@ private fun TileDrawing(graphic: TileGraphic, modifier: Modifier) {
         TileGraphic.CLIMB_PERCENT -> Canvas(modifier) { climbPercent(graphic, colors) }
         TileGraphic.THERMAL_BAND ->
             graphic.band?.let { band -> Canvas(modifier) { thermalBand(band, colors) } }
+        // heading up, as upstream's gauge
+        TileGraphic.THERMAL_ASSISTANT -> Canvas(modifier) {
+            val (centre, radius) = circle()
+            thermalAssistant(graphic, centre, radius, graphic.heading, colors)
+        }
     }
 }
 

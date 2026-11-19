@@ -1277,6 +1277,14 @@ GetJsonOnMain(xcs_core *core, char *buffer, size_t size, size_t *length_r,
 }
 
 xcs_status
+xcs_thermal_assistant_get(xcs_core *core, char *buffer, size_t size,
+                          size_t *length_r)
+{
+  return GetJsonOnMain(core, buffer, size, length_r,
+                       CoreInfoBoxes::ThermalAssistant);
+}
+
+xcs_status
 xcs_tiles_types(xcs_core *core, char *buffer, size_t size, size_t *length_r)
 {
   return GetJsonOnMain(core, buffer, size, length_r,

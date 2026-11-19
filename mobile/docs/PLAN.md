@@ -476,9 +476,9 @@ the core already links but that has never run in this app:
       `xcs_tiles_*`.  Checked on a Pixel 7.  Graphical InfoBoxes: the
       core sends what they draw, the app draws it (sparklines, barogram,
       wind and next waypoint arrows, 2026-10-20; task progress, climb
-      percentage pie, thermal band, 2026-11-19).  Not yet: the thermal
-      assistant and the horizon (a look and attitude data the app does
-      not have), more or fewer tiles.  A tap does what upstream's InfoBox
+      percentage pie, thermal band, the thermal assistant, 2026-11-19).
+      Not yet: the horizon (attitude data the phone does not have),
+      more or fewer tiles.  A tap does what upstream's InfoBox
       does (`xcs_tiles_click`: HandleClick() runs, the dialog seams record
       what it asked for, else its panels): analysis pages open Analysis
       on that page, alternates and waypoint lists open Go to, the
@@ -790,7 +790,15 @@ caution).  From a fresh install tested on a Redmi 5 and the Pixel 7.
 4. **A circling view.**  When circling: zoom in, centre the glider and
    draw the thermal assistant around it (upstream's
    ThermalAssistantRenderer data: lift by direction), the last missing
-   graphical InfoBox; back to cruise when the circling ends.
+   graphical InfoBox; back to cruise when the circling ends.  **Done**
+   (2026-11-19): the core already zoomed in while circling (upstream's
+   circling zoom, now a switch in Map settings) and kept the glider in
+   the middle; the thermal assistant is drawn on the glider in the
+   map's directions, turning with the map at the vario's rate
+   (`xcs_thermal_assistant_get`: upstream's LiftDatabase, turn
+   direction), also a switch (upstream's TAPosition), and is a tile
+   (heading up, as upstream's gauge).  Seen on the Redmi 5 in the demo
+   replay.
 5. **A flight summary after landing.**  Time, distance, contest score,
    best climb and a small map, with Share and Upload to WeGlide (both
    exist under Flights): the end of a flight instead of a menu hunt.

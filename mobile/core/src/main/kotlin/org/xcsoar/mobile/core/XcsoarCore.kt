@@ -197,6 +197,13 @@ interface XcsoarCore {
     /** Tap tile [tile] of [layout]: what XCSoar's InfoBox opens. */
     suspend fun tapTile(layout: TileLayout, tile: Int): TileAction? = null
 
+    /**
+     * The thermal assistant's lift around the circle
+     * (`xcs_thermal_assistant_get`), a [TileGraphic] of kind
+     * [TileGraphic.THERMAL_ASSISTANT]; null without the core.
+     */
+    suspend fun thermalAssistant(): TileGraphic? = null
+
     /** The plane files; null if the core has not started. */
     suspend fun planes(): PlaneList? = null
 
@@ -541,6 +548,10 @@ enum class MapOption(val code: Int) {
     TOPOGRAPHY(3),
     /** 0 off, 1 long, 2 short, 3 full */
     TRAIL(4),
+    /** 0/1: a zoom of its own while circling */
+    CIRCLING_ZOOM(5),
+    /** 0/1: the thermal assistant around the glider while circling */
+    THERMAL_ASSISTANT(6),
 }
 
 /** XCSoar's terrain colour ramps (TerrainRenderer.cpp), the ones offered. */

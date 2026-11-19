@@ -3,6 +3,8 @@
 
 package org.xcsoar.mobile.ui.flight
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Test
@@ -16,6 +18,7 @@ import org.xcsoar.mobile.core.ThermalBandInfo
 import org.xcsoar.mobile.core.TileGraphic
 import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.ui.theme.XcsTheme
+import kotlin.math.cos
 import kotlin.math.sin
 
 /**
@@ -140,6 +143,36 @@ class FlightScreenScreenshotTest {
                               TileValue(6, "V GND", "130", "km/h"),
                               TileValue(6, "V GND", "130", "km/h"),
                               TileValue(6, "V GND", "130", "km/h")))
+        }
+    }
+
+    /* lift strongest towards the north-east of a left-hand circle */
+    private val assistant = TileGraphic(
+        TileGraphic.THERMAL_ASSISTANT, circling = true, left = true, heading = 200.0,
+        average = 1.6, lift = (0 until 36).map { 1.4 + 1.3 * cos(Math.toRadians(it * 10.0 - 320)) })
+
+    /**
+     * Circling: the thermal assistant on the glider, in the map's
+     * directions (north up here), and as a tile, heading up.
+     */
+    @Test
+    @Config(qualifiers = "w390dp-h844dp-xxhdpi")
+    fun circlingThermalAssistant() = capture("circling_thermal_assistant") {
+        XcsTheme(dark = false) {
+            val colors = XcsTheme.colors
+            FlightContent(
+                FakeXcsoarCore.syntheticState(320), null, circling = true, {},
+                map = MapSlot(content = { Box(it.background(colors.background)) },
+                              onAircraftPosition = { _, _ -> }, onZoom = {},
+                              orientation = MapOrientation.NORTH_UP,
+                              thermalAssistant = assistant),
+                tiles = listOf(
+                    TileValue(0, "Th Assist", "", graphic = assistant),
+                    TileValue(6, "TC Avg", "+1.6", "m/s"),
+                    TileValue(6, "TC Gain", "380", "m"),
+                    TileValue(6, "Alt", "1646", "m"),
+                    TileValue(6, "AGL", "1046", "m"),
+                    TileValue(6, "Wind", "270°", "16 km/h")))
         }
     }
 

@@ -20,6 +20,7 @@ import org.xcsoar.mobile.core.PlaneEdit
 import org.xcsoar.mobile.core.PlaneList
 import org.xcsoar.mobile.core.TileAction
 import org.xcsoar.mobile.core.TileLayout
+import org.xcsoar.mobile.core.TileGraphic
 import org.xcsoar.mobile.core.TileLayouts
 import org.xcsoar.mobile.core.TileType
 import org.xcsoar.mobile.core.TileValue
@@ -362,6 +363,9 @@ class NativeXcsoarCore(
 
     override suspend fun tileLayouts() =
         query(NativeCore::nativeTilesLayouts, TileLayouts::parse)
+
+    override suspend fun thermalAssistant() =
+        query(NativeCore::nativeThermalAssistantGet, TileGraphic::parse)
 
     override suspend fun setTile(layout: TileLayout, tile: Int, type: Int) =
         command { NativeCore.nativeTilesSet(it, layout.code, tile, type) }

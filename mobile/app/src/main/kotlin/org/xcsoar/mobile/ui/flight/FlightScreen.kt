@@ -62,6 +62,7 @@ import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.TileAction
 import org.xcsoar.mobile.core.TileLayout
 import org.xcsoar.mobile.core.TileGraphic
+import kotlinx.coroutines.flow.StateFlow
 import org.xcsoar.mobile.core.TileValue
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.ui.theme.ThemeChoice
@@ -121,6 +122,7 @@ fun FlightScreen(
     val hideTimer by viewModel.airspaceHideTimer.collectAsStateWithLifecycle()
     val airspaceAlerts by viewModel.airspaceAlerts.collectAsStateWithLifecycle()
     val replaySpeed by viewModel.replaySpeed.collectAsStateWithLifecycle()
+    val thermalAssistant by viewModel.thermalAssistant.collectAsStateWithLifecycle()
     // back from a page: the airspace alerts or the vario sound may have changed
     LaunchedEffect(covered) {
         if (!covered) {
@@ -202,6 +204,8 @@ fun FlightScreen(
             items = mapItems,
             onCloseItems = viewModel::hideMapItems,
             onGoto = viewModel::gotoWaypoint,
+            thermalAssistant = thermalAssistant,
+            liveState = viewModel.liveState,
         ) else null,
     )
 }
@@ -228,6 +232,9 @@ class ReplayControls(
  * @param onHold the pilot held this point (pixels): show what is there
  * @param items what is at the held point; null when not shown
  * @param onGoto fly directly to a waypoint of [items]
+ * @param thermalAssistant drawn around the glider while circling
+ * @param liveState the state at the vario's rate, which the thermal
+ * assistant turns with
  */
 class MapSlot(
     val content: @Composable (Modifier) -> Unit,
@@ -241,6 +248,8 @@ class MapSlot(
     val items: List<MapItemInfo>? = null,
     val onCloseItems: () -> Unit = {},
     val onGoto: (waypointId: Int) -> Unit = {},
+    val thermalAssistant: TileGraphic? = null,
+    val liveState: StateFlow<FlightState?>? = null,
 )
 
 /**
@@ -389,6 +398,9 @@ private fun MapArea(
     Box(modifier.onSizeChanged { mapSize = it }) {
         if (map != null) {
             map.content(Modifier.fillMaxSize())
+            val assistant = map.thermalAssistant
+            if (assistant != null && circling && map.follows && mapSize != IntSize.Zero)
+                ThermalAssistantSlot(assistant, map, state, cardsBottom, mapSize)
             // pan and pinch; Compose waits for the touch slop, so a tap
             // is never a drag (doc/architecture.rst, "Touch interaction")
             // a recomposition (e.g. "follows" turning false) must not
@@ -512,6 +524,25 @@ private fun MapArea(
             }
         }
     }
+}
+
+/**
+ * The thermal assistant on the glider, where the core draws it (the
+ * middle of the map the cards leave free), as large as that part
+ * allows; it turns with the map at the vario's rate.
+ */
+@Composable
+private fun ThermalAssistantSlot(graphic: TileGraphic, map: MapSlot, state: FlightState?,
+                                 cardsBottom: Int, mapSize: IntSize) {
+    val live = map.liveState?.collectAsStateWithLifecycle()?.value ?: state
+    val up = map.orientation?.let { mapAngle(it, live) } ?: live?.track ?: 0.0
+    val top = cardsBottom.coerceAtMost(mapSize.height)
+    val centre = Offset(mapSize.width / 2f, (top + mapSize.height) / 2f)
+    val radius = with(LocalDensity.current) {
+        val free = minOf((mapSize.height - top) / 2f, mapSize.width / 2f) - 28.dp.toPx()
+        free.coerceIn(36.dp.toPx(), 110.dp.toPx()).toDp()
+    }
+    ThermalAssistantOverlay(graphic, centre, radius, up, Modifier.fillMaxSize().graphicsLayer())
 }
 
 /**

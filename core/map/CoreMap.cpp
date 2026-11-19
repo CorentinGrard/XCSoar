@@ -631,6 +631,22 @@ CoreMap::SetOption(unsigned option, int value) noexcept
     profile.Set(ProfileKeys::SnailTrail, unsigned(value));
     break;
 
+  case XCS_MAP_CIRCLING_ZOOM:
+    settings.circle_zoom_enabled = value != 0;
+    profile.Set(ProfileKeys::CircleZoom, settings.circle_zoom_enabled);
+    break;
+
+  case XCS_MAP_THERMAL_ASSISTANT: {
+    /* the app draws it around the glider; upstream's default place
+       when on */
+    using Position = UISettings::ThermalAssistantPosition;
+    auto &position = CommonInterface::SetUISettings().thermal_assistant_position;
+    if ((value != 0) != (position != Position::OFF))
+      position = value != 0 ? Position::BOTTOM_LEFT_AVOID_IB : Position::OFF;
+    profile.SetEnum(ProfileKeys::TAPosition, position);
+    break;
+  }
+
   default:
     return false;
   }
@@ -662,6 +678,15 @@ CoreMap::GetOption(unsigned option, int &value) noexcept
 
   case XCS_MAP_TRAIL:
     value = int(settings.trail.length);
+    return true;
+
+  case XCS_MAP_CIRCLING_ZOOM:
+    value = settings.circle_zoom_enabled;
+    return true;
+
+  case XCS_MAP_THERMAL_ASSISTANT:
+    value = CommonInterface::GetUISettings().thermal_assistant_position !=
+      UISettings::ThermalAssistantPosition::OFF;
     return true;
   }
 

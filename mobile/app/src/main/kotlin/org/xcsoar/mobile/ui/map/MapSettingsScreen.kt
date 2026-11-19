@@ -103,6 +103,18 @@ fun MapSettingsContent(
             }
         }
 
+        Caption("Circling", Modifier.padding(start = 4.dp))
+        SettingsGroup {
+            SwitchRow("Zoom of its own", "Closer in a climb, back to the cruise's after",
+                      options[MapOption.CIRCLING_ZOOM]?.let { it != 0 }) {
+                onSet(MapOption.CIRCLING_ZOOM, if (it) 1 else 0)
+            }
+            SwitchRow("Thermal assistant", "The lift around the circle, on the glider",
+                      options[MapOption.THERMAL_ASSISTANT]?.let { it != 0 }) {
+                onSet(MapOption.THERMAL_ASSISTANT, if (it) 1 else 0)
+            }
+        }
+
         Caption("Terrain colours", Modifier.padding(start = 4.dp))
         SettingsGroup(Modifier.selectableGroup()) {
             for (ramp in TerrainRamp.entries)

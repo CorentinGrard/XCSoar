@@ -51,7 +51,7 @@ static constexpr Type DEFAULT_LAYOUTS[CoreInfoBoxes::LAYOUT_COUNT]
 /** Types that only draw (OnCustomPaint()) and whose drawing the app
     does not have yet (Graphic()): not offered for a tile. */
 static constexpr Type GRAPHIC_TYPES[] = {
-  e_Horizon, THERMAL_ASSISTANT,
+  e_Horizon,
 };
 
 static bool
@@ -226,6 +226,53 @@ Points(const LeastSquares &store) noexcept
 }
 
 /**
+ * What ThermalAssistantRenderer draws: the climb XCSoar measured on each
+ * heading of the circle (LiftDatabase, from north in 10° steps), the
+ * turn's direction, the heading and the average climb.
+ */
+static boost::json::object
+ThermalAssistantJson(const MoreData &basic, const DerivedInfo &calculated) noexcept
+{
+  boost::json::array lift;
+  for (const double v : calculated.lift_database)
+    lift.emplace_back(v);
+  return {
+    {"kind", "thermal_assistant"},
+    {"circling", calculated.circling},
+    {"left", calculated.TurningLeft()},
+    {"heading", basic.attitude.heading.AsBearing().Degrees()},
+    {"average", calculated.average},
+    {"lift", std::move(lift)},
+  };
+}
+
+std::string
+CoreInfoBoxes::ThermalAssistant() noexcept
+{
+  return Serialize(ThermalAssistantJson(CommonInterface::Basic(),
+                                        CommonInterface::Calculated()));
+}
+
+/**
+ * InfoBoxContentThermalAssistant without its renderer, whose look the
+ * core has none of (UIGlobals): like upstream's, nothing to show unless
+ * circling; the app draws it from Graphic().
+ */
+class ThermalAssistantContent final : public InfoBoxContent {
+public:
+  void Update(InfoBoxData &data) noexcept override {
+    const auto &basic = CommonInterface::Basic();
+    if (!CommonInterface::Calculated().circling) {
+      data.SetInvalid();
+      return;
+    }
+
+    data.SetCustom(basic.location_available.ToInteger() +
+                   basic.attitude.heading_available.ToInteger());
+  }
+};
+
+/**
  * What a graphical InfoBox's OnCustomPaint() draws, as data for the app
  * to draw; null when it would draw nothing (no SetCustom()) or for a
  * type the app does not draw.
@@ -307,6 +354,9 @@ Graphic(Type type, const InfoBoxData &data) noexcept
     };
   }
 
+  case THERMAL_ASSISTANT:
+    return ThermalAssistantJson(basic, calculated);
+
   case e_Climb_Perc_Chart:
     /* ClimbPercentRenderer::Draw(): a pie of the time circling and
        climbing, circling at all, and climbing without circling (%) */
@@ -333,7 +383,9 @@ Show(Tile &tile, Type type) noexcept
     return;
 
   tile.type = type;
-  tile.content = Create(type);
+  tile.content = type == THERMAL_ASSISTANT
+    ? std::make_unique<ThermalAssistantContent>()
+    : Create(type);
   tile.data.Clear();
   tile.data.SetInvalid();
   tile.data.SetTitle(gettext(GetCaption(type)));

@@ -1287,6 +1287,23 @@ xcs_get_data_status(xcs_core *core, char *buffer, size_t size,
                     size_t *length_r);
 
 /**
+ * The thermal assistant's data (upstream's ThermalAssistantRenderer),
+ * JSON:
+ *
+ *   {"kind": "thermal_assistant", "circling": true, "left": true,
+ *    "heading": 274.0, "average": 1.2, "lift": [0.4, 0.9, ...]}
+ *
+ * "lift": the climb XCSoar measured on each heading of the circle, 36
+ * values (m/s) from north in 10° steps.  The glider flew that heading
+ * at bearing heading + 90° from the circle's centre when turning left
+ * ("left"), heading − 90° when turning right.  "average": the 30 s
+ * average climb.  Buffer rules as for xcs_get_data_status().
+ */
+XCS_EXPORT xcs_status
+xcs_thermal_assistant_get(xcs_core *core, char *buffer, size_t size,
+                          size_t *length_r);
+
+/**
  * Parse a repository index file (XCSoar's https://download.xcsoar.org/
  * repository format, downloaded by the app) into a JSON array:
  *
@@ -1383,6 +1400,13 @@ typedef enum xcs_map_option {
   XCS_MAP_TOPOGRAPHY = 3,
   /** Snail trail: 0 off, 1 long, 2 short, 3 full [SnailTrail] */
   XCS_MAP_TRAIL = 4,
+  /** 0/1: a zoom of its own while circling, kept apart from the
+      cruise's [CircleZoom] */
+  XCS_MAP_CIRCLING_ZOOM = 5,
+  /** 0/1: the thermal assistant while circling (the app draws it,
+      xcs_thermal_assistant_get()) [TAPosition: off, or where upstream
+      puts its gauge] */
+  XCS_MAP_THERMAL_ASSISTANT = 6,
 } xcs_map_option;
 
 /** Set a display option; saved in the profile.  XCS_ERROR_INVALID_ARGUMENT
