@@ -160,8 +160,8 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       `TestWrapText` aborts on this Fedora host: FreeType finds no font
       file (an environment matter; a build without VFB=y in the same
       output directory had also mixed OpenGL objects in)
-- [~] Run L1 + L2 under ASan/TSan in CI.  ASan: job `core-asan`
-      (2026-10-20, not run yet).  TSan: not yet; this host lacks the
+- [~] Run L1 + L2 under ASan/TSan in CI.  ASan: job `core-asan`, green
+      since 2026-11-18.  TSan: not yet; this host lacks the
       runtime (`sudo dnf install libtsan`, the pilot's call), and Ubuntu
       24.04 runners' ASLR setting breaks it in CI.  By hand on this Fedora host
       (2026-10-15, 373 checks clean, `ASAN_OPTIONS=detect_leaks=0`):
@@ -408,7 +408,7 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       screenshot and parser tests, not yet seen in flight.  Not yet: the
       task's observation zones, and the maps on terrain (plain
       background)
-- [~] **L5** instrumented tests (`app/src/androidTest`, 2026-10-20): the
+- [x] **L5** instrumented tests (`app/src/androidTest`, 2026-10-20): the
       demo flight replays through the app and the flight screen shows it
       flying, with a vario and a wind estimate; each panel tile asks for
       its own page.  Build type `l5`: the release core (optimised, as it
@@ -419,13 +419,13 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       -Pxcsoar.abis=arm64-v8a` (2 tests, ~40 s, pass).  CI: jobs `l5-build`
       (x86_64 core) and `l5` (API 36 emulator) on every push to `mobile`,
       not nightly: GitHub schedules only run from the default branch
-      (master).  First CI run (2026-10-20): l5-build passes, l5 fails on
-      the emulator ("no climb or sink on the vario within 120 s"; passes
-      on the phone).  The test now says what it saw and the job keeps
-      logcat and a screenshot; the emulator crashes on this Fedora host,
-      so the next clue comes from CI.  The tile test fails
-      on the code before 616d42bde6 (panel seams folded by --icf=all,
-      which the host tests cannot see)
+      (master).  Green in CI since 2026-11-18: the emulator's default
+      320x640 dp screen had no room for the vario bar ("no climb or sink
+      on the vario within 120 s"), so the job runs a Pixel 6 profile, the
+      phone's size.  The job keeps logcat and a screenshot.  The tile
+      test fails on the code before 616d42bde6 (panel seams folded by
+      --icf=all, which the host tests cannot see); a third test sends a
+      plane's details through JNI and back
 - [~] **Demo / field test:** a real flight with the app open on the
       phone (2026-10-10): no bug seen by the pilot, IGC recorded, "last
       flown" plane kept.  Not yet compared with a certified instrument
