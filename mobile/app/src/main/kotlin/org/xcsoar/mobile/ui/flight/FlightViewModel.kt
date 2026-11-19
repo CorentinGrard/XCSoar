@@ -35,6 +35,7 @@ import org.xcsoar.mobile.core.GlideComputerEvent
 import org.xcsoar.mobile.core.MapItemInfo
 import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SoundOption
+import org.xcsoar.mobile.core.Thermal
 import org.xcsoar.mobile.ui.Format
 import org.xcsoar.mobile.core.TileAction
 import org.xcsoar.mobile.core.TileLayout
@@ -46,10 +47,12 @@ import kotlin.math.abs
  * State and actions of the flight screen; knows only [XcsoarCore].
  *
  * @param core the process's core (shared with the other screens)
+ * @param calloutSettings the callouts the pilot wants, read at each one
  * @param demoFlight path of a recorded flight for [replayDemo]
  */
 class FlightViewModel(
     private val core: XcsoarCore,
+    private val calloutSettings: () -> CalloutSettings = { CalloutSettings() },
     private val demoFlight: () -> String,
 ) : ViewModel() {
     /**
@@ -183,6 +186,49 @@ class FlightViewModel(
     /** Something new the pilot must notice: sound and/or vibrate. */
     val alerts: SharedFlow<AirspaceAlert> = alertFlow.asSharedFlow()
 
+    private val calloutFlow = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    /** What the voice says (Callouts), as the pilot chose. */
+    val callouts: SharedFlow<String> = calloutFlow.asSharedFlow()
+
+    /* when the last callout but airspace was said (SystemClock.uptimeMillis) */
+    private var lastCallout = Long.MIN_VALUE / 2
+
+    /**
+     * Say [text]: airspace always, the others at most every
+     * [CALLOUT_GAP_MS], so a replay skipping ahead does not talk on
+     * for a minute.
+     */
+    private fun say(text: String?, airspace: Boolean = false) {
+        if (text == null) return
+        val now = SystemClock.uptimeMillis()
+        if (!airspace) {
+            if (now - lastCallout < CALLOUT_GAP_MS) return
+            lastCallout = now
+        }
+        calloutFlow.tryEmit(text)
+    }
+
+    /** The callouts of a glide computer event: final glide, task points. */
+    private fun callout(event: GlideComputerEvent) {
+        val settings = calloutSettings()
+        when (event) {
+            GlideComputerEvent.FINALGLIDE_ABOVE, GlideComputerEvent.FINALGLIDE_BELOW ->
+                if (settings.finalGlide)
+                    say(Callouts.finalGlide(event == GlideComputerEvent.FINALGLIDE_ABOVE,
+                                            core.flightState.value?.finalGlide
+                                                ?.altitudeDifference))
+            GlideComputerEvent.TASK_START, GlideComputerEvent.TASK_NEXTWAYPOINT,
+            GlideComputerEvent.TASK_FINISH ->
+                if (settings.taskPoints)
+                    viewModelScope.launch {
+                        // the next point is in the snapshot after the event
+                        delay(NEXT_POINT_WAIT_MS)
+                        say(Callouts.taskPoint(event, core.flightState.value?.next))
+                    }
+            else -> {}
+        }
+    }
+
     /* warnings already announced, by airspace and state */
     private var announced = emptySet<String>()
 
@@ -213,6 +259,9 @@ class FlightViewModel(
             alertFlow.tryEmit(AirspaceAlert(
                 if (fresh.any { it.inside }) Alert.WARNING else Alert.CAUTION,
                 options.sound, options.vibration))
+        // the most severe first, as the banner
+        if (options.warnings && calloutSettings().airspace)
+            fresh.mapNotNull(Callouts::airspace).take(2).forEach { say(it, airspace = true) }
     }
 
     /**
@@ -274,8 +323,29 @@ class FlightViewModel(
                 lastEventFlow.value = "Core failed to start: ${e.message}"
             }
         }
+        // leaving a climb: its average and height gained
+        viewModelScope.launch {
+            var wasCircling: Boolean? = null
+            var lastClimb: Thermal? = null
+            core.flightState.map { it?.circling }.distinctUntilChanged().collect { circling ->
+                if (wasCircling == true && circling == false && calloutSettings().climbs)
+                    launch {
+                        // XCSoar sets the last thermal as the climb ends; a
+                        // turn or two in and out of it leaves it as it was
+                        delay(NEXT_POINT_WAIT_MS)
+                        val thermal = core.flightState.value?.lastThermal
+                        if (thermal != null && thermal != lastClimb) {
+                            lastClimb = thermal
+                            say(Callouts.climb(thermal))
+                        }
+                    }
+                wasCircling = circling
+            }
+        }
         viewModelScope.launch {
             core.events.collect { event ->
+                if (event is CoreEvent.GlideComputer)
+                    callout(event.event)
                 if (event is CoreEvent.GlideComputer &&
                     event.event in AIRSPACE_EVENTS)
                     launch { refreshWarnings() }
@@ -568,6 +638,12 @@ private const val VARIO_INTERVAL_MS = 200L
 private const val TILES_INTERVAL_MS = 1000L
 
 private const val WARNING_POLL_MS = 1000L
+
+/** Callouts but airspace come at least this far apart. */
+private const val CALLOUT_GAP_MS = 4000L
+
+/** What an event's callout waits for the snapshot it changes. */
+private const val NEXT_POINT_WAIT_MS = 1500L
 
 /** How long a MacCready set waits for a snapshot with it; ~0.1 s on a phone. */
 private const val MAC_CREADY_WAIT_MS = 2000L

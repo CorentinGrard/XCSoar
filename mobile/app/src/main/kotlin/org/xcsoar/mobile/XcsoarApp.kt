@@ -27,6 +27,7 @@ import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.XcsoarCore
 import org.xcsoar.mobile.core.WeGlideFlight
 import org.xcsoar.mobile.ui.flights.FlightLog
+import org.xcsoar.mobile.ui.flight.CalloutSettings
 import org.xcsoar.mobile.ui.flights.UploadStore
 import org.xcsoar.mobile.ui.theme.ThemeChoice
 import java.io.File
@@ -134,6 +135,23 @@ class XcsoarApp : Application() {
 
     /** The pilot chose the plane and crew since the app started. */
     var crewChosen = false
+
+    /** Spoken callouts, for the whole flight (the screen may be off). */
+    val voice by lazy { Voice(this) }
+
+    /** Which callouts the pilot hears; kept on the phone, not in the profile. */
+    var calloutSettings: CalloutSettings
+        get() = CalloutSettings(
+            airspace = uiPreferences.getBoolean("callout_airspace", true),
+            finalGlide = uiPreferences.getBoolean("callout_final_glide", true),
+            taskPoints = uiPreferences.getBoolean("callout_task_points", true),
+            climbs = uiPreferences.getBoolean("callout_climbs", true))
+        set(value) = uiPreferences.edit()
+            .putBoolean("callout_airspace", value.airspace)
+            .putBoolean("callout_final_glide", value.finalGlide)
+            .putBoolean("callout_task_points", value.taskPoints)
+            .putBoolean("callout_climbs", value.climbs)
+            .apply()
 
     /**
      * The first start's setup (units, pilot and glider, maps) is done

@@ -777,7 +777,16 @@ caution).  From a fresh install tested on a Redmi 5 and the Pixel 7.
 3. **Spoken callouts** (Android text-to-speech, each one switchable):
    airspace ahead and inside, final glide reached, task point reached,
    the average when leaving a climb ("climb 2.1, gained 450").  Eyes
-   stay outside, which a backup instrument should allow.
+   stay outside, which a backup instrument should allow.  **Done**
+   (2026-11-19): Menu → Voice callouts, each one switchable, all on by
+   default; airspace ahead or inside (each new or worse warning, with
+   its time or distance), upstream's above / below final glide
+   (ConditionMonitorFinalGlide, with its filter), task start, turn
+   points with the next one, finish, and leaving a climb (one callout
+   per thermal: XCSoar's circling flag flips in and out of a climb).
+   Navigation guidance audio (other apps duck), English voice, the
+   engine started with the flight screen (its first words took 10 s).
+   Heard on the Redmi 5 in the demo replay.
 4. **A circling view.**  When circling: zoom in, centre the glider and
    draw the thermal assistant around it (upstream's
    ThermalAssistantRenderer data: lift by direction), the last missing

@@ -92,6 +92,8 @@ fun FlightScreen(
     onOpenTracking: () -> Unit = {},
     onOpenReplay: () -> Unit = {},
     onOpenProfiles: () -> Unit = {},
+    onOpenVoice: () -> Unit = {},
+    callouts: CalloutSettings = CalloutSettings(),
     theme: ThemeChoice = ThemeChoice.SYSTEM,
     onTheme: (ThemeChoice) -> Unit = {},
     onEditTile: (TileLayout, Int) -> Unit = { _, _ -> },
@@ -169,6 +171,8 @@ fun FlightScreen(
             onOpenVarioSound = onOpenVarioSound,
             onOpenTracking = onOpenTracking,
             onOpenProfiles = onOpenProfiles,
+            onOpenVoice = onOpenVoice,
+            callouts = callouts,
             airspaceAlerts = airspaceAlerts,
             replay = state?.replay == true,
             // on the ground only: not something to press in flight
@@ -737,6 +741,8 @@ fun flightMenu(
     onOpenVarioSound: () -> Unit = {},
     onOpenTracking: () -> Unit = {},
     onOpenProfiles: () -> Unit = {},
+    onOpenVoice: () -> Unit = {},
+    callouts: CalloutSettings = CalloutSettings(),
     airspaceAlerts: AirspaceAlerts = AirspaceAlerts(),
     replay: Boolean = false,
     canReplay: Boolean = false,
@@ -778,6 +784,7 @@ fun flightMenu(
             MenuAction("Safety heights", "Arrival, terrain, safety MC", onClick = onOpenSafety),
             MenuAction("Wind", "Set by hand, estimates", onClick = onOpenWind),
             MenuAction("Vario sound", "Volume, mode, dead band", onClick = onOpenVarioSound),
+            MenuAction("Voice callouts", describe(callouts), onClick = onOpenVoice),
             onOpenMapSettings?.let {
                 MenuAction("Map", "Terrain, topography, trail", onClick = it)
             },
@@ -798,6 +805,16 @@ fun flightMenu(
     theme = theme,
     onTheme = onTheme,
 )
+
+/** "Airspace, final glide, task, climbs", "Off": the callouts at a glance. */
+private fun describe(callouts: CalloutSettings): String =
+    listOfNotNull("Airspace".takeIf { callouts.airspace },
+                  "final glide".takeIf { callouts.finalGlide },
+                  "task".takeIf { callouts.taskPoints },
+                  "climbs".takeIf { callouts.climbs })
+        .joinToString(", ")
+        .replaceFirstChar { it.uppercase() }
+        .ifEmpty { "Off" }
 
 /** "On · sound · vibration", "Off": the airspace alerts at a glance. */
 private fun describe(alerts: AirspaceAlerts): String =

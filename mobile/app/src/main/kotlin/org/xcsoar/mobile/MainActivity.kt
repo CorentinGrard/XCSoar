@@ -97,6 +97,9 @@ import org.xcsoar.mobile.ui.settings.NotamViewModel
 import org.xcsoar.mobile.ui.settings.TrackingScreen
 import org.xcsoar.mobile.ui.settings.TrackingViewModel
 import org.xcsoar.mobile.ui.settings.VarioSoundViewModel
+import org.xcsoar.mobile.ui.settings.VoiceScreen
+import org.xcsoar.mobile.ui.flight.Callouts
+import org.xcsoar.mobile.core.Thermal
 import org.xcsoar.mobile.ui.weather.WeatherScreen
 import org.xcsoar.mobile.ui.weather.WeatherViewModel
 import org.xcsoar.mobile.ui.setup.FlightSetupScreen
@@ -122,7 +125,7 @@ private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINT
                             CREW, PLANE_EDIT, PILOT, TILE_PICKER,
                             AIRSPACE_ALERTS, SAFETY, WIND, STATUS, VARIO_SOUND, TRACKING, WEATHER,
                             NOTAMS, REPLAY, PROFILES, TEAM_CODE, TEAM_REFERENCE, RADIO,
-                            ATC, ATC_REFERENCE, AIRSPACE_DETAILS, WELCOME }
+                            ATC, ATC_REFERENCE, AIRSPACE_DETAILS, WELCOME, VOICE }
 
 /** How deep a page is: pages further in slide in from the right. */
 private val Screen.depth: Int
@@ -242,6 +245,7 @@ class MainActivity : ComponentActivity() {
                         FlightViewModel(
                             core = app.anyCore,
                             demoFlight = { app.demoFlight().path },
+                            calloutSettings = { app.calloutSettings },
                         )
                     }
                 })
@@ -371,6 +375,12 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(flightViewModel) {
                     flightViewModel.alerts.collect { alerts.play(it) }
                 }
+                LaunchedEffect(flightViewModel) {
+                    // the engine takes seconds to say its first words
+                    if (app.calloutSettings.any) app.voice
+                    flightViewModel.callouts.collect { app.voice.speak(it) }
+                }
+                var callouts by remember { mutableStateOf(app.calloutSettings) }
 
                 // the first start sets up units, glider and maps; later, once
                 // per app start, the plane and crew of this flight (when
@@ -433,6 +443,8 @@ class MainActivity : ComponentActivity() {
                         onOpenTracking = { screen = Screen.TRACKING },
                         onOpenReplay = { screen = Screen.REPLAY },
                         onOpenProfiles = { screen = Screen.PROFILES },
+                        onOpenVoice = { screen = Screen.VOICE },
+                        callouts = callouts,
                         onTileAction = { action ->
                             when (action.action) {
                                 "analysis" -> {
@@ -550,6 +562,18 @@ class MainActivity : ComponentActivity() {
                                 trackingViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.VARIO_SOUND -> VarioSoundScreen(
                                 varioSoundViewModel, onBack = { screen = Screen.FLIGHT })
+                            Screen.VOICE -> VoiceScreen(
+                                callouts,
+                                available = app.voice.available.collectAsState().value,
+                                onChange = {
+                                    callouts = it
+                                    app.calloutSettings = it
+                                },
+                                onSample = {
+                                    Callouts.climb(Thermal(2.1, 450.0, 300.0))
+                                        ?.let(app.voice::speak)
+                                },
+                                onBack = { screen = Screen.FLIGHT })
                             Screen.SAFETY -> SafetyScreen(
                                 safetyViewModel, onBack = { screen = Screen.FLIGHT })
                             Screen.STATUS -> StatusScreen(
