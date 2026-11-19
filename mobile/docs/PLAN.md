@@ -677,7 +677,19 @@ the core already links but that has never run in this app:
       the Mali driver allocates memory for every map frame (XCSoar draws
       from client arrays); R8 for the release build (needs JNI keep rules);
       the archive `core-candidates.a` gets `core.mk` as a member (harmless
-      warning, from its dependency on build/core.mk)
+      warning, from its dependency on build/core.mk).
+      A low-end phone (2026-11-19, Redmi 5, Snapdragon 450, release build,
+      replay at 1x in flight, one minute): as installed by adb (JIT) the
+      app takes 22.7 % of one core and a frame 44 ms (median; 73 ms 95th
+      percentile), the UI thread being slow in every frame; compiled with
+      its profile (`cmd package compile -m speed-profile`, as Android does
+      when idle or after a store install) 13.2 % and 24 ms (44 ms), the
+      render thread then the slow part (libhwui 42 %, the Adreno driver
+      31 %; the GPU itself 10 ms).  The APK's baseline profile only has
+      the libraries' rules: an app profile (a Macrobenchmark module
+      flying the demo replay) would compile the flight screen from the
+      first start; the cards' shadows and overdraw are the next suspects
+      on such GPUs
 - [~] Design rework: brief written (2026-10-03, claude.ai doc "XCSoar
       Mobile — Product and Design Brief",
       https://claude.ai/code/artifact/76556a35-f3d5-43f3-acfb-8ee40fc07ff5):
