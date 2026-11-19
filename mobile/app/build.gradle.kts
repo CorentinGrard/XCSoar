@@ -234,6 +234,10 @@ abstract class CoreDrawables : DefaultTask() {
 val coreDrawables = tasks.register<CoreDrawables>("coreDrawables") {
     repoRoot.set(xcsoarRoot)
     outputs.upToDateWhen { false }
+    // one make at a time in the tree: two write the same generated
+    // files (title PNGs, gesture icons) at once, and one copied a
+    // half-written PNG (CI, 2026-11-19)
+    mustRunAfter("nativeCoreDebug", "nativeCoreRelease")
 }
 
 /** The core for a build type: debug builds keep XCSoar's assertions. */
