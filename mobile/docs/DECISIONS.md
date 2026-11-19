@@ -279,7 +279,8 @@ Amends D19 after flying it.
   A comment with a number is left out when it does not fit, never cut
   ("178…" for 1784 ft reads as another value); text ends with "…".
 - MacCready is a tile spanning two columns, and the menu is the last
-  tile beside it: one 3-column grid, no row of odd sizes.
+  tile beside it: one 3-column grid, no row of odd sizes.  (Replaced
+  by D22.)
 - "Set MC" floats over the bottom left of the map in lift, within reach
   of the thumb, since the grid has no free cell for it.
 - The vario sound and map orientation buttons leave the map; the menu
@@ -293,3 +294,25 @@ Amends D19 after flying it.
   page listed once (Airspace and Data files were in both).  "Polar and
   masses" goes too: Aircraft & crew edits the plane.  The "Soon" rows
   go; they return when they are built.
+
+## D22 — MacCready is a tile, Menu a map button
+**Status:** Accepted (2026-11-19)
+
+Amends D21: the pilot found the Menu tile took valuable room.  The row
+of MacCready and Menu (as high as a tile, about 75 dp of a 720 dp
+phone) goes, and the map gets it.
+
+- MacCready is one of the six tiles: XCSoar's own MacCready InfoBox,
+  third in both default layouts (it replaces Vopt in cruise, whose
+  speed to fly is now its comment, and the time in the thermal when
+  circling).  Manual shows as plain "MC" (green value), automatic as
+  upstream's "MC AUTO" (blue), so the speed to fly fits.  A tap opens
+  the − / + stepper over the bottom of the map, under the thumb; it
+  closes 5 s after the last step.  The tile can be moved or replaced
+  like any other.
+- A layout saved before gets MacCready once, in its third tile, unless
+  it has it (profile key "MobileTilesMacCready"; layouts saved since
+  are the pilot's choice).
+- Menu is a filled button beside the zoom buttons, always there, also
+  without a map.  "Set MC" moves above the map buttons when they leave
+  it no room.

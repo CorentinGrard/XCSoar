@@ -10,6 +10,7 @@
 
 #include "CoreStartup.hpp"
 #include "CoreReceive.hpp"
+#include "CoreInfoBoxes.hpp"
 #include "Interface.hpp"
 #include "ActionInterface.hpp"
 #include "Components.hpp"
@@ -475,7 +476,9 @@ CoreShutdown() noexcept
   SaveFlarmMessaging();
   Profile::Save();
   Session::Flush();
-  /* the core may be started again in this process */
+  /* the core may be started again in this process, with another
+     profile: no tile of this one stays */
+  CoreInfoBoxes::Clear();
   Profile::Clear();
   Session::Reset();
 

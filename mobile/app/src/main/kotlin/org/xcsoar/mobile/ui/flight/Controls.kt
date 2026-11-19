@@ -207,18 +207,22 @@ fun Segmented(
     }
 }
 
-/** Opens the flight menu: a tile of its own, under the thumb. */
+/**
+ * Opens the flight menu: a button over the map beside the zoom, filled
+ * to stand out from the map's own buttons.
+ */
 @Composable
-fun MenuTile(onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun MenuButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = XcsTheme.colors
-    Column(
+    val shape = RoundedCornerShape(16.dp)
+    Box(
         modifier = modifier
-            .heightIn(min = TOUCH)
-            .background(colors.selected, RoundedCornerShape(12.dp))
+            .size(TOUCH)
+            .clip(shape)
+            .background(colors.selected)
             .clickable(role = Role.Button, onClickLabel = "Open menu", onClick = onClick)
             .semantics { contentDescription = "Menu" },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+        contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(22.dp)) {
             val stroke = 2.5.dp.toPx()
@@ -226,7 +230,6 @@ fun MenuTile(onClick: () -> Unit, modifier: Modifier = Modifier) {
                 drawLine(colors.onSelected, Offset(stroke, size.height * y),
                          Offset(size.width - stroke, size.height * y), stroke, StrokeCap.Round)
         }
-        Caption("Menu", color = colors.onSelected)
     }
 }
 

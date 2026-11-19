@@ -18,6 +18,8 @@
 #include "Widget/Widget.hpp"
 #include "Language/Language.hpp"
 #include "Profile/Profile.hpp"
+#include "Profile/Current.hpp"
+#include "Profile/Map.hpp"
 #include "Units/Descriptor.hpp"
 #include "util/StringCompare.hxx"
 #include "json/Serialize.hxx"
@@ -40,13 +42,20 @@ using std::string_view_literals::operator""sv;
 static constexpr std::array<std::string_view, CoreInfoBoxes::LAYOUT_COUNT>
   LAYOUT_KEYS{"MobileTilesCruise"sv, "MobileTilesCircling"sv};
 
-/** The design's tiles, as upstream InfoBoxes. */
+/** The design's tiles, as upstream InfoBoxes; MacCready is the third
+    (the app steps it from there; its comment is the speed to fly). */
 static constexpr Type DEFAULT_LAYOUTS[CoreInfoBoxes::LAYOUT_COUNT]
                                      [CoreInfoBoxes::TILE_COUNT] = {
-  {NavAltitude, e_HeightAGL, e_Act_Speed, e_WP_GR, e_Speed_GPS, e_TL_Avg},
-  {e_Thermal_Avg, e_Thermal_Gain, e_Thermal_Time, NavAltitude, e_HeightAGL,
+  {NavAltitude, e_HeightAGL, e_MacCready, e_WP_GR, e_Speed_GPS, e_TL_Avg},
+  {e_Thermal_Avg, e_Thermal_Gain, e_MacCready, NavAltitude, e_HeightAGL,
    e_WindSpeed_Est},
 };
+
+/** Set once a profile's saved layouts got their MacCready tile. */
+static constexpr std::string_view MACCREADY_TILE_KEY = "MobileTilesMacCready"sv;
+
+/** Where a saved layout gets its MacCready tile: the design's place. */
+static constexpr unsigned MACCREADY_TILE = 2;
 
 /** Types that only draw (OnCustomPaint()) and whose drawing the app
     does not have yet (Graphic()): not offered for a tile. */
@@ -88,7 +97,7 @@ Serialize(const boost::json::value &value) noexcept
 }
 
 static std::array<Type, CoreInfoBoxes::TILE_COUNT>
-LoadLayout(unsigned layout) noexcept
+ParseLayout(unsigned layout) noexcept
 {
   std::array<Type, CoreInfoBoxes::TILE_COUNT> types;
   std::copy(std::begin(DEFAULT_LAYOUTS[layout]),
@@ -119,7 +128,45 @@ SaveLayout(unsigned layout,
     list += std::to_string(unsigned(type));
   }
   Profile::Set(LAYOUT_KEYS[layout], list);
+  /* saved with MacCready a tile: GiveMacCreadyATile() leaves it */
+  Profile::map.Set(MACCREADY_TILE_KEY, true);
   Profile::Save();
+}
+
+/* the profile's saved layouts were checked for MacCready */
+static bool maccready_checked = false;
+
+/**
+ * MacCready had a control of its own under the tiles; now it is a
+ * tile.  A layout saved before gets it once, in its third tile, unless
+ * it shows MacCready already: else it would be gone from the screen.
+ * Layouts saved since are the pilot's choice (SaveLayout() marks them).
+ */
+static void
+GiveMacCreadyATile() noexcept
+{
+  maccready_checked = true;
+  bool done = false;
+  if (Profile::map.Get(MACCREADY_TILE_KEY, done) && done)
+    return;
+
+  for (unsigned layout = 0; layout < CoreInfoBoxes::LAYOUT_COUNT; ++layout) {
+    if (*Profile::Get(LAYOUT_KEYS[layout], "") == 0)
+      continue;  // the defaults have it
+
+    auto types = ParseLayout(layout);
+    if (std::find(types.begin(), types.end(), e_MacCready) == types.end())
+      types[MACCREADY_TILE] = e_MacCready;
+    SaveLayout(layout, types);
+  }
+}
+
+static std::array<Type, CoreInfoBoxes::TILE_COUNT>
+LoadLayout(unsigned layout) noexcept
+{
+  if (!maccready_checked)
+    GiveMacCreadyATile();
+  return ParseLayout(layout);
 }
 
 std::string
@@ -407,6 +454,13 @@ CoreInfoBoxes::Update(unsigned layout) noexcept
     if (tile.content)
       tile.content->Update(tile.data);
 
+    /* upstream's "MC MANUAL" leaves no room for the speed to fly in the
+       tile's one caption line: manual is plain "MC" (its value is green,
+       "MC AUTO" blue) */
+    if (tile.type == e_MacCready &&
+        StringIsEqual(tile.data.title.c_str(), gettext("MC MANUAL")))
+      tile.data.SetTitle(gettext(GetCaption(e_MacCready)));
+
     const auto &d = tile.data;
     const char *unit = d.value_unit == Unit::UNDEFINED
       ? "" : Units::GetUnitName(d.value_unit);
@@ -427,6 +481,8 @@ CoreInfoBoxes::Update(unsigned layout) noexcept
 void
 CoreInfoBoxes::Clear() noexcept
 {
+  /* the next start may have another profile */
+  maccready_checked = false;
   for (auto &layout : tiles)
     for (auto &tile : layout) {
       tile.content.reset();

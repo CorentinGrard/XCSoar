@@ -843,8 +843,9 @@ TestTiles(xcs_core *core)
     return xcs_tiles_update(core, XCS_TILES_CRUISE, b, s, l);
   });
   ok1(Contains(tiles, "{\"type\":" + std::to_string(e_Speed_GPS) + ",\"title\":\"V GND\""));
-  /* without GPS since the replay ended, so no speeds */
-  ok1(Contains(tiles, "\"title\":\"Vopt\""));
+  /* MacCready is a tile, plain "MC" when manual: its comment, the
+     speed to fly, needs the room */
+  ok1(Contains(tiles, "{\"type\":" + std::to_string(e_MacCready) + ",\"title\":\"MC\""));
   ok1(Contains(tiles, "\"graphic\":null"));
 
   /* a graphical InfoBox: what it draws, as data */
@@ -1565,7 +1566,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 3 + 3 + 3 + 1 + 1);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 3 + 3 + 3 + 1 + 1 + 1);
 
   Recorder recorder;
   TestCreateArguments(recorder);
@@ -1609,8 +1610,23 @@ main()
   TestProfiles(core);
   ok1(xcs_stop(core) == XCS_OK);
 
-  /* the same core can be started again */
+  /* the same core can be started again; a profile saved before
+     MacCready was a tile gets it, in its third tile, once */
+  {
+    const auto prf = std::filesystem::path{DATA_PATH} / "profiles" / "default.prf";
+    std::ifstream in{prf};
+    std::string text, line;
+    while (std::getline(in, line))
+      if (line.rfind("MobileTiles", 0) != 0)
+        text += line + "\n";
+    in.close();
+    std::ofstream{prf} << text << "MobileTilesCruise=\"94,1,43,38,6,7\"\n"
+                       << "MobileTilesCircling=\"21,10,117,94,1,25\"\n";
+  }
   ok1(xcs_start(core) == XCS_OK);
+  ok1(Contains(GetJson([core](char *b, size_t s, size_t *l){
+                 return xcs_tiles_layouts(core, b, s, l);
+               }), "{\"layouts\":[[94,1,10,38,6,7],[21,10,117,94,1,25]]}"));
   ok1(xcs_stop(core) == XCS_OK);
   xcs_destroy(core);
 

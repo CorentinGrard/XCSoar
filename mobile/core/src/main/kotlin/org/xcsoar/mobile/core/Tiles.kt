@@ -68,6 +68,9 @@ data class TileValue(
         const val COLOR_YELLOW = 4
         const val COLOR_MAGENTA = 5
 
+        /** XCSoar's MacCready InfoBox (e_MacCready): the app steps it. */
+        const val MACCREADY = 10
+
         fun parseList(text: String): List<TileValue> =
             json.decodeFromString(ListSerializer(serializer()), text)
     }

@@ -880,7 +880,10 @@ caution).  From a fresh install tested on a Redmi 5 and the Pixel 7.
   the thermal assistant on the glider while circling (and as a tile),
   and a flight summary after landing or at a replay's end.  Each
   checked on the Redmi 5; core-check, the app tests and L5 (3/3 on the
-  Redmi) pass.  Not pushed.
+  Redmi) pass.  Then, as the pilot asked: MacCready is a tile (tap for
+  its stepper over the map) and Menu a button beside the zoom (D22):
+  the row under the tiles goes, about 75 dp more map on the Redmi.  CI
+  fix: the app's two makes ran at once and packed a half-written PNG.
 
 - 2026-11-18 (night) — CI green again after the merge, and the core's
   startup follows upstream's: no polar without a plane (GlidePolar has

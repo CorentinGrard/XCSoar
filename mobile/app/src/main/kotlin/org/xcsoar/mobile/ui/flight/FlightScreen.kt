@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -291,17 +292,34 @@ fun FlightContent(
     replay: ReplayControls? = null,
 ) {
     val colors = XcsTheme.colors
+    // the MacCready stepper, from its tile: each use counts, and it
+    // closes by itself a while after the last
+    var stepper by remember { mutableIntStateOf(0) }
+    LaunchedEffect(stepper) {
+        if (stepper > 0) {
+            delay(STEPPER_MILLIS)
+            stepper = 0
+        }
+    }
+    val macCreadyStepper = if (stepper > 0) MacCreadyStepper(
+        macCready, auto = state?.autoMacCready == true,
+        onChange = {
+            onMacCreadyChange(it)
+            stepper++
+        },
+        onClose = { stepper = 0 }) else null
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
         val instruments = @Composable {
-            Instruments(state, macCready, circling, tiles, onEditTile, onTapTile,
-                        onMacCreadyChange, onMenu = { onMenuOpen(true) })
+            Instruments(state, circling, tiles, onEditTile, onTapTile,
+                        onMacCready = { stepper = if (stepper > 0) 0 else 1 })
         }
         val mapArea = @Composable { showNext: Boolean, modifier: Modifier,
                                     insets: WindowInsets ->
             MapArea(state, lastEvent, circling, map, warnings, airspaceHideTimer,
                     airspaceAlertsOff, onAcknowledge, onNextWaypoint, onWind, onNoPolar,
                     onSetMacCready, showNext,
-                    vario, replay, modifier, insets)
+                    vario, replay, modifier, insets, onMenu = { onMenuOpen(true) },
+                    stepper = macCreadyStepper)
         }
 
         if (maxWidth > maxHeight && maxWidth >= 600.dp) {
@@ -382,6 +400,9 @@ private fun MapArea(
     replay: ReplayControls?,
     modifier: Modifier,
     insets: WindowInsets,
+    onMenu: () -> Unit,
+    /** open over the map buttons; null when closed */
+    stepper: MacCreadyStepper?,
 ) {
     val colors = XcsTheme.colors
     // the glider goes in the middle of the map area the cards leave free
@@ -502,14 +523,30 @@ private fun MapArea(
                     .padding(bottom = 64.dp))
             }
 
+            if (stepper != null) {
+                // over the map buttons, under the thumb
+                MacCreadyControl(stepper.macCready, stepper.onChange,
+                                 Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                                     .border(1.dp, colors.outline, RoundedCornerShape(12.dp)),
+                                 auto = stepper.auto)
+                BackHandler(onBack = stepper.onClose)
+                return@BoxWithConstraints
+            }
+
+            // the buttons' width, to keep "Set MC" clear of them
+            var buttonsWidth by remember { mutableIntStateOf(0) }
+            val buttonsDp = with(LocalDensity.current) { buttonsWidth.toDp() }
             val thermal = state?.currentThermal
             if (circling && thermal != null && thermal.lift > 0)
                 SetMacCreadyButton(thermal.lift,
                                    { onSetMacCready(Format.stepVerticalSpeed(thermal.lift, 0)) },
-                                   Modifier.align(Alignment.BottomStart))
+                                   Modifier
+                                       .align(Alignment.BottomStart)
+                                       .padding(bottom = if (maxWidth - buttonsDp < SET_MC_ROOM)
+                                                             64.dp else 0.dp))
 
             Row(
-                Modifier.align(Alignment.BottomEnd),
+                Modifier.align(Alignment.BottomEnd).onSizeChanged { buttonsWidth = it.width },
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (map != null) {
@@ -519,8 +556,10 @@ private fun MapArea(
                         ?.let { NorthMark(it) }
                     if (!map.follows)
                         CentreButton(map.onFollow)
-                    ZoomButtons(map.onZoom)
                 }
+                MenuButton(onMenu)
+                if (map != null)
+                    ZoomButtons(map.onZoom)
             }
         }
     }
@@ -558,36 +597,50 @@ private fun mapAngle(orientation: MapOrientation, s: FlightState?): Double? = wh
     MapOrientation.HEADING_UP -> null
 }
 
-/** The tiles' columns; MacCready spans two of them. */
+/** The tiles' columns. */
 private const val TILE_COLUMNS = 3
 
+/** Room "Set MC" needs beside the map buttons, else it goes above them. */
+private val SET_MC_ROOM = 96.dp
+
+/** The MacCready stepper closes this long after its last use. */
+private const val STEPPER_MILLIS = 5000L
+
+/** The MacCready stepper over the map, opened from the MacCready tile. */
+class MacCreadyStepper(
+    val macCready: Double?,
+    val auto: Boolean,
+    val onChange: (Double) -> Unit,
+    val onClose: () -> Unit,
+)
+
 /**
- * XCSoar's InfoBoxes from the core (a long press picks another), then
- * MacCready over two columns and the menu: one grid, every cell as
- * high as the others.
+ * XCSoar's InfoBoxes from the core (a long press picks another), every
+ * cell as high as the others; a tap on the MacCready tile opens its
+ * stepper over the map, the others do what their InfoBox does.
  */
 @Composable
 private fun Instruments(
     state: FlightState?,
-    macCready: Double?,
     circling: Boolean,
     tiles: List<TileValue>?,
     onEditTile: (Int) -> Unit,
     onTapTile: (Int) -> Unit,
-    onMacCreadyChange: (Double) -> Unit,
-    onMenu: () -> Unit,
+    onMacCready: () -> Unit,
 ) {
     val colors = XcsTheme.colors
     val boxes = tiles?.map { it.toInfoBoxValue(colors) } ?: infoBoxes(state, circling)
-    TileGrid(boxes.map { 1 } + listOf(2, 1), Modifier.fillMaxWidth()) {
+    TileGrid(boxes.map { 1 }, Modifier.fillMaxWidth()) {
         boxes.forEachIndexed { i, box ->
             InfoBox(box.title, box.value, Modifier, box.color, box.comment, box.commentColor,
                     onLongClick = if (tiles != null) ({ onEditTile(i) }) else null,
-                    onClick = if (tiles != null) ({ onTapTile(i) }) else null,
+                    onClick = when {
+                        box.type == TileValue.MACCREADY -> onMacCready
+                        tiles != null -> ({ onTapTile(i) })
+                        else -> null
+                    },
                     graphic = box.graphic)
         }
-        MacCreadyControl(macCready, onMacCreadyChange, auto = state?.autoMacCready == true)
-        MenuTile(onMenu)
     }
 }
 
@@ -643,7 +696,9 @@ private fun VarioSlot(vario: (() -> VarioValues?)?, state: FlightState?, modifie
 private class InfoBoxValue(val title: String, val value: Format.Value,
                            val color: Color? = null, val comment: String = "",
                            val commentColor: Color? = null,
-                           val graphic: TileGraphic? = null)
+                           val graphic: TileGraphic? = null,
+                           /** XCSoar's InfoBox type; -1 for the design's */
+                           val type: Int = -1)
 
 /** InfoBoxLook's colours by function (doc/architecture.rst). */
 private fun tileColor(code: Int, colors: XcsColors): Color? = when (code) {
@@ -657,7 +712,7 @@ private fun tileColor(code: Int, colors: XcsColors): Color? = when (code) {
 
 private fun TileValue.toInfoBoxValue(colors: XcsColors) =
     InfoBoxValue(title, Format.Value(value, unit), tileColor(color, colors), comment,
-                 tileColor(commentColor, colors), graphic)
+                 tileColor(commentColor, colors), graphic, type)
 
 /**
  * The design's six tiles from the snapshot, for previews and the fake
@@ -674,6 +729,14 @@ private fun infoBoxes(s: FlightState?, circling: Boolean): List<InfoBoxValue> {
     }
     val altitude = InfoBoxValue("Altitude", Format.altitude(s?.navAltitude))
     val agl = InfoBoxValue("AGL", Format.altitude(s?.altitudeAgl))
+    // as the core's MacCready tile: manual green, automatic blue
+    val macCready = InfoBoxValue(
+        if (s?.autoMacCready == true) "MC auto" else "MC",
+        s?.let { Format.macCready(it.macCready) } ?: Format.Value(Format.INVALID, ""),
+        if (s?.autoMacCready == true) colors.neutralSafe else colors.safe,
+        comment = s?.speedToFly?.let { Format.speed(it).let { v -> "${v.text} ${v.unit}" } }
+            ?: "",
+        type = TileValue.MACCREADY)
     // the design's boxes; their values and validity are XCSoar's InfoBoxes
     return if (circling) {
         val thermal = s?.currentThermal
@@ -681,7 +744,7 @@ private fun infoBoxes(s: FlightState?, circling: Boolean): List<InfoBoxValue> {
         listOf(
             InfoBoxValue("Thermal avg", Format.vario(thermal?.lift), climbColor(thermal?.lift)),
             InfoBoxValue("Gained", Format.altitudeDifference(thermal?.gain)),
-            InfoBoxValue("In thermal", Format.minutesSeconds(thermal?.duration)),
+            macCready,
             altitude,
             agl,
             InfoBoxValue("Wind", wind?.let {
@@ -694,7 +757,7 @@ private fun infoBoxes(s: FlightState?, circling: Boolean): List<InfoBoxValue> {
         listOf(
             altitude,
             agl,
-            InfoBoxValue("Speed to fly", Format.speed(s?.speedToFly)),
+            macCready,
             InfoBoxValue("L/D req", Format.requiredGlideRatio(s?.ldRequired).let {
                 // the current L/D as the unit, like the design's "27 now 34"
                 it.copy(unit = s?.ld?.let { ld -> "now ${Format.glideRatio(ld).text}" } ?: "")
