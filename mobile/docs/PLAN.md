@@ -738,6 +738,87 @@ the core already links but that has never run in this app:
 - [x] User docs: migration guide from XCSoar (`mobile/docs/MIGRATING.md`,
       2026-10-20): data, where things are, what is not there yet
 
+## Ideas: features and a more modern UX (2026-11-19)
+
+Proposals, not decisions; they keep D19 / D21 (gliders only, a backup
+instrument, portrait first, no quick-action bar, orange only for
+caution).  From a fresh install tested on a Redmi 5 and the Pixel 7.
+
+**What I would do next**, in this order:
+
+1. **A first start that sets everything up in a minute.**  A fresh
+   install now shows a white map, "NO GPS" and "NO POLAR", picks units
+   from the phone's locale (miles and knots on an English phone in
+   France) and asks for the aircraft at every start until one exists.
+   One short flow instead: the plane (the picker exists), the pilot,
+   units chosen once, and the data for where the phone is (the XCSoar
+   repository's map, airspace and waypoints for that region, offered by
+   location), then "Not now" really means not now.
+2. **Flatter, lighter surfaces.**  The dozen floating cards and chips
+   each cast a drop shadow; on a low-end phone the render thread is the
+   slow part of every frame (PLAN, Performance).  Tonal surfaces
+   (Material 3 surface tones, a 1 dp outline) look more current, cost
+   less, and keep the map readable.
+3. **Spoken callouts** (Android text-to-speech, each one switchable):
+   airspace ahead and inside, final glide reached, task point reached,
+   the average when leaving a climb ("climb 2.1, gained 450").  Eyes
+   stay outside, which a backup instrument should allow.
+4. **A circling view.**  When circling: zoom in, centre the glider and
+   draw the thermal assistant around it (upstream's
+   ThermalAssistantRenderer data: lift by direction), the last missing
+   graphical InfoBox; back to cruise when the circling ends.
+5. **A flight summary after landing.**  Time, distance, contest score,
+   best climb and a small map, with Share and Upload to WeGlide (both
+   exist under Flights): the end of a flight instead of a menu hunt.
+
+**In flight**
+
+- A full-screen flight mode: the status bar hides after a few seconds
+  (a swipe shows it), 24 dp more for the map on short phones.
+- Theme from the light: the light sensor (or the sun's elevation at the
+  position, which XCSoar computes) chooses White or Dark, with the
+  manual choice still there.
+- Swipe between pages, as XCSoar's pages: map, circling view, task
+  overview.
+- Chips on one line: "On ground" wraps onto a second line on a
+  360 dp phone; it could join the wind chip, and "NO GPS" could open
+  Status on its GPS page as "NO POLAR" opens Aircraft & crew.
+- An ongoing notification (Android 16 "live update") with altitude,
+  vario and the next point while another app is in front.
+- Distinct haptics: airspace strong, entering a climb light, final
+  glide reached a double tap.
+
+**On the ground**
+
+- The task editor on the map: tap waypoints to add them, drag a zone's
+  size (the design rework's missing piece).
+- A briefing page for the day: METAR / TAF, RASP strength along the
+  task, NOTAMs for it, sunset; data age (airspace, NOTAMs) with an
+  update button before take-off.
+- Upstream's checklists as a pre-flight page.
+- A home screen widget: ready to fly (GPS, battery, data age, plane).
+
+**Safety and sharing**
+
+- After a landing away from home: a one-tap message with the position
+  (a geo link) to chosen contacts, and the live tracking link to share
+  before the flight.
+
+**Look and motion**
+
+- Short, purposeful transitions (a tile opening its page grows from
+  the tile); none on flight values; the system's reduced-motion setting
+  respected.
+- Foldables and tablets: more tiles, and the analysis beside the map.
+
+**Engineering for the experience**
+
+- An app baseline profile (Macrobenchmark flying the demo replay): the
+  flight screen compiled from the first start, which nearly halved CPU
+  and frame time on the Redmi when compiled by hand.
+- Translations of the app's own text (needs a decision: XCSoar's
+  catalogues only cover XCSoar's wording).
+
 ## M8 — iOS
 - [ ] Move `:core` + ViewModels to Kotlin Multiplatform; UI to Compose Multiplatform
 - [ ] Build `libxcsoar_core` for iOS (the Makefile already supports iOS targets)
