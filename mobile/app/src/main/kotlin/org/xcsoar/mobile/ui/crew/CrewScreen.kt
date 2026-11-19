@@ -114,12 +114,13 @@ fun CrewContent(
 }
 
 @Composable
-private fun PlaneRow(
+internal fun PlaneRow(
     plane: PlaneInfo,
     selected: Boolean,
     lastFlown: Boolean,
     onSelect: () -> Unit,
-    onEdit: () -> Unit,
+    /** null: no "Edit" button */
+    onEdit: (() -> Unit)?,
 ) {
     val colors = XcsTheme.colors
     val shape = RoundedCornerShape(14.dp)
@@ -145,7 +146,8 @@ private fun PlaneRow(
             Text(details.joinToString(" · "), color = colors.textSecondary, fontSize = 15.sp,
                  maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        ActionButton("Edit", onClick = onEdit)
+        if (onEdit != null)
+            ActionButton("Edit", onClick = onEdit)
     }
 }
 

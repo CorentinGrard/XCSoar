@@ -105,12 +105,16 @@ import org.xcsoar.mobile.ui.task.TaskScreen
 import org.xcsoar.mobile.ui.task.TaskViewModel
 import org.xcsoar.mobile.ui.units.UnitsScreen
 import org.xcsoar.mobile.ui.units.UnitsViewModel
+import org.xcsoar.mobile.ui.welcome.WelcomeScreen
+import org.xcsoar.mobile.ui.welcome.WelcomeViewModel
 import org.xcsoar.mobile.core.WaypointFilter
 import org.xcsoar.mobile.ui.setup.FlightSetupViewModel
 import org.xcsoar.mobile.ui.flight.FlightViewModel
 import org.xcsoar.mobile.ui.theme.ThemeChoice
 import org.xcsoar.mobile.ui.theme.XcsTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINTS, FLIGHT_SETUP, FLIGHTS,
@@ -118,7 +122,7 @@ private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINT
                             CREW, PLANE_EDIT, PILOT, TILE_PICKER,
                             AIRSPACE_ALERTS, SAFETY, WIND, STATUS, VARIO_SOUND, TRACKING, WEATHER,
                             NOTAMS, REPLAY, PROFILES, TEAM_CODE, TEAM_REFERENCE, RADIO,
-                            ATC, ATC_REFERENCE, AIRSPACE_DETAILS }
+                            ATC, ATC_REFERENCE, AIRSPACE_DETAILS, WELCOME }
 
 /** How deep a page is: pages further in slide in from the right. */
 private val Screen.depth: Int
@@ -347,16 +351,40 @@ class MainActivity : ComponentActivity() {
                 onProfilePicked = { profilesViewModel.import(it.toString()) }
                 val tilePickerViewModel: TilePickerViewModel = viewModel(
                     factory = viewModelFactory { initializer { TilePickerViewModel(app.anyCore) } })
+                val welcomeViewModel: WelcomeViewModel = viewModel(
+                    factory = viewModelFactory {
+                        initializer {
+                            WelcomeViewModel(
+                                app.anyCore,
+                                index = { app.downloader.index(REPOSITORY_URI).path },
+                                download = app::downloadDataFile,
+                                // the GPS fix, else the phone's last position
+                                position = {
+                                    app.anyCore.flightState.value?.position
+                                        ?: withContext(Dispatchers.IO) { app.lastKnownPosition() }
+                                },
+                                regionHints = app::regionHints,
+                            )
+                        }
+                    })
 
                 LaunchedEffect(flightViewModel) {
                     flightViewModel.alerts.collect { alerts.play(it) }
                 }
 
-                // once per app start: the plane and crew of this flight
+                // the first start sets up units, glider and maps; later, once
+                // per app start, the plane and crew of this flight (when
+                // there is a plane to choose: "Not now" means not now)
                 var screen by rememberSaveable {
-                    mutableStateOf(if (app.crewChosen || app.core == null) Screen.FLIGHT
-                                   else Screen.CREW)
+                    mutableStateOf(when {
+                        app.core == null -> Screen.FLIGHT
+                        !app.setupDone -> Screen.WELCOME
+                        app.crewChosen || !app.hasPlanes -> Screen.FLIGHT
+                        else -> Screen.CREW
+                    })
                 }
+                /* the plane editor opens from the crew page and the first start */
+                var planeEditBack by rememberSaveable { mutableStateOf(Screen.CREW) }
                 /* the crew screen was opened from the menu (it has Back) */
                 var crewFromMenu by rememberSaveable { mutableStateOf(false) }
                 /* downloads open from data files and from the weather */
@@ -368,7 +396,7 @@ class MainActivity : ComponentActivity() {
                     app.crewChosen = true
                     screen = Screen.FLIGHT
                 }
-                if (screen == Screen.CREW && !crewFromMenu) {
+                if ((screen == Screen.CREW && !crewFromMenu) || screen == Screen.WELCOME) {
                     // never hold up a flight: the app restarted in the air
                     val flying = flightViewModel.flightState.collectAsState().value?.flying
                     LaunchedEffect(flying) { if (flying == true) crewDone() }
@@ -469,10 +497,22 @@ class MainActivity : ComponentActivity() {
                                 flightViewModel.refreshTiles()
                                 screen = Screen.FLIGHT
                             }
+                            Screen.WELCOME -> WelcomeScreen(
+                                welcomeViewModel,
+                                onAddPlane = {
+                                    planeEditViewModel.open(null)
+                                    planeEditBack = Screen.WELCOME
+                                    screen = Screen.PLANE_EDIT
+                                },
+                                onDone = {
+                                    app.setupDone = true
+                                    crewDone()
+                                })
                             Screen.CREW -> CrewScreen(
                                 crewViewModel,
                                 onEditPlane = { plane ->
                                     planeEditViewModel.open(plane)
+                                    planeEditBack = Screen.CREW
                                     screen = Screen.PLANE_EDIT
                                 },
                                 onDone = crewDone,
@@ -481,14 +521,20 @@ class MainActivity : ComponentActivity() {
                             Screen.PLANE_EDIT -> PlaneEditScreen(
                                 planeEditViewModel,
                                 onSaved = { path ->
-                                    crewViewModel.load(select = path)
-                                    screen = Screen.CREW
+                                    if (planeEditBack == Screen.WELCOME)
+                                        welcomeViewModel.loadPlanes(select = path)
+                                    else
+                                        crewViewModel.load(select = path)
+                                    screen = planeEditBack
                                 },
                                 onDeleted = {
-                                    crewViewModel.load()
-                                    screen = Screen.CREW
+                                    if (planeEditBack == Screen.WELCOME)
+                                        welcomeViewModel.loadPlanes()
+                                    else
+                                        crewViewModel.load()
+                                    screen = planeEditBack
                                 },
-                                onBack = { screen = Screen.CREW },
+                                onBack = { screen = planeEditBack },
                             )
                             Screen.WEATHER -> WeatherScreen(
                                 weatherViewModel,

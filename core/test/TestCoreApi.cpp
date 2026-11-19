@@ -997,6 +997,17 @@ TestUnits(xcs_core *core)
   auto json = UnitsJson(core);
   ok1(json.find("{\"unit\":10,\"name\":\"ft\"") != std::string::npos);
   ok1(json.find("\"presets\":[{\"name\":") != std::string::npos);
+  /* each preset says what it sets: altitude (2) in m (9) for the
+     European one, in ft (10) for the American one */
+  {
+    const auto european = json.find("{\"name\":\"European\",\"units\":[");
+    const auto american = json.find("{\"name\":\"American\",\"units\":[");
+    ok1(european != std::string::npos && american != std::string::npos &&
+        json.find("{\"group\":2,\"unit\":9}", european) <
+        json.find("\"name\":\"British\"") &&
+        json.find("{\"group\":2,\"unit\":10}", american) <
+        json.find("\"name\":\"Australian\""));
+  }
 
   /* altitude (2) in feet (10), not in km (1) */
   ok1(xcs_units_set(core, 2, 10) == XCS_OK);
@@ -1467,6 +1478,7 @@ TestRepositoryList()
           "uri=http://download.xcsoar.org/source/map/region/FRA_FULL.xcm\n"
           "type=map\n"
           "area=fr\n"
+          "bbox=-5,42,9,51.5\n"
           "update=2026-05-01\n"
           "\n"
           "name=france.txt\n"
@@ -1495,12 +1507,15 @@ TestRepositoryList()
   ok1(json.find("\"type\":\"rasp\"") != std::string::npos);
   ok1(json.find("\"updated\":\"2026-05-01\"") != std::string::npos);
   ok1(json.find("\"type\":\"airspace\"") != std::string::npos);
+  /* west, south, east, north; the airspace file has none */
+  ok1(json.find("\"bbox\":[-5E0,4.2E1,9E0,5.15E1]") != std::string::npos);
+  ok1(json.find("\"bbox\"") == json.rfind("\"bbox\""));
 }
 
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 3);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 3 + 3);
 
   Recorder recorder;
   TestCreateArguments(recorder);

@@ -66,7 +66,11 @@ data class UnitGroupInfo(
 )
 
 @Serializable
-data class UnitPreset(val name: String)
+data class UnitPreset(
+    val name: String,
+    /** The unit it sets for each group (only "group" and "unit"). */
+    val units: List<UnitGroupInfo> = emptyList(),
+)
 
 /**
  * XCSoar's units and the pilot's choice (`xcs_units_get`): every unit's
@@ -90,6 +94,11 @@ data class UnitSettings(
 
     fun choices(group: UnitGroup): List<UnitInfo> =
         groups.firstOrNull { it.group == group.code }?.choices.orEmpty().map(::unit)
+
+    /** The unit preset [index] sets for [group]; null if the core did not say. */
+    fun presetUnit(index: Int, group: UnitGroup): UnitInfo? =
+        presets.getOrNull(index)?.units?.firstOrNull { it.group == group.code }
+            ?.let { byCode[it.unit] }
 
     companion object {
         private val json = Json { ignoreUnknownKeys = true }

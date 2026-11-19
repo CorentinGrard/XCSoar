@@ -757,7 +757,16 @@ caution).  From a fresh install tested on a Redmi 5 and the Pixel 7.
    One short flow instead: the plane (the picker exists), the pilot,
    units chosen once, and the data for where the phone is (the XCSoar
    repository's map, airspace and waypoints for that region, offered by
-   location), then "Not now" really means not now.
+   location), then "Not now" really means not now.  **Done**
+   (2026-11-19): three steps on a fresh install (no profile, plane or
+   data yet): units from the phone's country (XCSoar's presets, each
+   with its units), the pilot's name and the glider (the plane
+   editor), then the region (the phone's network, SIM or language
+   country if its files cover the last known position, else the
+   closest fit of the repository's new bounding boxes) with its
+   closest map, OpenAIP airspace and XCSoar's airfields, downloaded
+   and loaded in one go.  "Set up later" ends it for good; the crew
+   page opens at start only when there is a plane to choose.
 2. **Flatter, lighter surfaces.**  The dozen floating cards and chips
    each cast a drop shadow; on a low-end phone the render thread is the
    slow part of every frame (PLAN, Performance).  Tonal surfaces

@@ -385,14 +385,17 @@ xcs_set_qnh(xcs_core *core, double hpa);
  *   {"units": [{"unit": 1, "name": "km", "factor": 0.001,
  *               "offset": 0.0}, ...],
  *    "groups": [{"group": 1, "unit": 1, "choices": [3, 2, 1]}, ...],
- *    "presets": [{"name": "European"}, ...], "preset": 0}
+ *    "presets": [{"name": "European",
+ *                 "units": [{"group": 1, "unit": 1}, ...]}, ...],
+ *    "preset": 0}
  *
  * A unit's value is SI × factor + offset.  "unit" is XCSoar's Unit
  * enum, "group" its UnitGroup (1 distance, 2 altitude, 3 temperature,
  * 4 aircraft speed, 5 vertical speed, 6 wind speed, 7 task speed,
  * 8 pressure, 9 wing loading, 10 mass); "choices" are the units the
- * pilot may set (wind speed follows aircraft speed).  "preset": the
- * preset the settings equal, -1 for none.
+ * pilot may set (wind speed follows aircraft speed).  A preset's
+ * "units" are those it sets, by group.  "preset": the preset the
+ * settings equal, -1 for none.
  *
  * @param length_r as for xcs_get_data_status()
  */
@@ -1289,11 +1292,13 @@ xcs_get_data_status(xcs_core *core, char *buffer, size_t size,
  *
  *   [{"name": "FRA_FULL.xcm", "uri": "http://...", "type": "map",
  *     "area": "fr", "description": "...", "updated": "2026-05-01",
+ *     "bbox": [-5.0, 42.0, 9.0, 51.5],
  *     "folder": "maps", "sha256": "ab12..."}, ...]
  *
- * "type" is map, airspace, waypoint or other; "folder" is where XCSoar
- * keeps that kind of file inside XCSoarData.  Optional fields may be
- * missing.  Needs no core: it only parses.  Buffer rules as for
+ * "type" is map, airspace, waypoint or other; "bbox" the region the
+ * file covers (west, south, east, north, degrees); "folder" is where
+ * XCSoar keeps that kind of file inside XCSoarData.  Optional fields
+ * may be missing.  Needs no core: it only parses.  Buffer rules as for
  * xcs_get_data_status().
  */
 XCS_EXPORT xcs_status

@@ -2153,6 +2153,18 @@ xcs_repository_list(const char *path, char *buffer, size_t size,
       {"description", file.description},
     };
 
+    if (file.bounds.IsValid()) {
+      /* the repository's degrees, without the noise of their trip
+         through radians */
+      const auto degrees = [](Angle a){
+        return std::round(a.Degrees() * 1e6) / 1e6;
+      };
+      o["bbox"] = boost::json::array{
+        degrees(file.bounds.GetWest()), degrees(file.bounds.GetSouth()),
+        degrees(file.bounds.GetEast()), degrees(file.bounds.GetNorth()),
+      };
+    }
+
     if (file.update_date.IsPlausible()) {
       char date[16];
       snprintf(date, sizeof(date), "%04u-%02u-%02u", file.update_date.year,

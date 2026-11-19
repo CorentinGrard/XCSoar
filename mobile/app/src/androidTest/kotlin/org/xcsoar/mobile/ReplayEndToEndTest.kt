@@ -142,8 +142,10 @@ class ReplayEndToEndTest {
         }
     }
 
-    /** Past the plane picker of a fresh app, to the flight screen. */
+    /** Past the first start's setup or the plane picker, to the flight screen. */
     private fun startFlightScreen() {
+        if (exists(hasText("Set up later")))
+            compose.onNodeWithText("Set up later").performClick()
         if (exists(hasText("Not now")))
             compose.onNodeWithText("Not now").performClick()
         waitFor("the core started", STARTUP_MS) { exists(hasText("On ground")) }

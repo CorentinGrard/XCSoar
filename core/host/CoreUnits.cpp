@@ -120,10 +120,19 @@ CoreUnits::Describe() noexcept
   });
 
   boost::json::array presets;
-  for (unsigned i = 0; i < Units::Store::Count(); ++i)
+  for (unsigned i = 0; i < Units::Store::Count(); ++i) {
+    const UnitSetting preset = Units::Store::Read(i);
+    boost::json::array preset_units;
+    for (const auto &g : groups)
+      preset_units.emplace_back(boost::json::object{
+        {"group", unsigned(g.group)},
+        {"unit", unsigned(preset.GetByGroup(g.group))},
+      });
     presets.emplace_back(boost::json::object{
       {"name", Units::Store::GetName(i)},
+      {"units", std::move(preset_units)},
     });
+  }
 
   const boost::json::value value = boost::json::object{
     {"units", std::move(units)},

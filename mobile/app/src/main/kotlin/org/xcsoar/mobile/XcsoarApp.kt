@@ -3,10 +3,15 @@
 
 package org.xcsoar.mobile
 
+import android.Manifest
 import android.app.Application
+import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.telephony.TelephonyManager
 import android.util.Log
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,6 +21,7 @@ import org.xcsoar.CoreBattery
 import org.xcsoar.CoreGraphics
 import org.xcsoar.mobile.core.DataFile
 import org.xcsoar.mobile.core.FakeXcsoarCore
+import org.xcsoar.mobile.core.GeoPosition
 import org.xcsoar.mobile.core.REPOSITORY_URI
 import org.xcsoar.mobile.core.RepositoryFile
 import org.xcsoar.mobile.core.XcsoarCore
@@ -24,6 +30,7 @@ import org.xcsoar.mobile.ui.flights.FlightLog
 import org.xcsoar.mobile.ui.flights.UploadStore
 import org.xcsoar.mobile.ui.theme.ThemeChoice
 import java.io.File
+import java.util.Locale
 
 /**
  * Owns what lives as long as the process: the core (one per process,
@@ -127,6 +134,56 @@ class XcsoarApp : Application() {
 
     /** The pilot chose the plane and crew since the app started. */
     var crewChosen = false
+
+    /**
+     * The first start's setup (units, pilot and glider, maps) is done
+     * or was put off: it is not offered again.  An install that has a
+     * profile, planes or data files already needs none.
+     */
+    var setupDone: Boolean
+        get() = uiPreferences.getBoolean("setup_done", false) ||
+            listOf("profiles", "planes", "maps", "airspace").any {
+                File(xcsoarDataDir, it).list()?.isNotEmpty() == true
+            }
+        set(value) = uiPreferences.edit().putBoolean("setup_done", value).apply()
+
+    /** The pilot has set up a plane (XCSoarData/planes, upstream's layout). */
+    val hasPlanes: Boolean
+        get() = File(xcsoarDataDir, "planes").list()
+            ?.any { it.endsWith(".xcp", ignoreCase = true) } == true
+
+    /**
+     * Where the phone is, by country code, best first: its mobile
+     * network, its SIM, its language's country.  No permission needed.
+     */
+    fun regionHints(): List<String> {
+        val phone = getSystemService(TelephonyManager::class.java)
+        return listOfNotNull(phone?.networkCountryIso, phone?.simCountryIso,
+                             Locale.getDefault().country)
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+
+    /**
+     * The phone's last known position from any provider (no new fix is
+     * asked for); null without the location permission or a fix.
+     */
+    fun lastKnownPosition(): GeoPosition? {
+        val granted = listOf(Manifest.permission.ACCESS_FINE_LOCATION,
+                             Manifest.permission.ACCESS_COARSE_LOCATION).any {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+        if (!granted) return null
+        val manager = getSystemService(LocationManager::class.java) ?: return null
+        return try {
+            manager.getProviders(true)
+                .mapNotNull { manager.getLastKnownLocation(it) }
+                .maxByOrNull { it.time }
+                ?.let { GeoPosition(it.latitude, it.longitude) }
+        } catch (_: SecurityException) {
+            null
+        }
+    }
 
     /**
      * Copy a file the user picked into XCSoarData, into the folder
