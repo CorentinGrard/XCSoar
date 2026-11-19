@@ -7,8 +7,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -42,6 +44,14 @@ private const val FINAL_GLIDE_RANGE = 500.0
 val EDGE_BAR_WIDTH = 56.dp
 
 /**
+ * The least height for the vario (its number and unit) and for final
+ * glide (caption, number, unit): on a short screen the cards above
+ * the map leave little, and the vario must not go.
+ */
+val VARIO_MIN_HEIGHT = 72.dp
+val FINAL_GLIDE_MIN_HEIGHT = 96.dp
+
+/**
  * The vario on the map's left edge: the total-energy vario as a number
  * and as a bar from zero (lift green, sink neutral), a sky blue marker
  * for the 30 s average, and netto underneath.
@@ -58,17 +68,26 @@ fun VarioBar(
     val averageText = Format.vario(average)
     val nettoText = Format.vario(netto)
     val lift = vario != null && vario >= 0.05
-    EdgeCard(modifier.clearAndSetSemantics {
-        contentDescription = "Vario ${varioText.text}, average ${averageText.text}, " +
-            "netto ${nettoText.text} ${varioText.unit}"
-    }) {
-        // the colour must agree with the rounded number
-        BarValue(varioText, if (lift) colors.lift else colors.text, 24)
-        BarTrack(vario?.takeIf { abs(it) >= 0.05 }, VARIO_RANGE,
-                 if (lift) colors.lift else colors.sink, average, Modifier.weight(1f))
-        Caption("Netto")
-        Text(nettoText.text, color = colors.text, style = XcsTheme.numberStyle,
-             fontSize = 16.sp, maxLines = 1)
+    BoxWithConstraints(modifier) {
+        // what fits, the number first: on a short screen netto goes, then
+        // the track
+        val track = maxHeight >= 104.dp
+        val showNetto = maxHeight >= 160.dp
+        EdgeCard((if (track) Modifier.fillMaxHeight() else Modifier).clearAndSetSemantics {
+            contentDescription = "Vario ${varioText.text}, average ${averageText.text}, " +
+                "netto ${nettoText.text} ${varioText.unit}"
+        }) {
+            // the colour must agree with the rounded number
+            BarValue(varioText, if (lift) colors.lift else colors.text, 24)
+            if (track)
+                BarTrack(vario?.takeIf { abs(it) >= 0.05 }, VARIO_RANGE,
+                         if (lift) colors.lift else colors.sink, average, Modifier.weight(1f))
+            if (showNetto) {
+                Caption("Netto")
+                Text(nettoText.text, color = colors.text, style = XcsTheme.numberStyle,
+                     fontSize = 16.sp, maxLines = 1)
+            }
+        }
     }
 }
 
@@ -82,13 +101,18 @@ fun FinalGlideBar(finalGlide: FinalGlide?, modifier: Modifier = Modifier) {
     val difference = finalGlide?.altitudeDifference
     val value = Format.altitudeDifference(difference)
     val color = difference?.let { if (it >= 0) colors.safe else colors.caution }
-    EdgeCard(modifier.clearAndSetSemantics {
-        contentDescription = "Final glide ${value.text} ${value.unit}"
-    }) {
-        Caption("Final")
-        BarValue(value, color ?: colors.text, 20)
-        BarTrack(difference, FINAL_GLIDE_RANGE, color ?: colors.text, null,
-                 Modifier.weight(1f))
+    BoxWithConstraints(modifier) {
+        // on a short screen, the number without its track
+        val track = maxHeight >= 120.dp
+        EdgeCard((if (track) Modifier.fillMaxHeight() else Modifier).clearAndSetSemantics {
+            contentDescription = "Final glide ${value.text} ${value.unit}"
+        }) {
+            Caption("Final")
+            BarValue(value, color ?: colors.text, 20)
+            if (track)
+                BarTrack(difference, FINAL_GLIDE_RANGE, color ?: colors.text, null,
+                         Modifier.weight(1f))
+        }
     }
 }
 

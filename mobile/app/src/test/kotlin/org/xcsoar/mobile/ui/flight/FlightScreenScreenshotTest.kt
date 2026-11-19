@@ -161,6 +161,20 @@ class FlightScreenScreenshotTest {
         }
     }
 
+    /**
+     * A short phone (a Redmi 5: 360x720 dp) in a replay: the cards leave
+     * little room above the map buttons, and the vario stays, smaller.
+     */
+    @Test
+    @Config(qualifiers = "w360dp-h720dp-xhdpi")
+    fun shortPhoneReplay() = capture("short_phone_replay") {
+        XcsTheme(dark = true) {
+            FlightContent(FakeXcsoarCore.syntheticState(320).copy(replay = true), null,
+                          circling = true, {},
+                          replay = ReplayControls(ReplaySpeed(10.0, paused = false)))
+        }
+    }
+
     @Test
     @Config(qualifiers = "w844dp-h390dp-land-xxhdpi")
     fun landscape() = capture("landscape_sunlight") {

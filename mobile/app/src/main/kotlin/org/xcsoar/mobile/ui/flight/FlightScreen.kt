@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -409,6 +411,14 @@ private fun MapArea(
         } else
             MapPlaceholder(state?.track, cardsBottom, Modifier.fillMaxSize())
 
+        // the status bar's icons follow the theme (MainActivity): keep
+        // them on its colour, not on the map, where light icons on white
+        // ground were invisible
+        Box(Modifier
+                .fillMaxWidth()
+                .windowInsetsTopHeight(WindowInsets.statusBars)
+                .background(colors.sheet))
+
         Column(
             Modifier
                 .onSizeChanged { cardsBottom = it.height }
@@ -462,12 +472,13 @@ private fun MapArea(
         ) {
             // what is left above the map buttons
             val barSpace = maxHeight - 56.dp - 12.dp
-            if (barSpace >= 120.dp) {
+            // the vario stays, smaller, on short screens (EdgeBars.kt)
+            if (barSpace >= VARIO_MIN_HEIGHT)
                 VarioSlot(vario, state, Modifier.align(Alignment.TopStart)
                     .height(barSpace.coerceAtMost(300.dp)))
+            if (barSpace >= FINAL_GLIDE_MIN_HEIGHT)
                 FinalGlideBar(state?.finalGlide, Modifier.align(Alignment.TopEnd)
                     .height(barSpace.coerceAtMost(180.dp)))
-            }
 
             map?.items?.let {
                 MapItemsCard(it, map.onCloseItems, map.onGoto, Modifier
