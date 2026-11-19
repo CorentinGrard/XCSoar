@@ -804,7 +804,9 @@ TestTiles(xcs_core *core)
       types.find("\"group\":\"Vario and thermal\"") != std::string::npos);
   /* graphics the app does not draw yet: not offered; the barogram is */
   ok1(!Contains(types, "{\"id\":" + std::to_string(e_Horizon) + ",") &&
-      Contains(types, "{\"id\":" + std::to_string(e_Barogram) + ","));
+      Contains(types, "{\"id\":" + std::to_string(e_Barogram) + ",") &&
+      Contains(types, "{\"id\":" + std::to_string(e_TaskProgress) + ",") &&
+      Contains(types, "{\"id\":" + std::to_string(e_Climb_Perc_Chart) + ","));
 
   auto layouts = [core]{
     return GetJson([core](char *b, size_t s, size_t *l){
@@ -1219,6 +1221,19 @@ TestReplayControls(xcs_core *core)
   std::this_thread::sleep_for(std::chrono::milliseconds(1500));
   ok1(std::filesystem::last_write_time(session_path) == session_written);
 
+  /* in flight, the graphical tiles of the climb and the task */
+  const auto graphic = [core](InfoBoxFactory::Type type){
+    xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, type);
+    return GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_tiles_update(core, XCS_TILES_CIRCLING, b, s, l);
+    });
+  };
+  ok1(Contains(graphic(InfoBoxFactory::e_Climb_Perc_Chart),
+               "\"graphic\":{\"kind\":\"climb_percent\",\"values\":["));
+  ok1(Contains(graphic(InfoBoxFactory::e_TaskProgress),
+               "\"graphic\":{\"kind\":\"task_progress\",\"points\":["));
+  xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, InfoBoxFactory::e_WindSpeed_Est);
+
   /* 0 pauses */
   ok1(xcs_replay_set_time_scale(core, 0) == XCS_OK);
   ok1(xcs_replay_set_time_scale(core, 20) == XCS_OK);
@@ -1482,7 +1497,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 2);
 
   Recorder recorder;
   TestCreateArguments(recorder);

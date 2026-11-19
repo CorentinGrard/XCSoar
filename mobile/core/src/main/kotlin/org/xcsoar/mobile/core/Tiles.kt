@@ -84,6 +84,11 @@ data class TileValue(
  *  - "wind_arrow", "next_arrow": where the wind blows to, relative to
  *    the heading, or where the next waypoint is, relative to the track
  *    ([angle], degrees clockwise).
+ *  - "task_progress": the ordered task's points around a circle, [where
+ *    along the task (0..1), achieved (1) or not] in [points], the
+ *    [active] one, and the share of the task [remaining] (0..1).
+ *  - "climb_percent": the time circling and climbing, circling at all,
+ *    and climbing without circling, % ([values]).
  */
 @Serializable
 data class TileGraphic(
@@ -96,6 +101,8 @@ data class TileGraphic(
     @SerialName("points") private val pointsRaw: List<List<Double>> = emptyList(),
     @SerialName("terrain") private val terrainRaw: List<List<Double>> = emptyList(),
     val angle: Double = 0.0,
+    val active: Int = -1,
+    val remaining: Double = 1.0,
 ) {
     val points get() = pointsRaw.map { ChartPoint(it[0], it[1]) }
     val terrain get() = terrainRaw.map { ChartPoint(it[0], it[1]) }
@@ -105,6 +112,8 @@ data class TileGraphic(
         const val BAROGRAM = "barogram"
         const val WIND_ARROW = "wind_arrow"
         const val NEXT_ARROW = "next_arrow"
+        const val TASK_PROGRESS = "task_progress"
+        const val CLIMB_PERCENT = "climb_percent"
     }
 }
 

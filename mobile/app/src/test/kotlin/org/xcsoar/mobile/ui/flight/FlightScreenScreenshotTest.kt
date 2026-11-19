@@ -108,6 +108,32 @@ class FlightScreenScreenshotTest {
         }
     }
 
+    /**
+     * Task progress (five points, two achieved, the third active) and the
+     * climb percentage pie, drawn from the core's data.
+     */
+    @Test
+    @Config(qualifiers = "w390dp-h844dp-xxhdpi")
+    fun graphicTilesTaskAndClimb() = capture("tiles_graphic_task_climb") {
+        val task = listOf(listOf(0.0, 1.0), listOf(0.3, 1.0), listOf(0.55, 0.0),
+                          listOf(0.8, 0.0), listOf(1.0, 0.0))
+        XcsTheme(dark = false) {
+            FlightContent(FakeXcsoarCore.syntheticState(120), null, circling = false, {},
+                          tiles = listOf(
+                              TileValue(0, "Progress", "",
+                                        graphic = TileGraphic(TileGraphic.TASK_PROGRESS,
+                                                              pointsRaw = task, active = 2,
+                                                              remaining = 0.52)),
+                              TileValue(0, "Climb %", "",
+                                        graphic = TileGraphic(TileGraphic.CLIMB_PERCENT,
+                                                              listOf(28.0, 41.0, 9.0))),
+                              TileValue(6, "V GND", "130", "km/h"),
+                              TileValue(6, "V GND", "130", "km/h"),
+                              TileValue(6, "V GND", "130", "km/h"),
+                              TileValue(6, "V GND", "130", "km/h")))
+        }
+    }
+
     /** Before the first snapshot every value shows dashes. */
     @Test
     @Config(qualifiers = "w390dp-h844dp-xxhdpi")

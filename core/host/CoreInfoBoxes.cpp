@@ -50,8 +50,7 @@ static constexpr Type DEFAULT_LAYOUTS[CoreInfoBoxes::LAYOUT_COUNT]
 /** Types that only draw (OnCustomPaint()) and whose drawing the app
     does not have yet (Graphic()): not offered for a tile. */
 static constexpr Type GRAPHIC_TYPES[] = {
-  e_ThermalBand, e_TaskProgress, e_Horizon, THERMAL_ASSISTANT,
-  e_Climb_Perc_Chart,
+  e_ThermalBand, e_Horizon, THERMAL_ASSISTANT,
 };
 
 static bool
@@ -277,6 +276,34 @@ Graphic(Type type, const InfoBoxData &data) noexcept
       {"kind", "next_arrow"},
       {"angle", (calculated.task_stats.current_leg.vector_remaining.bearing -
                  basic.track).AsBearing().Degrees()},
+    };
+
+  case e_TaskProgress: {
+    /* TaskProgressRenderer::Draw(): the ordered task's points around a
+       circle, [where along the task (0..1), achieved], the active one,
+       and how much of it is left */
+    const TaskSummary &summary = calculated.common_stats.ordered_summary;
+    boost::json::array points;
+    for (const auto &p : summary.pts)
+      points.emplace_back(boost::json::array{p.p, p.achieved ? 1. : 0.});
+    return boost::json::object{
+      {"kind", "task_progress"},
+      {"points", std::move(points)},
+      {"active", summary.active},
+      {"remaining", summary.p_remaining},
+    };
+  }
+
+  case e_Climb_Perc_Chart:
+    /* ClimbPercentRenderer::Draw(): a pie of the time circling and
+       climbing, circling at all, and climbing without circling (%) */
+    return boost::json::object{
+      {"kind", "climb_percent"},
+      {"values", boost::json::array{
+          calculated.circling_climb_percentage,
+          calculated.circling_percentage,
+          calculated.noncircling_climb_percentage,
+        }},
     };
 
   default:

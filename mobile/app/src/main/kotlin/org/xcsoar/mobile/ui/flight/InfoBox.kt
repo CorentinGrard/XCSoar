@@ -32,6 +32,12 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import kotlin.math.sin
+import kotlin.math.cos
+import kotlin.math.PI
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -155,7 +161,64 @@ private fun TileDrawing(graphic: TileGraphic, modifier: Modifier) {
             }
         TileGraphic.SPARK -> Canvas(modifier) { spark(graphic, colors) }
         TileGraphic.BAROGRAM -> Canvas(modifier) { barogram(graphic, colors) }
+        TileGraphic.TASK_PROGRESS -> Canvas(modifier) { taskProgress(graphic, colors) }
+        TileGraphic.CLIMB_PERCENT -> Canvas(modifier) { climbPercent(graphic, colors) }
     }
+}
+
+/** The circle of the round drawings, centred in the tile. */
+private fun DrawScope.circle(): Pair<Offset, Float> =
+    Offset(size.width / 2, size.height / 2) to (minOf(size.width, size.height) / 2 - 3.dp.toPx())
+
+/** The arc of a pie from [from] to [to] (0..1 of the circle, clockwise from north). */
+private fun DrawScope.pie(centre: Offset, radius: Float, from: Double, to: Double, color: Color) {
+    if (to <= from) return
+    drawArc(color, startAngle = (from * 360 - 90).toFloat(),
+            sweepAngle = ((to - from) * 360).toFloat(), useCenter = true,
+            topLeft = centre - Offset(radius, radius), size = Size(radius * 2, radius * 2))
+}
+
+/**
+ * TaskProgressRenderer::Draw(): the part of the task flown filled, the
+ * points on the circle: achieved green, the active one larger in
+ * caution orange, missed ones red, those ahead grey.
+ */
+private fun DrawScope.taskProgress(g: TileGraphic, colors: XcsColors) {
+    val (centre, radius) = circle()
+    // upstream leaves a small gap where the task starts and ends
+    val sweep = 0.97
+    if (g.remaining < 0.99)
+        pie(centre, radius, 0.0, sweep * (1 - g.remaining), colors.textSecondary.copy(alpha = 0.35f))
+    drawCircle(colors.text, radius, centre, style = Stroke(1.dp.toPx()))
+    g.points.forEachIndexed { i, p ->
+        val angle = sweep * p.t * 2 * PI
+        val at = centre + Offset((sin(angle) * radius).toFloat(), (-cos(angle) * radius).toFloat())
+        val achieved = p.y != 0.0
+        val (color, half) = when {
+            achieved -> colors.safe to if (i == g.active) 3.dp else 2.dp
+            i == g.active -> colors.caution to 3.dp
+            i < g.active -> colors.warning to 2.dp
+            else -> colors.textSecondary to 1.5.dp
+        }
+        val h = half.toPx()
+        drawRect(color, at - Offset(h, h), Size(h * 2, h * 2))
+    }
+}
+
+/**
+ * ClimbPercentRenderer::Draw(): a pie of the time spent climbing without
+ * circling (green, back from north), circling and climbing (grey) and
+ * circling without climbing (orange), as upstream's colours.
+ */
+private fun DrawScope.climbPercent(g: TileGraphic, colors: XcsColors) {
+    val (centre, radius) = circle()
+    val circlingClimb = g.values.getOrElse(0) { 0.0 } / 100
+    val circling = g.values.getOrElse(1) { 0.0 } / 100
+    val cruiseClimb = g.values.getOrElse(2) { 0.0 } / 100
+    pie(centre, radius, -cruiseClimb, 0.0, colors.lift)
+    pie(centre, radius, 0.0, circlingClimb, colors.textSecondary)
+    pie(centre, radius, circlingClimb, circling, colors.caution)
+    drawCircle(colors.text, radius, centre, style = Stroke(1.dp.toPx()))
 }
 
 /**
