@@ -2981,6 +2981,11 @@ xcs_core::EndReplay() noexcept
       ->ClearGoto();
   bc.calculation_thread->Resume();
   bc.merge_thread->Resume();
+
+  /* the reset reaches the screen with the next calculation, which
+     without a GPS fix would not come: the replay's wind, thermal and
+     circling stayed shown */
+  bc.calculation_thread->ForceTrigger();
 }
 
 static xcs_status

@@ -1225,6 +1225,21 @@ TestReplayControls(xcs_core *core)
   ok1(xcs_replay_stop(core) == XCS_OK);
   ok1(xcs_replay_fast_forward(core, 600) == XCS_ERROR_FAILED);
   ok1(xcs_replay_set_time_scale(core, 1) == XCS_OK);
+
+  /* stopped in flight, and forgotten: no wind, thermal or circling of
+     the replayed flight stays on the screen, also without a GPS fix
+     to recalculate */
+  bool forgotten = false;
+  for (unsigned i = 0; i < 50 && !forgotten; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    xcs_flight_snapshot s{};
+    s.struct_size = sizeof(s);
+    forgotten = xcs_get_snapshot(core, &s) == XCS_OK &&
+      (s.valid & (XCS_VALID_WIND | XCS_VALID_CURRENT_THERMAL |
+                  XCS_VALID_LAST_THERMAL)) == 0 &&
+      (s.flags & (XCS_FLAG_CIRCLING | XCS_FLAG_FLYING)) == 0;
+  }
+  ok1(forgotten);
 }
 
 /* a replay that reaches the end of its file ends itself; the core
@@ -1248,6 +1263,7 @@ TestReplayToEnd(xcs_core *core, Recorder &recorder)
   ok1(xcs_safety_get_option(core, XCS_SAFETY_MC, &value) == XCS_OK);
   ok1(xcs_replay_fast_forward(core, 600) == XCS_ERROR_FAILED);
   ok1(xcs_replay_set_time_scale(core, 1) == XCS_OK);
+
 }
 
 static void
@@ -1466,7 +1482,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1);
 
   Recorder recorder;
   TestCreateArguments(recorder);
