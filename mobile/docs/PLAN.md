@@ -470,12 +470,15 @@ the core already links but that has never run in this app:
       are XCSoar's InfoBoxes, computed by upstream's InfoBox contents in
       the core (`core/host/CoreInfoBoxes.cpp`, their dialogs and drawing
       are seams in `InfoBoxSeams.cpp`): title, value, unit, comment and
-      colour, translated.  A long press opens a searchable list of every
-      text type (the 11 graphical ones are left out); the choice is
-      saved in the profile ("MobileTilesCruise" / "MobileTilesCircling").
-      `xcs_tiles_*`.  Checked on a Pixel 7.  Not yet: the graphical
-      InfoBoxes (barogram, sparklines, thermal band, assistant, arrows,
-      horizon), more or fewer tiles.  A tap does what upstream's InfoBox
+      colour, translated.  A long press opens a searchable list of the
+      types, by upstream's topics (2026-11-18); the choice is saved in
+      the profile ("MobileTilesCruise" / "MobileTilesCircling").
+      `xcs_tiles_*`.  Checked on a Pixel 7.  Graphical InfoBoxes: the
+      core sends what they draw, the app draws it (sparklines, barogram,
+      wind and next waypoint arrows, 2026-10-20; task progress, climb
+      percentage pie, thermal band, 2026-11-19).  Not yet: the thermal
+      assistant and the horizon (a look and attitude data the app does
+      not have), more or fewer tiles.  A tap does what upstream's InfoBox
       does (`xcs_tiles_click`: HandleClick() runs, the dialog seams record
       what it asked for, else its panels): analysis pages open Analysis
       on that page, alternates and waypoint lists open Go to, the
