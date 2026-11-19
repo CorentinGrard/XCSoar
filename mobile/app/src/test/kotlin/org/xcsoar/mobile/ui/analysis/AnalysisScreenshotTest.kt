@@ -75,14 +75,27 @@ class AnalysisScreenshotTest {
             [1000,291,294,283],[1500,286,291,282],[2000,281,287,null]],
             "thermal_height":1700,"cloud_base":2100}}"""))
 
+    /* a start line, two turn point cylinders and a finish cylinder */
     @Test
     fun task() = capture("task", AnalysisPage.TASK, Analysis.parse(
         """{"legs":[],"task":{"points":[
-            {"name":"Benalla","location":[-36.55,145.98],"target":[-36.55,145.98]},
-            {"name":"Mansfield","location":[-37.05,146.08],"target":[-37.05,146.08]},
-            {"name":"Wangaratta","location":[-36.36,146.31],"target":[-36.36,146.31]},
-            {"name":"Benalla","location":[-36.55,145.98],"target":[-36.55,145.98]}],
+            {"name":"Benalla","location":[-36.55,145.98],"target":[-36.55,145.98],
+             "zone":[[-36.55,145.94],[-36.55,146.02]]},
+            {"name":"Mansfield","location":[-37.05,146.08],"target":[-37.05,146.08],
+             "zone":${circle(-37.05, 146.08, 0.05)}},
+            {"name":"Wangaratta","location":[-36.36,146.31],"target":[-36.36,146.31],
+             "zone":${circle(-36.36, 146.31, 0.05)}},
+            {"name":"Benalla","location":[-36.55,145.98],"target":[-36.55,145.98],
+             "zone":${circle(-36.55, 145.98, 0.03)}}],
             "distance_to_go":148000,"task_to_go":5400}}"""))
+
+    /** [[lat, lon], ...] around a point, [radius] in degrees of latitude. */
+    private fun circle(lat: Double, lon: Double, radius: Double): String =
+        (0 until 36).joinToString(",", "[", "]") { i ->
+            val a = i * 10 * Math.PI / 180
+            "[${lat + radius * Math.cos(a)}," +
+                "${lon + radius * Math.sin(a) / Math.cos(lat * Math.PI / 180)}]"
+        }
 
     @Test
     fun noData() = capture("no_data", AnalysisPage.BAROGRAPH, null)

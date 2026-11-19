@@ -9,6 +9,7 @@
 #include "Computer/GlideComputer.hpp"
 #include "Computer/TraceComputer.hpp"
 #include "Task/ProtectedTaskManager.hpp"
+#include "Engine/Task/ObservationZones/Boundary.hpp"
 #include "Engine/Task/TaskManager.hpp"
 #include "Engine/Task/Ordered/OrderedTask.hpp"
 #include "Engine/Task/Ordered/Points/OrderedTaskPoint.hpp"
@@ -541,7 +542,7 @@ Temperature(const CuSonde &cu_sonde) noexcept
 
 /**
  * The ordered task as FlightStatisticsRenderer::RenderTask() draws it
- * (points and legs, without their zones) and CaptionTask()'s numbers.
+ * (points, legs and their observation zones) and CaptionTask()'s numbers.
  */
 static boost::json::object
 TaskChart(const TaskManager &task_manager,
@@ -559,12 +560,20 @@ TaskChart(const TaskManager &task_manager,
     const OrderedTaskPoint &tp = task.GetTaskPoint(i);
     const GeoPoint &l = tp.GetLocation();
     const GeoPoint &target = tp.GetLocationRemaining();
+
+    /* the zone's outline, as OZRenderer draws it (a line is two points) */
+    boost::json::array zone;
+    for (const GeoPoint &p : tp.GetBoundary())
+      zone.emplace_back(boost::json::array{p.latitude.Degrees(),
+                                           p.longitude.Degrees()});
+
     points.emplace_back(boost::json::object{
       {"name", tp.GetWaypoint().name},
       {"location", boost::json::array{l.latitude.Degrees(),
                                       l.longitude.Degrees()}},
       {"target", boost::json::array{target.latitude.Degrees(),
                                     target.longitude.Degrees()}},
+      {"zone", std::move(zone)},
     });
   }
   o["points"] = std::move(points);

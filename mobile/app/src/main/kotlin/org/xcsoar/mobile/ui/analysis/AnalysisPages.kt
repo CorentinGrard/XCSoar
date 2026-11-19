@@ -286,7 +286,7 @@ internal fun TemperaturePage(a: Analysis) {
     t.cloudBase?.let { ValueRow("Cloud base", Format.altitude(it)) }
 }
 
-/** FlightStatisticsRenderer::RenderTask(), without the zones, and CaptionTask(). */
+/** FlightStatisticsRenderer::RenderTask() with the zones, and CaptionTask(). */
 @Composable
 internal fun TaskPage(a: Analysis) {
     val colors = XcsTheme.colors
@@ -308,7 +308,13 @@ internal fun TaskPage(a: Analysis) {
         }
         Canvas(Modifier.matchParentSize().padding(24.dp)) {
             val at = flatProjection(points.map { it.location } + points.map { it.target } +
-                                    trace)
+                                    points.flatMap { it.zone } + trace)
+            // the zones under the flight, as upstream's OZRenderer
+            for (p in points.filter { it.zone.size >= 2 }) {
+                val zone = path(p.zone, at).apply { close() }
+                drawPath(zone, colors.task.copy(alpha = 0.12f))
+                drawPath(zone, colors.task, style = Stroke(2f))
+            }
             if (trace.size >= 2)
                 drawPath(path(trace, at), colors.textSecondary, style = Stroke(2f))
             drawPath(path(points.map { it.target }, at), colors.task, style = Stroke(4f))

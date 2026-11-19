@@ -296,6 +296,19 @@ TestTask(xcs_core *core)
   ok1(active.find("\"kind\":\"finish\"") != std::string::npos);
   ok1(active.find("\"active\":0") != std::string::npos);
   ok1(TaskJson(core, XCS_TASK_EDITED).empty());
+  {
+    /* the analysis task page draws each point's zone */
+    std::string analysis(1 << 20, '\0');
+    size_t analysis_length = 0;
+    bool zones = false;
+    for (unsigned i = 0; i < 30 && !zones; ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      zones = xcs_get_analysis(core, analysis.data(), analysis.size(),
+                               &analysis_length) == XCS_OK &&
+        Count(std::string{analysis.data(), analysis_length}, "\"zone\":[[") == 3;
+    }
+    ok1(zones);
+  }
 
   /* zones and task type */
   ok1(xcs_task_edit(core, XCS_TASK_BEGIN, 0, 0) == XCS_OK);
@@ -1453,7 +1466,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1);
 
   Recorder recorder;
   TestCreateArguments(recorder);

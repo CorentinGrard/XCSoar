@@ -227,10 +227,13 @@ data class TaskChartPoint(
     val name: String,
     @SerialName("location") private val locationRaw: List<Double>,
     @SerialName("target") private val targetRaw: List<Double>,
+    @SerialName("zone") private val zoneRaw: List<List<Double>> = emptyList(),
 ) {
     val location get() = LatLon(locationRaw[0], locationRaw[1])
     /** Where the task goes from this point (AAT targets). */
     val target get() = LatLon(targetRaw[0], targetRaw[1])
+    /** The observation zone's outline (a line: its two ends). */
+    val zone get() = zoneRaw.filter { it.size == 2 }.map { LatLon(it[0], it[1]) }
 }
 
 /** XCSoar's task page; no points without a valid ordered task. */
