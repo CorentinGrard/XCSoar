@@ -389,7 +389,12 @@ object CoreEventType {
 sealed interface CoreEvent {
     data class GlideComputer(val event: GlideComputerEvent) : CoreEvent
     data class Message(val text: String, val detail: String?) : CoreEvent
-    data object ReplayFinished : CoreEvent
+    /**
+     * The replay reached the end of its file; [analysis] is the replayed
+     * flight's (`xcs_get_analysis` JSON) if it took off: the glide
+     * computer forgets it then.
+     */
+    data class ReplayFinished(val analysis: String? = null) : CoreEvent
 }
 
 /** The stable codes of `xcs_gce` (core/api/xcsoar_core.h). */

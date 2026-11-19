@@ -234,7 +234,9 @@ typedef enum xcs_event_type {
   XCS_EVENT_GLIDE_COMPUTER = 1,
   /** A message for the pilot; text (and optionally detail) are set. */
   XCS_EVENT_MESSAGE = 2,
-  /** The replay reached the end of its file. */
+  /** The replay reached the end of its file; detail is the replayed
+      flight's analysis (xcs_get_analysis()) if it took off, as the
+      glide computer forgets it then. */
   XCS_EVENT_REPLAY_FINISHED = 3,
 } xcs_event_type;
 

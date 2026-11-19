@@ -303,15 +303,14 @@ private fun ContestPage(contest: ContestInfo) {
 
 /** The flight and the best contest path, north up, on a flat projection. */
 @Composable
-private fun ContestMap(contest: ContestInfo) {
+internal fun ContestMap(contest: ContestInfo, modifier: Modifier = Modifier.aspectRatio(1.2f)) {
     val colors = XcsTheme.colors
     val trace = contest.trace
     val best = contest.results.filter { it.isDefined }.maxByOrNull { it.score }?.points.orEmpty()
     val all = trace + best
 
-    Box(Modifier
+    Box(modifier
             .fillMaxWidth()
-            .aspectRatio(1.2f)
             .background(colors.panel, RoundedCornerShape(12.dp))
             .semantics { contentDescription = "Contest: the flight and the scored path" },
         contentAlignment = Alignment.Center) {

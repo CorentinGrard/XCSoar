@@ -310,7 +310,7 @@ class FakeXcsoarCore(
 
     override suspend fun stopReplay() {
         stop()
-        eventFlow.emit(CoreEvent.ReplayFinished)
+        eventFlow.emit(CoreEvent.ReplayFinished())
     }
 
     companion object {

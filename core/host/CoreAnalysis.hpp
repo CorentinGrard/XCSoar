@@ -23,6 +23,8 @@ namespace CoreAnalysis {
  * {"y0": y at t = 0, "gradient": per hour}, drawn across the chart.
  *
  *   {"flight_time": 2.5,
+ *    "flight": {"takeoff": s, "takeoff_local": "11:42", "landing": s,
+ *               "landing_local": "15:58", "duration": s},
  *    "legs": [{"index": 0, "t": 0.4}, ...],
  *    "barograph": {"altitude": [[t, m], ...], "terrain": [[t, m], ...],
  *                  "base": [[t, m], ...], "base_trend": {...},
@@ -38,8 +40,13 @@ namespace CoreAnalysis {
  *                             "points": [[lat, lon], ...]}, ...],
  *                "trace": [[lat, lon], ...]}}
  *
+ * "flight": the last flight's take-off and landing (seconds since
+ * midnight UTC of the day it started, XCSoar's TimeStamp; and as the
+ * status dialog shows them, in the pilot's local time) and its
+ * duration, kept after the landing (no "landing" before it).
+ *
  * Missing members mean what upstream's charts show as "no data":
- * "flight_time" before take-off, a page's series before it has two
+ * "flight_time" before take-off ("flight" too), a page's series before it has two
  * points, "base"/"ceiling" (only their trend) before two climbs,
  * "task_speed" without an ordered task, a trend before two points,
  * "ceiling_gradient" before four climbs.  "legs" are the task points

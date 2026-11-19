@@ -108,6 +108,8 @@ import org.xcsoar.mobile.ui.task.TaskScreen
 import org.xcsoar.mobile.ui.task.TaskViewModel
 import org.xcsoar.mobile.ui.units.UnitsScreen
 import org.xcsoar.mobile.ui.units.UnitsViewModel
+import org.xcsoar.mobile.ui.summary.SummaryScreen
+import org.xcsoar.mobile.ui.summary.SummaryViewModel
 import org.xcsoar.mobile.ui.welcome.WelcomeScreen
 import org.xcsoar.mobile.ui.welcome.WelcomeViewModel
 import org.xcsoar.mobile.core.WaypointFilter
@@ -125,7 +127,7 @@ private enum class Screen { FLIGHT, DATA_FILES, DOWNLOAD, MAP_SETTINGS, WAYPOINT
                             CREW, PLANE_EDIT, PILOT, TILE_PICKER,
                             AIRSPACE_ALERTS, SAFETY, WIND, STATUS, VARIO_SOUND, TRACKING, WEATHER,
                             NOTAMS, REPLAY, PROFILES, TEAM_CODE, TEAM_REFERENCE, RADIO,
-                            ATC, ATC_REFERENCE, AIRSPACE_DETAILS, WELCOME, VOICE }
+                            ATC, ATC_REFERENCE, AIRSPACE_DETAILS, WELCOME, VOICE, SUMMARY }
 
 /** How deep a page is: pages further in slide in from the right. */
 private val Screen.depth: Int
@@ -355,6 +357,9 @@ class MainActivity : ComponentActivity() {
                 onProfilePicked = { profilesViewModel.import(it.toString()) }
                 val tilePickerViewModel: TilePickerViewModel = viewModel(
                     factory = viewModelFactory { initializer { TilePickerViewModel(app.anyCore) } })
+                val summaryViewModel: SummaryViewModel = viewModel(factory = viewModelFactory {
+                    initializer { SummaryViewModel(app.anyCore, app::flightLogs) }
+                })
                 val welcomeViewModel: WelcomeViewModel = viewModel(
                     factory = viewModelFactory {
                         initializer {
@@ -410,6 +415,22 @@ class MainActivity : ComponentActivity() {
                     // never hold up a flight: the app restarted in the air
                     val flying = flightViewModel.flightState.collectAsState().value?.flying
                     LaunchedEffect(flying) { if (flying == true) crewDone() }
+                }
+                // the end of a flight: its summary, unless another page is open
+                LaunchedEffect(flightViewModel) {
+                    flightViewModel.flightEnded.collect { end ->
+                        if (screen == Screen.FLIGHT && summaryViewModel.open(end)) {
+                            menuOpen = false
+                            screen = Screen.SUMMARY
+                        }
+                    }
+                }
+                if (screen == Screen.SUMMARY) {
+                    // a landing that was none (a bounce, a ground run): back to flying
+                    val state = flightViewModel.flightState.collectAsState().value
+                    LaunchedEffect(state?.flying) {
+                        if (state?.flying == true && !state.replay) screen = Screen.FLIGHT
+                    }
                 }
 
                 Box(Modifier
@@ -645,6 +666,9 @@ class MainActivity : ComponentActivity() {
                             Screen.TASK_ADD_POINT -> WaypointsScreen(
                                 pickViewModel, onDone = { screen = Screen.TASK },
                                 title = "Add point", onPick = taskViewModel::add)
+                            Screen.SUMMARY -> SummaryScreen(
+                                summaryViewModel, flightsViewModel, onShare = ::share,
+                                onOpenUrl = ::openUrl, onDone = { screen = Screen.FLIGHT })
                             Screen.FLIGHTS -> FlightsScreen(
                                 flightsViewModel, onShare = ::share, onOpenUrl = ::openUrl,
                                 onBack = { screen = Screen.FLIGHT })

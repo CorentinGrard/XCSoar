@@ -583,7 +583,7 @@ class NativeXcsoarCore(
         val event = when (type) {
             CoreEventType.GLIDE_COMPUTER -> CoreEvent.GlideComputer(GlideComputerEvent.fromCode(code))
             CoreEventType.MESSAGE -> CoreEvent.Message(text ?: "", detail)
-            CoreEventType.REPLAY_FINISHED -> CoreEvent.ReplayFinished
+            CoreEventType.REPLAY_FINISHED -> CoreEvent.ReplayFinished(detail)
             else -> return
         }
         eventFlow.tryEmit(event)

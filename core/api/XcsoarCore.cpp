@@ -3045,8 +3045,14 @@ xcs_replay_start(xcs_core *core, const char *path, double time_scale)
         return;
       }
 
+      /* the replayed flight, for its summary, before EndReplay()
+         forgets it */
+      std::string analysis;
+      if (CommonInterface::Calculated().flight.HasTakenOff())
+        analysis = CoreAnalysis::Describe();
+
       core->EndReplay();
-      core->QueueEvent({XCS_EVENT_REPLAY_FINISHED, 0, {}, {}});
+      core->QueueEvent({XCS_EVENT_REPLAY_FINISHED, 0, {}, std::move(analysis)});
     });
     core->replay_watch->Schedule(std::chrono::seconds(1));
     return XCS_OK;

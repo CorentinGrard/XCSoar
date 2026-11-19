@@ -250,11 +250,28 @@ data class TaskChart(
     @SerialName("target_speed") val targetSpeed: Double? = null,
 )
 
+/**
+ * The last flight's take-off and landing: seconds since midnight UTC of
+ * the day it started, and as XCSoar shows them in local time.
+ */
+@Serializable
+data class FlightTimes(
+    val takeoff: Double,
+    @SerialName("takeoff_local") val takeoffLocal: String = "",
+    /** null until it landed. */
+    val landing: Double? = null,
+    @SerialName("landing_local") val landingLocal: String = "",
+    /** s */
+    val duration: Double = 0.0,
+)
+
 /** XCSoar's analysis pages (`xcs_get_analysis`). */
 @Serializable
 data class Analysis(
     /** Hours since take-off; null when not flying. */
     @SerialName("flight_time") val flightTime: Double? = null,
+    /** The last flight (kept after its landing); null before a take-off. */
+    val flight: FlightTimes? = null,
     val legs: List<TaskLeg> = emptyList(),
     val barograph: Barograph = Barograph(),
     val climb: ClimbHistory = ClimbHistory(),

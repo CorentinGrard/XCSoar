@@ -40,6 +40,7 @@ import org.xcsoar.mobile.core.MapOrientation
 import org.xcsoar.mobile.core.SoundOption
 import org.xcsoar.mobile.core.Thermal
 import org.xcsoar.mobile.ui.Format
+import org.xcsoar.mobile.ui.summary.FlightEnd
 import org.xcsoar.mobile.core.TileAction
 import org.xcsoar.mobile.core.TileGraphic
 import org.xcsoar.mobile.core.TileLayout
@@ -226,6 +227,10 @@ class FlightViewModel(
     /** Something new the pilot must notice: sound and/or vibrate. */
     val alerts: SharedFlow<AirspaceAlert> = alertFlow.asSharedFlow()
 
+    private val flightEndFlow = MutableSharedFlow<FlightEnd>(extraBufferCapacity = 2)
+    /** A flight ended: landed (not in a replay), or a replay reached its end. */
+    val flightEnded: SharedFlow<FlightEnd> = flightEndFlow.asSharedFlow()
+
     private val calloutFlow = MutableSharedFlow<String>(extraBufferCapacity = 8)
     /** What the voice says (Callouts), as the pilot chose. */
     val callouts: SharedFlow<String> = calloutFlow.asSharedFlow()
@@ -387,6 +392,12 @@ class FlightViewModel(
                 if (event is CoreEvent.GlideComputer)
                     callout(event.event)
                 if (event is CoreEvent.GlideComputer &&
+                    event.event == GlideComputerEvent.LANDING &&
+                    core.flightState.value?.replay != true)
+                    flightEndFlow.tryEmit(FlightEnd.Landed)
+                if (event is CoreEvent.ReplayFinished)
+                    event.analysis?.let { flightEndFlow.tryEmit(FlightEnd.Replayed(it)) }
+                if (event is CoreEvent.GlideComputer &&
                     event.event in AIRSPACE_EVENTS)
                     launch { refreshWarnings() }
                 if (event is CoreEvent.GlideComputer &&
@@ -396,7 +407,7 @@ class FlightViewModel(
                 lastEventFlow.value = when (event) {
                     is CoreEvent.GlideComputer -> describe(event.event)
                     is CoreEvent.Message -> event.text
-                    CoreEvent.ReplayFinished -> "Replay finished"
+                    is CoreEvent.ReplayFinished -> "Replay finished"
                 }
             }
         }

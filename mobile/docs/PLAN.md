@@ -802,6 +802,17 @@ caution).  From a fresh install tested on a Redmi 5 and the Pixel 7.
 5. **A flight summary after landing.**  Time, distance, contest score,
    best climb and a small map, with Share and Upload to WeGlide (both
    exist under Flights): the end of a flight instead of a menu hunt.
+   **Done** (2026-11-19): after a landing (flights of 2 minutes or
+   more), and at the end of a replay, a page over the flight screen:
+   landing and take-off times (XCSoar's local time), flight time, the
+   contest result with the most points, its path over the flight's,
+   the best climb, average climb and highest point, from the analysis
+   (now with the flight's times); Share and Upload once the logger has
+   signed the IGC file (its G record), Done back to the map.  It goes
+   by itself if the glider takes off again.  A replay's end resets
+   the glide computer, so the core sends that flight's analysis with
+   XCS_EVENT_REPLAY_FINISHED.  Seen on the Redmi 5 at the end of the
+   demo replay (5:14, 319 km, 417 points).
 
 **In flight**
 

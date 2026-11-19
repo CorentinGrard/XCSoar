@@ -42,11 +42,15 @@ struct Recorder {
   std::set<std::thread::id> callback_threads;
   unsigned replay_finished = 0;
 
+  /* the replayed flight's analysis, with XCS_EVENT_REPLAY_FINISHED */
+  std::string replay_analysis;
+
   void Clear() {
     const std::lock_guard lock{mutex};
     snapshots.clear();
     gce.clear();
     replay_finished = 0;
+    replay_analysis.clear();
   }
 
   bool HasEvent(uint32_t code) {
@@ -75,8 +79,11 @@ OnEvent(void *ctx, const xcs_event *event)
   r.callback_threads.insert(std::this_thread::get_id());
   if (event->type == XCS_EVENT_GLIDE_COMPUTER)
     r.gce.push_back(event->code);
-  else if (event->type == XCS_EVENT_REPLAY_FINISHED)
+  else if (event->type == XCS_EVENT_REPLAY_FINISHED) {
     ++r.replay_finished;
+    if (event->detail != nullptr)
+      r.replay_analysis = event->detail;
+  }
 }
 
 static xcs_config
@@ -1234,6 +1241,15 @@ TestReplayControls(xcs_core *core)
   std::this_thread::sleep_for(std::chrono::milliseconds(1500));
   ok1(std::filesystem::last_write_time(session_path) == session_written);
 
+  /* the flight's take-off, for its summary; no landing yet */
+  {
+    const auto analysis = GetJson([core](char *b, size_t s, size_t *l){
+      return xcs_get_analysis(core, b, s, l);
+    });
+    ok1(Contains(analysis, "\"flight\":{\"takeoff\":") &&
+        !Contains(analysis, "\"landing\":"));
+  }
+
   /* in flight, the graphical tiles of the climb and the task */
   const auto graphic = [core](InfoBoxFactory::Type type){
     xcs_tiles_set(core, XCS_TILES_CIRCLING, 5, type);
@@ -1312,6 +1328,14 @@ TestReplayToEnd(xcs_core *core, Recorder &recorder)
     finished = recorder.replay_finished > 0;
   }
   ok1(finished);
+
+  /* the replayed flight comes with the event, for its summary: the
+     glide computer forgets it then */
+  {
+    const std::lock_guard lock{recorder.mutex};
+    ok1(Contains(recorder.replay_analysis, "\"flight\":{\"takeoff\":") &&
+        Contains(recorder.replay_analysis, "\"contest\":{"));
+  }
 
   /* the core's main thread still answers, and the replay is over */
   double value;
@@ -1541,7 +1565,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 3 + 3 + 3);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 3 + 3 + 3 + 1 + 1);
 
   Recorder recorder;
   TestCreateArguments(recorder);

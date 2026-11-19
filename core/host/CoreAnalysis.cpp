@@ -31,6 +31,7 @@
 #include "Engine/GlideSolvers/GlideState.hpp"
 #include "Engine/GlideSolvers/GlideResult.hpp"
 #include "Formatter/AirspaceFormatter.hpp"
+#include "Formatter/LocalTimeFormatter.hpp"
 #include "NMEA/Aircraft.hpp"
 #include "Terrain/RasterTerrain.hpp"
 #include "Geo/GeoVector.hpp"
@@ -724,8 +725,25 @@ CoreAnalysis::Describe() noexcept
   const auto &settings = CommonInterface::GetComputerSettings();
 
   boost::json::object o;
-  if (calculated.flight.flying)
-    o["flight_time"] = calculated.flight.flight_time / hours{1};
+  const auto &flight = calculated.flight;
+  if (flight.flying)
+    o["flight_time"] = flight.flight_time / hours{1};
+  if (flight.HasTakenOff()) {
+    /* as the status dialog's times page shows them */
+    const auto utc_offset = settings.utc_offset;
+    boost::json::object f{
+      {"takeoff", flight.takeoff_time.ToDuration().count()},
+      {"takeoff_local",
+       FormatLocalTimeHHMM(flight.takeoff_time, utc_offset).c_str()},
+      {"duration", flight.flight_time.count()},
+    };
+    if (!flight.flying && flight.landing_time.IsDefined()) {
+      f["landing"] = flight.landing_time.ToDuration().count();
+      f["landing_local"] =
+        FormatLocalTimeHHMM(flight.landing_time, utc_offset).c_str();
+    }
+    o["flight"] = std::move(f);
+  }
 
   bool ordered_task = false;
   if (backend_components != nullptr &&
