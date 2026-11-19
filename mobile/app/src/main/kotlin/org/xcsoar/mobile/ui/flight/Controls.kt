@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -208,8 +209,8 @@ fun Segmented(
 }
 
 /**
- * Opens the flight menu: a button over the map beside the zoom, filled
- * to stand out from the map's own buttons.
+ * Opens the flight menu: a filled button beside the target card, at
+ * least [TOUCH] each way ([modifier] may stretch it to the card).
  */
 @Composable
 fun MenuButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -217,7 +218,7 @@ fun MenuButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(16.dp)
     Box(
         modifier = modifier
-            .size(TOUCH)
+            .defaultMinSize(TOUCH, TOUCH)
             .clip(shape)
             .background(colors.selected)
             .clickable(role = Role.Button, onClickLabel = "Open menu", onClick = onClick)

@@ -111,10 +111,12 @@ data class Wind(val speed: Double, val bearing: Double)
 data class NextWaypoint(
     /** Empty if the core has no name for it. */
     val name: String,
-    val distance: Double,
-    val bearing: Double,
-    /** Above (positive) or below the glide path to the point. */
-    val altitudeDifference: Double,
+    /** null before a GPS fix. */
+    val distance: Double?,
+    val bearing: Double?,
+    /** Above (positive) or below the glide path to the point; null
+        without a fix or a polar. */
+    val altitudeDifference: Double?,
 )
 
 data class FinalGlide(

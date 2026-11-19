@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -344,9 +345,10 @@ fun FlightContent(
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        NextWaypointCard(state?.next, Modifier.fillMaxWidth(),
-                                         state?.nextTimeRemaining, onClick = onNextWaypoint,
-                                         elevated = false)
+                        TargetRow(onMenu = { onMenuOpen(true) }) { modifier ->
+                            NextWaypointCard(state?.next, modifier, state?.nextTimeRemaining,
+                                             onClick = onNextWaypoint, elevated = false)
+                        }
                         instruments()
                     }
                 }
@@ -471,8 +473,10 @@ private fun MapArea(
                 ReplayBar(state.timeUtc, replay.speed, replay.onPause, replay.onSpeed,
                           replay.onSkip, replay.onStop)
             if (showNext)
-                NextWaypointCard(state?.next, Modifier.fillMaxWidth(), state?.nextTimeRemaining,
-                                 onClick = onNextWaypoint)
+                TargetRow(onMenu) { modifier ->
+                    NextWaypointCard(state?.next, modifier, state?.nextTimeRemaining,
+                                     onClick = onNextWaypoint)
+                }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
@@ -556,10 +560,8 @@ private fun MapArea(
                         ?.let { NorthMark(it) }
                     if (!map.follows)
                         CentreButton(map.onFollow)
-                }
-                MenuButton(onMenu)
-                if (map != null)
                     ZoomButtons(map.onZoom)
+                }
             }
         }
     }
@@ -595,6 +597,20 @@ private fun mapAngle(orientation: MapOrientation, s: FlightState?): Double? = wh
     MapOrientation.TARGET_UP -> s?.next?.bearing ?: s?.track
     MapOrientation.WIND_UP -> s?.wind?.bearing ?: s?.track
     MapOrientation.HEADING_UP -> null
+}
+
+/**
+ * Menu, then the target card ([card] gets its modifier): the menu as
+ * high as the card, on the left, where the hand that is not on the
+ * stick reaches.
+ */
+@Composable
+private fun TargetRow(onMenu: () -> Unit, card: @Composable (Modifier) -> Unit) {
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        MenuButton(onMenu, Modifier.fillMaxHeight())
+        card(Modifier.weight(1f))
+    }
 }
 
 /** The tiles' columns. */

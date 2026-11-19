@@ -313,6 +313,6 @@ phone) goes, and the map gets it.
 - A layout saved before gets MacCready once, in its third tile, unless
   it has it (profile key "MobileTilesMacCready"; layouts saved since
   are the pilot's choice).
-- Menu is a filled button beside the zoom buttons, always there, also
-  without a map.  "Set MC" moves above the map buttons when they leave
-  it no room.
+- Menu is a filled button left of the target card, as high as it,
+  always there (in landscape beside the card in the side panel), where
+  the hand that is not on the stick reaches.

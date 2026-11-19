@@ -40,7 +40,7 @@ class SnapshotDecoderTest {
 
     @Test
     fun decodesAllValidFields() {
-        val s = SnapshotDecoder.decode(snapshot(0xffffff, 0x1f, "Saint-Crépin"))
+        val s = SnapshotDecoder.decode(snapshot(0x3ffffff, 0x1f, "Saint-Crépin"))
 
         assertEquals(42L, s.sequence)
         assertEquals(1.0, s.timeUtc!!, 0.0)
@@ -61,6 +61,15 @@ class SnapshotDecoderTest {
         assertEquals(Wind(161.0, 171.0), s.wind)
         assertEquals(181.0, s.macCready, 0.0)
         assertEquals(NextWaypoint("Saint-Crépin", 191.0, 201.0, 211.0), s.next)
+        // chosen before a fix: its name only; with a fix but no polar,
+        // no arrival
+        assertEquals(NextWaypoint("Saint-Crépin", null, null, null),
+                     SnapshotDecoder.decode(snapshot(SnapshotDecoder.VALID_NEXT_NAME, 0,
+                                                     "Saint-Crépin")).next)
+        assertEquals(NextWaypoint("Saint-Crépin", 191.0, 201.0, null),
+                     SnapshotDecoder.decode(snapshot(SnapshotDecoder.VALID_NEXT_NAME or
+                                                     SnapshotDecoder.VALID_NEXT_WAYPOINT, 0,
+                                                     "Saint-Crépin")).next)
         assertEquals(FinalGlide(221.0, 231.0), s.finalGlide)
         assertTrue(s.gpsReal && s.flying && s.circling && s.aboveFinalGlide && s.replay)
         assertEquals(1000.0, s.speedToFly!!, 0.0)

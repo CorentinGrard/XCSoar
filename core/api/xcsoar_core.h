@@ -88,6 +88,11 @@ enum {
   XCS_VALID_LAST_THERMAL = 1u << 21,
   XCS_VALID_QNH = 1u << 22,
   XCS_VALID_STATIC_PRESSURE = 1u << 23,
+  /** There is a next point (a task or Go to); next_name is set, also
+      before a GPS fix. */
+  XCS_VALID_NEXT_NAME = 1u << 24,
+  /** next_altitude_difference: needs a glide polar too. */
+  XCS_VALID_NEXT_ARRIVAL = 1u << 25,
 };
 
 /** Bits of xcs_flight_snapshot.flags. */
@@ -162,11 +167,12 @@ typedef struct xcs_flight_snapshot {
   /** Current MacCready setting (always valid). */
   double mac_cready;
 
-  /** Next task point (XCS_VALID_NEXT_WAYPOINT). */
+  /** Distance and bearing to the next task point
+      (XCS_VALID_NEXT_WAYPOINT: a next point and a GPS fix). */
   double next_distance;
   double next_bearing;
   /** Altitude above (positive) or below the glide path to the next
-      point, at the current MacCready (XCS_VALID_NEXT_WAYPOINT). */
+      point, at the current MacCready (XCS_VALID_NEXT_ARRIVAL). */
   double next_altitude_difference;
 
   /** Final glide to the task finish (XCS_VALID_FINAL_GLIDE). */
@@ -174,7 +180,7 @@ typedef struct xcs_flight_snapshot {
   double final_glide_altitude_difference;
 
   /** UTF-8, zero-terminated, possibly truncated at a character
-      boundary (XCS_VALID_NEXT_WAYPOINT). */
+      boundary (XCS_VALID_NEXT_NAME). */
   char next_name[64];
 
   /* appended in API version 1 (struct_size 368); the values and their

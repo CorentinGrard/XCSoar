@@ -14,6 +14,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.xcsoar.mobile.core.FakeXcsoarCore
 import org.xcsoar.mobile.core.MapOrientation
+import org.xcsoar.mobile.core.NextWaypoint
 import org.xcsoar.mobile.core.ThermalBandInfo
 import org.xcsoar.mobile.core.TileGraphic
 import org.xcsoar.mobile.core.TileValue
@@ -173,6 +174,18 @@ class FlightScreenScreenshotTest {
                     TileValue(6, "Alt", "1646", "m"),
                     TileValue(6, "AGL", "1046", "m"),
                     TileValue(6, "Wind", "270°", "16 km/h")))
+        }
+    }
+
+    /** A target chosen indoors: its name at once, where it is with the fix. */
+    @Test
+    @Config(qualifiers = "w360dp-h720dp-xhdpi")
+    fun targetWithoutFix() = capture("target_without_fix") {
+        XcsTheme(dark = true) {
+            FlightContent(FakeXcsoarCore.syntheticState(120).copy(
+                              position = null, flying = false, track = null,
+                              next = NextWaypoint("Remoulins ULM LF3025", null, null, null)),
+                          null, circling = false, {})
         }
     }
 

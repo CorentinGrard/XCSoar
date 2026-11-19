@@ -430,10 +430,14 @@ FillSnapshot(xcs_flight_snapshot &s) noexcept
       valid |= XCS_VALID_TASK_SPEED;
       s.task_speed = task_stats.total.travelled.GetSpeed();
     }
-    if (leg.vector_remaining.IsValid() && leg.solution_remaining.IsOk()) {
+    /* where the next point is needs a fix; the arrival a polar too */
+    if (leg.vector_remaining.IsValid()) {
       valid |= XCS_VALID_NEXT_WAYPOINT;
       s.next_distance = leg.vector_remaining.distance;
       s.next_bearing = leg.vector_remaining.bearing.Degrees();
+    }
+    if (leg.vector_remaining.IsValid() && leg.solution_remaining.IsOk()) {
+      valid |= XCS_VALID_NEXT_ARRIVAL;
       s.next_altitude_difference = leg.solution_remaining.altitude_difference;
     }
 
@@ -449,16 +453,19 @@ FillSnapshot(xcs_flight_snapshot &s) noexcept
       flags |= XCS_FLAG_FINAL_GLIDE;
   }
 
+  /* the point chosen, at once: its distance waits for a fix and a
+     calculation */
   s.next_name[0] = '\0';
-  if ((valid & XCS_VALID_NEXT_WAYPOINT) &&
-      backend_components->protected_task_manager) {
+  if (backend_components->protected_task_manager) {
     const ProtectedTaskManager::Lease lease{*backend_components->protected_task_manager};
     const auto *task = lease->GetActiveTask();
     const auto *tp = task != nullptr ? task->GetActiveTaskPoint() : nullptr;
-    if (tp != nullptr)
+    if (tp != nullptr) {
+      valid |= XCS_VALID_NEXT_NAME;
       CopyTruncateStringUTF8(std::span{s.next_name},
                              tp->GetWaypoint().name.c_str(),
                              sizeof(s.next_name) - 1);
+    }
   }
 
   if (basic.gps.real)
@@ -2108,9 +2115,13 @@ xcs_goto_waypoint(xcs_core *core, uint32_t waypoint_id)
     }
 
     auto &task_manager = *backend_components->protected_task_manager;
-    return task_manager.DoGoto(std::move(waypoint))
-      ? XCS_OK
-      : XCS_ERROR_FAILED;
+    if (!task_manager.DoGoto(std::move(waypoint)))
+      return XCS_ERROR_FAILED;
+
+    /* the new target on the screen now, also without a GPS fix to
+       recalculate with */
+    backend_components->calculation_thread->ForceTrigger();
+    return XCS_OK;
   });
 }
 

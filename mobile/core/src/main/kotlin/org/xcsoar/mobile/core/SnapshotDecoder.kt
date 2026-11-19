@@ -91,6 +91,8 @@ object SnapshotDecoder {
     const val VALID_LAST_THERMAL = 1 shl 21
     const val VALID_QNH = 1 shl 22
     const val VALID_STATIC_PRESSURE = 1 shl 23
+    const val VALID_NEXT_NAME = 1 shl 24
+    const val VALID_NEXT_ARRIVAL = 1 shl 25
 
     // XCS_FLAG_* bits
     const val FLAG_GPS_REAL = 1 shl 0
@@ -146,12 +148,13 @@ object SnapshotDecoder {
             wind = if (valid and VALID_WIND != 0)
                 Wind(d(WIND_SPEED), d(WIND_BEARING)) else null,
             macCready = d(MAC_CREADY),
-            next = if (valid and VALID_NEXT_WAYPOINT != 0)
+            // the point chosen at once; where it is once there is a fix
+            next = if (valid and (VALID_NEXT_NAME or VALID_NEXT_WAYPOINT) != 0)
                 NextWaypoint(
                     name = readCString(b, base + NEXT_NAME, NEXT_NAME_SIZE),
-                    distance = d(NEXT_DISTANCE),
-                    bearing = d(NEXT_BEARING),
-                    altitudeDifference = d(NEXT_ALTITUDE_DIFFERENCE),
+                    distance = ifValid(VALID_NEXT_WAYPOINT, NEXT_DISTANCE),
+                    bearing = ifValid(VALID_NEXT_WAYPOINT, NEXT_BEARING),
+                    altitudeDifference = ifValid(VALID_NEXT_ARRIVAL, NEXT_ALTITUDE_DIFFERENCE),
                 ) else null,
             finalGlide = if (valid and VALID_FINAL_GLIDE != 0)
                 FinalGlide(d(TASK_REMAINING_DISTANCE), d(FINAL_GLIDE_ALTITUDE_DIFFERENCE))

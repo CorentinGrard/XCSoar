@@ -62,7 +62,8 @@ object Callouts {
             else -> return null
         }
         val nextPart = next?.takeIf { it.name.isNotEmpty() }
-            ?.let { ". Next: ${it.name}, ${distance(it.distance)}" } ?: ""
+            ?.let { n -> ". Next: ${n.name}" + (n.distance?.let { ", ${distance(it)}" } ?: "") }
+            ?: ""
         return what + nextPart
     }
 

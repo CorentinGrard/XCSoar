@@ -27,7 +27,7 @@ over USB. The folders inside are XCSoar's (`maps`, `airspace`,
 | In XCSoar | In XCSoar Mobile |
 |---|---|
 | InfoBoxes | The six tiles under the map, one set for cruise and one for circling (they follow the flight mode). Hold a tile and lift to choose what it shows; tap it for what the InfoBox opens. |
-| Main menu buttons | Menu: the dark button beside the map's zoom buttons. |
+| Main menu buttons | Menu: the button left of the target, at the top. |
 | MacCready | The MacCready tile: tap it for − / +; Auto MacCready in Flight setup. |
 | Ballast, bugs, QNH, crew mass | Menu → Flight setup. |
 | Task manager | Menu → Task. |

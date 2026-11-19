@@ -110,18 +110,23 @@ fun NextWaypointCard(
         elevated = elevated,
         onClick = onClick,
         onClickLabel = "Choose where to go",
-        description = if (next == null) "No target" else
-            "Next $name, ${distance.text} ${distance.unit}, bearing ${bearing.text}, " +
-                "arrival ${arrival.text} ${arrival.unit}",
+        description = when {
+            next == null -> "No target"
+            next.distance == null -> "Next $name, waiting for a GPS fix"
+            else -> "Next $name, ${distance.text} ${distance.unit}, bearing ${bearing.text}, " +
+                "arrival ${arrival.text} ${arrival.unit}"
+        },
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (next != null)
+            // where it is needs a GPS fix
+            next?.bearing?.let { b ->
                 Box(Modifier.size(44.dp).background(colors.selected, CircleShape),
                     contentAlignment = Alignment.Center) {
-                    DirectionArrow(next.bearing, colors.onSelected, Modifier.size(24.dp))
+                    DirectionArrow(b, colors.onSelected, Modifier.size(24.dp))
                 }
+            }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 if (next != null) Row(verticalAlignment = Alignment.CenterVertically,
                                       horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -142,8 +147,9 @@ fun NextWaypointCard(
                 Text(valueWithUnit(distance, 24.sp, colors.text, colors.textSecondary),
                      style = XcsTheme.numberStyle, maxLines = 1)
                 Text(valueWithUnit(arrival, 18.sp,
-                                   next?.let { if (it.altitudeDifference >= 0) colors.safe
-                                               else colors.caution } ?: colors.text,
+                                   next?.altitudeDifference?.let {
+                                       if (it >= 0) colors.safe else colors.caution
+                                   } ?: colors.text,
                                    colors.textSecondary),
                      style = XcsTheme.numberStyle, fontWeight = FontWeight.Bold, maxLines = 1)
             }

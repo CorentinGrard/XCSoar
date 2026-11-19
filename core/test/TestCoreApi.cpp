@@ -272,8 +272,23 @@ TestTask(xcs_core *core)
   const auto ids = WaypointIds(core, 3);
   ok1(ids.size() == 3);
   if (ids.size() != 3) {
-    skip(33, 0, "no waypoints");
+    skip(35, 0, "no waypoints");
     return;
+  }
+
+  /* Go to: the target is there at once, by name, also without a GPS
+     fix (no distance then) */
+  ok1(xcs_goto_waypoint(core, ids[1]) == XCS_OK);
+  {
+    bool named = false;
+    xcs_flight_snapshot s{};
+    for (unsigned i = 0; i < 30 && !named; ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      s.struct_size = sizeof(s);
+      named = xcs_get_snapshot(core, &s) == XCS_OK &&
+        (s.valid & XCS_VALID_NEXT_NAME) != 0 && s.next_name[0] != '\0';
+    }
+    ok1(named && (s.valid & (XCS_VALID_NEXT_WAYPOINT | XCS_VALID_NEXT_ARRIVAL)) == 0);
   }
 
   /* editing needs XCS_TASK_BEGIN */
@@ -1566,7 +1581,7 @@ TestRepositoryList()
 int
 main()
 {
-  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 3 + 3 + 3 + 1 + 1 + 1);
+  plan_tests(9 + 17 + 6 + 55 + 15 + 35 + 11 + 23 + 11 + 7 + 23 + 17 + 8 + 9 + 14 + 10 + 7 + 1 + 10 + 2 + 11 + 16 + 9 + 6 + 22 + 5 + 15 + 7 + 38 + 7 + 2 + 1 + 8 + 2 + 9 + 2 + 2 + 8 + 1 + 1 + 3 + 1 + 1 + 3 + 3 + 3 + 1 + 1 + 1 + 2);
 
   Recorder recorder;
   TestCreateArguments(recorder);
