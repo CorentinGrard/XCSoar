@@ -153,7 +153,7 @@ internal fun WindPage(a: Analysis) {
     if (levels.size >= 2)
         Hint("The line: wind speed by height.  Arrows: where it blows, north up.")
     else
-        Hint("Needs climbs: XCSoar measures the wind while circling.")
+        Hint("Needs climbs: Buteo measures the wind while circling.")
 }
 
 /** RenderGlidePolar() and its caption. */

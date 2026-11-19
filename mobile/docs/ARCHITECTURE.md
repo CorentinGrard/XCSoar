@@ -1,4 +1,4 @@
-# XCSoar Mobile — Architecture
+# Buteo — Architecture
 
 A new mobile UI (Android first, iOS later) on top of XCSoar's existing C++
 core. The glide computer, task engine, device drivers and file parsers are

@@ -244,7 +244,7 @@ fun WeatherContent(
         state.error?.let { Text(it, color = colors.warning, fontSize = 15.sp) }
 
         if (state.stations.isEmpty())
-            Explanation("Add the airports whose METAR and TAF you want. XCSoar " +
+            Explanation("Add the airports whose METAR and TAF you want. Buteo " +
                             "downloads them from NOAA (internet needed); the map " +
                             "shows the stations.")
 

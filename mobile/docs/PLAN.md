@@ -1,4 +1,4 @@
-# XCSoar Mobile — Plan & Progress
+# Buteo — Plan & Progress
 
 Design: [ARCHITECTURE.md](ARCHITECTURE.md) · Decisions: [DECISIONS.md](DECISIONS.md)
 
@@ -870,6 +870,16 @@ caution).  From a fresh install tested on a Redmi 5 and the Pixel 7.
 ---
 
 ## Log
+
+- 2026-11-19 (night) — The app is Buteo (D23): published from the
+  pilot's own account, "XCSoar Mobile" and `org.xcsoar.mobile` would
+  pass for the XCSoar project's app.  Application ID
+  `io.github.corentingrard.buteo`; the app's text says Buteo where it
+  meant the app; the code's packages, XCSoarData and the IGC logger
+  identity stay XCSoar's.  No aviation app of that name found.  The
+  screenshots, the release build and L5 (3/3 on the Redmi 5) pass;
+  installed there as a new app.  Left: the HTTP user agent (still
+  `XCSoar/<version>`, needs a setting at run time) and a launcher icon.
 
 - 2026-11-19 (evening) — The five ideas the pilot chose (Ideas,
   below): flat cards without drop shadows (frames 2-4 ms faster on the

@@ -219,7 +219,7 @@ private fun CrewStep(state: WelcomeState, onPilot: (String) -> Unit, onPlane: (S
     ActionButton(if (planes.isEmpty()) "Add your glider" else "Add another glider",
                  outlined = true, modifier = Modifier.fillMaxWidth(), onClick = onAddPlane)
     if (planes.isEmpty())
-        Hint("Without one, XCSoar shows \"NO POLAR\" and leaves final glide out; " +
+        Hint("Without one, Buteo shows \"NO POLAR\" and leaves final glide out; " +
                  "Menu → Aircraft & crew adds one later.")
 }
 

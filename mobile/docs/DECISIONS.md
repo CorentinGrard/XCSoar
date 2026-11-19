@@ -72,11 +72,12 @@ Android ABIs. Gradle calls `make` and packages the `.so`. We will not port
 the build to CMake.
 
 ## D8 — Separate app ID, same data format
-**Status:** Proposed
+**Status:** Accepted (2026-11-19)
 
-Application ID `org.xcsoar.mobile`, so the app installs alongside upstream
-XCSoar. It reads the same `XCSoarData` layout and `.prf` profiles, so pilots
-can migrate by copying files.
+An application ID of its own, so the app installs alongside upstream
+XCSoar: `io.github.corentingrard.buteo` since D23 (was
+`org.xcsoar.mobile`). It reads the same `XCSoarData` layout and `.prf`
+profiles, so pilots can migrate by copying files.
 
 ## D9 — The core is the single source for units and formatting
 **Status:** Accepted (2026-09-28)
@@ -316,3 +317,34 @@ phone) goes, and the map gets it.
 - Menu is a filled button left of the target card, as high as it,
   always there (in landscape beside the card in the side panel), where
   the hand that is not on the stick reaches.
+
+## D23 — The app is Buteo
+**Status:** Accepted (2026-11-19)
+
+The XCSoar project does not make this app, so it does not carry
+XCSoar's name or the project's `org.xcsoar` namespace.  Published from
+the pilot's own account, "XCSoar Mobile" would read as the project's
+app: Play's impersonation rule, and pilots taking its bugs to XCSoar
+(and XCSoar's to it).  The app is Buteo, the buzzard genus: the bird
+that thermals over every airfield.  No aviation app of that name was
+found (2026-11-19).  It says what it is built on: XCSoar's flight
+computer, under the GPL.
+
+- Application ID `io.github.corentingrard.buteo` (the L5 app's:
+  `.l5`), a namespace the author controls.  A store keeps it for good
+  after the first upload.
+- Unchanged, because they are XCSoar's, not the app's identity: the
+  Kotlin package `org.xcsoar.mobile` and the reused Java classes in
+  `org.xcsoar` (D13); the `XCSoarData` folder and its formats (D8);
+  the IGC files' logger identity (A record `XCS`, FR type): contest
+  servers validate them with XCSoar's `vali-xcs`, chosen by that code;
+  log tags.
+- The app's text says Buteo where it means the app, and XCSoar where it
+  means XCSoar's servers, repository and file formats.
+- Not yet: the HTTP user agent still says `XCSoar/<version>`
+  (`src/lib/curl/Setup.cxx`).  The core reuses the main program's
+  objects (`build/core.mk`), so `make PRODUCT_NAME=Buteo` for the core
+  would leak into XCSoar's own build in the same output directory; it
+  needs a setting at run time.  A launcher icon of its own.
+- Not a hard fork: the name changes, the engine stays upstream's and
+  the branch keeps merging it.

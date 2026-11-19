@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// XCSoar Mobile: Kotlin/Compose UI on top of XCSoar's C++ core.
+// Buteo: Kotlin/Compose UI on top of XCSoar's C++ core.
 // See docs/ARCHITECTURE.md.
 
 pluginManagement {

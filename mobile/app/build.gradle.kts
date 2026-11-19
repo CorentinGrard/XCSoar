@@ -9,6 +9,7 @@ plugins {
 }
 
 android {
+    // the code's package, not the app's identity (D8, D23)
     namespace = "org.xcsoar.mobile"
     // Android 17 platforms have minor versions (SDK package android-37.2)
     compileSdk {
@@ -18,8 +19,9 @@ android {
     }
 
     defaultConfig {
-        // installs alongside upstream XCSoar (mobile/docs/DECISIONS.md D8)
-        applicationId = "org.xcsoar.mobile"
+        // Buteo, an app of its own beside XCSoar (mobile/docs/DECISIONS.md
+        // D8, D23); fixed for good once uploaded to a store
+        applicationId = "io.github.corentingrard.buteo"
         minSdk = 26
         targetSdk = 37
         versionCode = 1

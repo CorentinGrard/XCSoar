@@ -1,4 +1,4 @@
-# XCSoar Mobile: the headless core (mobile/docs/ARCHITECTURE.md).
+# Buteo: the headless core (mobile/docs/ARCHITECTURE.md).
 #
 # The core is XCSoar's backend without its user interface.  It reuses
 # the objects of the main program: CORE_CANDIDATES is every source of

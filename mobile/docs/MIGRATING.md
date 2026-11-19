@@ -1,17 +1,22 @@
-# Moving from XCSoar to XCSoar Mobile
+# Moving from XCSoar to Buteo
 
-XCSoar Mobile runs XCSoar's own flight computer under a new touch
+Buteo runs XCSoar's own flight computer under a new touch
 interface. Glide computations, task rules, contests, airspace warnings,
 the values in the tiles, units, profiles and data files are XCSoar's.
 What changes is how you reach them.
 
-Both apps install side by side (XCSoar Mobile is `org.xcsoar.mobile`),
-so you can keep XCSoar while you try it.
+Buteo is not made by the XCSoar project: please report its problems at
+https://github.com/CorentinGrard/XCSoar/issues, not to XCSoar.
+
+Both apps install side by side (Buteo is
+`io.github.corentingrard.buteo`), so you can keep XCSoar while you try
+it.
 
 ## Bring your data
 
 The app keeps its files in its own `XCSoarData` folder:
-`Android/data/org.xcsoar.mobile/files/XCSoarData`, visible from a computer
+`Android/data/io.github.corentingrard.buteo/files/XCSoarData`, visible
+from a computer
 over USB. The folders inside are XCSoar's (`maps`, `airspace`,
 `waypoints`, `tasks`, `profiles`, `logs`).
 
@@ -24,7 +29,7 @@ over USB. The folders inside are XCSoar's (`maps`, `airspace`,
 
 ## Where things are
 
-| In XCSoar | In XCSoar Mobile |
+| In XCSoar | In Buteo |
 |---|---|
 | InfoBoxes | The six tiles under the map, one set for cruise and one for circling (they follow the flight mode). Hold a tile and lift to choose what it shows; tap it for what the InfoBox opens. |
 | Main menu buttons | Menu: the button left of the target, at the top. |

@@ -338,7 +338,7 @@ private fun MassesAndLimits(
             onDecrease = { onChange { it.copy(handicap = step(it.handicap, -1, 50, 150)) } },
             onIncrease = { onChange { it.copy(handicap = step(it.handicap, +1, 50, 150)) } },
             modifier = Modifier.fillMaxWidth())
-    Explanation("The contest handicap, for the scores XCSoar computes.")
+    Explanation("The contest handicap, for the scores Buteo computes.")
 }
 
 /**

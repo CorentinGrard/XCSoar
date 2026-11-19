@@ -173,10 +173,10 @@ fun FlightSetupContent(
         if (setup != null) {
             val hint = when {
                 setup.staticPressure == null ->
-                    "No barometer: XCSoar uses the GPS altitude. QNH still converts " +
+                    "No barometer: Buteo uses the GPS altitude. QNH still converts " +
                         "flight levels for airspace."
                 setup.qnh == null ->
-                    "Not set yet: XCSoar sets it after a while on the ground at an " +
+                    "Not set yet: Buteo sets it after a while on the ground at an " +
                         "airfield, or set it here. Until then it uses the GPS altitude."
                 else -> null
             }
@@ -215,7 +215,7 @@ private fun MacCreadySection(
             modifier = Modifier.fillMaxWidth())
     SettingsGroup {
         SwitchRow("Auto MacCready",
-                  "XCSoar sets it as you fly; changing it by hand turns this off.",
+                  "Buteo sets it as you fly; changing it by hand turns this off.",
                   setup?.autoMacCready, enabled = setup != null, onChange = onAuto)
     }
     val mode = setup?.autoMode

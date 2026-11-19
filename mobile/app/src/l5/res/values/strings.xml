@@ -2,5 +2,5 @@
 <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
 <resources>
     <!-- the end-to-end tests' own app (build type l5), never the pilot's -->
-    <string name="app_name">XCSoar L5 test</string>
+    <string name="app_name">Buteo L5 test</string>
 </resources>

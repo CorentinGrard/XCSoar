@@ -90,7 +90,7 @@ fun FlightsContent(
                  modifier = Modifier.padding(horizontal = 4.dp))
 
         if (flights != null && flights.isEmpty())
-            Text("No flights yet. XCSoar records an IGC file from takeoff to landing.",
+            Text("No flights yet. Buteo records an IGC file from takeoff to landing.",
                  color = colors.textSecondary, fontSize = 16.sp,
                  modifier = Modifier.padding(horizontal = 4.dp))
 

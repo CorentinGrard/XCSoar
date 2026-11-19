@@ -198,7 +198,7 @@ fun TrackingContent(
             }
         }
 
-        Explanation("Positions are sent over mobile data while XCSoar runs.")
+        Explanation("Positions are sent over mobile data while Buteo runs.")
         state.error?.let { Text(it, color = colors.warning, fontSize = 16.sp) }
     }
 }

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Build environment for XCSoar Mobile (macOS and Linux).
+# Build environment for Buteo (macOS and Linux).
 #
 # Usage:  source mobile/tools/env.sh
 #         xmake check
@@ -47,7 +47,7 @@ xmake() {
     "$@"
 }
 
-echo "XCSoar Mobile env: ${SDKROOT:+SDKROOT=$SDKROOT}"
+echo "Buteo env: ${SDKROOT:+SDKROOT=$SDKROOT}"
 echo "  JAVA_HOME=${JAVA_HOME:-<unset>}"
 echo "  ANDROID_SDK=$ANDROID_SDK"
 echo "  build-tools=${XCS_BUILD_TOOLS_DIR:-<default 36.0.0>}"

@@ -70,7 +70,7 @@ fun ProfilesScreen(
     switching?.let { profile ->
         ConfirmDialog(
             title = "Fly with ${profile.name}?",
-            text = "XCSoar saves ${profiles?.firstOrNull { it.current }?.name ?: "this profile"}" +
+            text = "Buteo saves ${profiles?.firstOrNull { it.current }?.name ?: "this profile"}" +
                 " and restarts with the settings of ${profile.name}.",
             confirm = "Restart",
             password = profile.password,
@@ -125,9 +125,9 @@ fun ProfilesContent(
     val colors = XcsTheme.colors
     PageLayout {
         ScreenHeader("Profiles", onBack)
-        Text("A profile holds XCSoar's settings: units, map, airspace, safety heights, " +
+        Text("A profile holds Buteo's settings: units, map, airspace, safety heights, " +
                  "data files, tiles, the plane.  Pilots sharing a phone, or a club, each " +
-                 "keep their own.  XCSoar restarts to switch.",
+                 "keep their own.  Buteo restarts to switch.",
              color = colors.textSecondary, fontSize = 15.sp,
              modifier = Modifier.padding(horizontal = 4.dp))
         if (flying)

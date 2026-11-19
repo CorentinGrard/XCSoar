@@ -69,7 +69,7 @@ fun ReplayContent(
     val colors = XcsTheme.colors
     PageLayout {
         ScreenHeader("Replay", onBack)
-        Text("The flight goes through XCSoar as if flown: map, tiles, airspace warnings " +
+        Text("The flight goes through Buteo as if flown: map, tiles, airspace warnings " +
                  "and vario sound.  The GPS is left aside until the replay stops; nothing " +
                  "is recorded.",
              color = colors.textSecondary, fontSize = 15.sp,
