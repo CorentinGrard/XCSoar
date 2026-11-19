@@ -313,7 +313,9 @@ Run: `./output/MACOS_CORE/bin/CoreSmoke DATA_DIR [FLIGHT.igc]`
       The flight screen now recomposes at most 5×/s.  Next: a release
       (R8) build for real numbers; simpleperf needs a rooted or
       perf-enabled device
-- [ ] **Demo:** replay with a live moving map + InfoBoxes
+- [x] **Demo:** replay with a live moving map + InfoBoxes (Pixel 7,
+      2026-11-18: the demo flight's trail, glider, thermal circle, wind
+      and circling tiles)
 
 ## M4 — Flyable with the internal GPS
 - [x] Location permission + foreground service: `FlightService`
