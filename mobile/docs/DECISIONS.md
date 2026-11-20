@@ -350,7 +350,8 @@ computer, under the GPL.
   a buzzard under a flat-based cumulus, ink and white on the
   theme's updraft blue.  An adaptive icon (`mipmap-anydpi`) with a
   monochrome layer for themed icons; `ic_launcher-playstore.png` is
-  the store's 512 px icon.
+  the store's 512 px icon.  The status bar's notification icon is
+  its buzzard alone.
 - Not a hard fork: the name changes, the engine stays upstream's and
   the branch keeps merging it.
 - The repository is `CorentinGrard/buteo` (was `CorentinGrard/XCSoar`;

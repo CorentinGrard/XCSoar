@@ -1,12 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
-<!-- a glider seen from above, for the status bar -->
+<!-- the launcher icon's buzzard (D23), for the status bar -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M11,3h2v6l10,1.5v1.5l-10,0.5v6.5l3,1v1.5h-8v-1.5l3,-1v-6.5l-10,-0.5v-1.5l10,-1.5z" />
+    <!-- the 108 dp icon's bird, scaled to 22 dp wide and centred -->
+    <group
+        android:pivotX="54"
+        android:pivotY="55.25"
+        android:scaleX="0.335"
+        android:scaleY="0.335"
+        android:translateX="-42"
+        android:translateY="-43.25">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.5"
+            android:strokeLineJoin="round"
+            android:pathData="M54 34.5C56 34.5 57.2 36 57 38.2L57.6 42.8Q64.5 41.4 72 42.4L79 44.6L86 46.2L80.8 48.6L86.8 50.8L80.6 52.6L85.8 55.4L79.6 56.4L83.4 59.8L76 60.4Q68 64 60.6 61.2L58.8 63L62.4 72.6Q58.6 76 54 76Q49.4 76 45.6 72.6L49.2 63L47.4 61.2Q40 64 32 60.4L24.6 59.8L28.4 56.4L22.2 55.4L27.4 52.6L21.2 50.8L27.2 48.6L22 46.2L29 44.6L36 42.4Q43.5 41.4 50.4 42.8L51 38.2C50.8 36 52 34.5 54 34.5Z" />
+    </group>
 </vector>
