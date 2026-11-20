@@ -1,0 +1,165 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Buteo's releases (mobile/docs/DECISIONS.md D24): a tag
+# v<major>.<minor>.<patch> builds the APK and the Play bundle, signed
+# with the release key, and publishes a GitHub release with the APK.
+# Its notes: mobile/docs/releases/<tag>.md.
+#
+# Secrets: BUTEO_KEYSTORE_BASE64 (the keystore, base64),
+# BUTEO_KEYSTORE_PASSWORD, BUTEO_KEY_ALIAS, BUTEO_KEY_PASSWORD.
+
+name: mobile-release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    container: debian:trixie-slim
+
+    steps:
+      - name: Install checkout dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Mark git directory as safe
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # versionName 1.2.3, versionCode 10203
+      - name: Version from the tag
+        id: version
+        shell: bash
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          [[ "$v" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || {
+            echo "::error::$GITHUB_REF_NAME is not v<major>.<minor>.<patch>"
+            exit 1
+          }
+          [ -f "mobile/docs/releases/$GITHUB_REF_NAME.md" ] || {
+            echo "::error::no release notes: mobile/docs/releases/$GITHUB_REF_NAME.md"
+            exit 1
+          }
+          echo "name=$v" >> "$GITHUB_OUTPUT"
+          echo "code=$(( BASH_REMATCH[1] * 10000 + BASH_REMATCH[2] * 100 + BASH_REMATCH[3] ))" >> "$GITHUB_OUTPUT"
+
+      - name: Release key
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.BUTEO_KEYSTORE_BASE64 }}
+        run: |
+          [ -n "$KEYSTORE_BASE64" ] || {
+            echo "::error::the secret BUTEO_KEYSTORE_BASE64 is missing"
+            exit 1
+          }
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/buteo-release.jks"
+
+      - name: Cache downloads
+        uses: actions/cache@v6
+        with:
+          key: mobile-downloads-${{ hashFiles('build/libboost.mk', 'build/thirdparty.py', 'build/python/build/libs.py') }}
+          restore-keys: mobile-downloads-
+          path: ${{ github.workspace }}/output/download
+
+      - name: Cache Android SDK and NDK
+        uses: actions/cache@v6
+        with:
+          key: mobile-android-tools-${{ hashFiles('ide/provisioning/install-android-tools.sh') }}
+          restore-keys: mobile-android-tools-
+          path: |
+            ~/opt/android-sdk-linux
+            ~/opt/android-ndk-r26d
+
+      - name: Cache third-party libraries (arm64)
+        uses: actions/cache@v6
+        with:
+          key: mobile-thirdparty-arm64-${{ hashFiles('build/thirdparty.py', 'build/python/build/*.py', 'build/thirdparty.mk', 'build/targets.mk', 'lib/**/patches/**') }}
+          path: ${{ github.workspace }}/output/ANDROID/arm64-v8a/lib
+
+      - name: Gradle cache key
+        id: gradle-key
+        run: echo "key=mobile-gradle-${{ hashFiles('mobile/gradle/libs.versions.toml', 'mobile/gradle/wrapper/gradle-wrapper.properties', 'mobile/*.gradle.kts', 'mobile/*/build.gradle.kts') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Gradle
+        uses: actions/cache@v6
+        with:
+          key: ${{ steps.gradle-key.outputs.key }}
+          restore-keys: mobile-gradle-
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+
+      - name: Install build dependencies
+        run: |
+          ./ide/provisioning/install-debian-packages.sh UPDATE
+          ./ide/provisioning/install-debian-packages.sh BASE
+          ./ide/provisioning/install-debian-packages.sh LINUX
+          ./ide/provisioning/install-debian-packages.sh ARM
+          ./ide/provisioning/install-debian-packages.sh LLVM
+          ./ide/provisioning/install-debian-packages.sh ANDROID
+          ./ide/provisioning/install-android-tools.sh NDK
+          ./ide/provisioning/install-android-tools.sh SDK
+
+      - name: Cache ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: mobile-android-arm64-ccache
+          max-size: 2G
+
+      - name: Build the APK and the bundle
+        shell: bash
+        working-directory: mobile
+        env:
+          ANDROID_HOME: /github/home/opt/android-sdk-linux
+          ORG_GRADLE_PROJECT_buteoVersionName: ${{ steps.version.outputs.name }}
+          ORG_GRADLE_PROJECT_buteoVersionCode: ${{ steps.version.outputs.code }}
+          ORG_GRADLE_PROJECT_buteoKeystore: ${{ runner.temp }}/buteo-release.jks
+          ORG_GRADLE_PROJECT_buteoKeystorePassword: ${{ secrets.BUTEO_KEYSTORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_buteoKeyAlias: ${{ secrets.BUTEO_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_buteoKeyPassword: ${{ secrets.BUTEO_KEY_PASSWORD }}
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --console=plain -Pxcsoar.abis=arm64-v8a :app:assembleRelease :app:bundleRelease 2>&1 | tee build.log || {
+            grep -E "^e: | error:|error:|FAILED|What went wrong" -A3 build.log | head -30 | sed 's/^/::error::/'
+            exit 1
+          }
+
+      # Never publish a build signed with the debug key: its updates
+      # could not follow.
+      - name: Check the signature
+        shell: bash
+        run: |
+          apksigner=$(ls -d /github/home/opt/android-sdk-linux/build-tools/* | sort -V | tail -1)/apksigner
+          "$apksigner" verify --print-certs mobile/app/build/outputs/apk/release/app-release.apk | tee certs.txt
+          grep -q "CN=Buteo" certs.txt || {
+            echo "::error::the APK is not signed with Buteo's release key"
+            exit 1
+          }
+          mkdir dist
+          cp mobile/app/build/outputs/apk/release/app-release.apk "dist/buteo-${{ steps.version.outputs.name }}.apk"
+          cp mobile/app/build/outputs/bundle/release/app-release.aab "dist/buteo-${{ steps.version.outputs.name }}.aab"
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Buteo ${{ steps.version.outputs.name }}
+          body_path: mobile/docs/releases/${{ github.ref_name }}.md
+          files: dist/buteo-${{ steps.version.outputs.name }}.apk
+
+      # For Google Play (the bundle is not for installing by hand)
+      - name: Upload the Play bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: buteo-${{ steps.version.outputs.name }}-play-bundle
+          path: dist/buteo-${{ steps.version.outputs.name }}.aab
+          retention-days: 90

@@ -738,7 +738,9 @@ the core already links but that has never run in this app:
 - [x] Screen always on.  Orientation lock and a brightness shortcut: not
       wanted, the phone does both (pilot, 2026-10-07)
 - [ ] Crash reporting (opt-in, privacy-friendly) + native crash symbolication
-- [ ] F-Droid / Play internal testing track
+- [~] Distribution: GitHub releases signed with Buteo's key (D24,
+      `.github/workflows/mobile-release.yml`, v1.0.0 2026-11-20);
+      Google Play and F-Droid: open
 - [x] User docs: migration guide from XCSoar (`mobile/docs/MIGRATING.md`,
       2026-10-20): data, where things are, what is not there yet
 
@@ -870,6 +872,12 @@ caution).  From a fresh install tested on a Redmi 5 and the Pixel 7.
 ---
 
 ## Log
+
+- 2026-11-20 (evening) — Releases (D24): a tag v<x.y.z> builds the APK
+  and the Play bundle signed with Buteo's own key (generated here,
+  `~/.android/buteo-release.jks`) and publishes a GitHub release with
+  notes from `mobile/docs/releases/`.  A signed 1.0.0 built and checked
+  here (CN=Buteo, versionCode 10000).
 
 - 2026-11-20 — The fork's page is Buteo's (D23): the repository is
   `CorentinGrard/buteo`, `mobile` its default branch, issues on, its

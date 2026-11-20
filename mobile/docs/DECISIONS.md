@@ -360,3 +360,26 @@ computer, under the GPL.
   `README.md`: upstream's stays as it is, so merges leave it alone.  The
   issue templates are Buteo's: an upstream merge that changes
   `.github/ISSUE_TEMPLATE/` keeps ours.
+
+## D24 — Releases on GitHub, signed with Buteo's own key
+**Status:** Accepted (2026-11-20)
+
+- A tag `v<major>.<minor>.<patch>` runs
+  `.github/workflows/mobile-release.yml`: versionName from the tag,
+  versionCode major × 10000 + minor × 100 + patch; arm64-v8a only.
+  The APK goes on a GitHub release whose notes are
+  `mobile/docs/releases/<tag>.md` (the workflow stops without them);
+  the Play bundle (`.aab`) is a workflow artifact for 90 days.
+- The release key: `~/.android/buteo-release.jks` on the author's
+  machine (PKCS12, RSA 4096, `CN=Buteo`, alias `buteo`, certificate
+  SHA-256 `b7:9d:7e:87:3a:9c:85:54:2f:86:b7:4f:b9:e1:d7:58:d2:17:e4:80:34:95:24:46:5d:36:b1:c3:4a:7b:15:3e`),
+  its passwords beside it in `buteo-release.properties`, and in the
+  repository's secrets for the workflow.  Without it, no update can
+  follow an installed release: keep a copy off this machine.
+- Builds without the key's Gradle properties (`buteoKeystore`, …:
+  local builds, CI on branches, L5) are signed with the debug key; the
+  workflow refuses to publish one.  Android does not update an app
+  across keys, so a debug build cannot replace a release on a phone.
+- Google Play: open.  Play App Signing either keeps this key (uploaded
+  once: GitHub and Play builds then update each other) or makes its own
+  (they then cannot replace each other).

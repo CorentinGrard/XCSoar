@@ -24,8 +24,10 @@ android {
         applicationId = "app.corentin.buteo"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1"
+        // a release's come from its tag v<major>.<minor>.<patch>
+        // (.github/workflows/mobile-release.yml, D24)
+        versionCode = (findProperty("buteoVersionCode") as String?)?.toInt() ?: 1
+        versionName = findProperty("buteoVersionName") as String? ?: "dev"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -33,13 +35,27 @@ android {
         compose = true
     }
 
+    /* The release key (D24): its path and passwords come from
+       ~/.gradle/gradle.properties, or from the release workflow's
+       secrets.  Without them, release builds are signed with the debug
+       key, to install and measure on a phone (never for a store). */
+    signingConfigs {
+        findProperty("buteoKeystore")?.let { keystore ->
+            create("release") {
+                storeFile = file(keystore as String)
+                storePassword = findProperty("buteoKeystorePassword") as String
+                keyAlias = findProperty("buteoKeyAlias") as String
+                keyPassword = findProperty("buteoKeyPassword") as String
+            }
+        }
+    }
+
     buildTypes {
         release {
             // R8 would need keep rules for the classes JNI uses
             isMinifyEnabled = false
-            // no release key yet: signed with the debug key, to install
-            // and measure on a phone (never for a store)
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
         }
         /* L5 end-to-end tests: the release core (optimised as it flies)
            in an app of its own, so installing and uninstalling it never

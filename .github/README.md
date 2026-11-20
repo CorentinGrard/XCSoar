@@ -12,9 +12,9 @@ under a new Kotlin interface.
 > on XCSoar's code. Please report its problems [here](#feedback), not
 > to XCSoar.
 >
-> **In development, not released.** It has flown on a real flight, but
-> it is no certified instrument: use it as a backup, never as your only
-> source for navigation, airspace or traffic.
+> **A backup instrument.** It has flown on a real flight, but it is no
+> certified instrument: never use it as your only source for
+> navigation, airspace or traffic.
 
 ## What it does
 
@@ -39,6 +39,12 @@ under a new Kotlin interface.
 Not there yet: external devices (Bluetooth, BLE and USB varios,
 loggers, FLARM traffic), iOS. The full list, and where XCSoar's
 features are in Buteo: [Moving from XCSoar](../mobile/docs/MIGRATING.md).
+
+## Install
+
+On an Android 8 or newer phone (64-bit ARM), download the APK of the
+[latest release](https://github.com/CorentinGrard/buteo/releases/latest)
+and open it. Not on Google Play yet.
 
 ## How it is made
 
