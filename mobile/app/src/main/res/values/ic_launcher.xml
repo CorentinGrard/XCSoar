@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<resources>
+    <!-- the launcher icon's sky (the theme's updraft blue) -->
+    <color name="ic_launcher_background">#FF1A6FA8</color>
+</resources>

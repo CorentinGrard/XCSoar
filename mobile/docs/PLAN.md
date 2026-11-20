@@ -875,7 +875,10 @@ caution).  From a fresh install tested on a Redmi 5 and the Pixel 7.
   `CorentinGrard/buteo`, `mobile` its default branch, issues on, its
   description Buteo's; `.github/README.md` (what it does, not made by
   XCSoar, written largely with Claude Code, how to build) and Buteo's
-  issue templates.
+  issue templates.  Then the launcher icon (D23): the pilot chose
+  "Cloudbase" of three drafts, a buzzard under a cumulus on blue; an
+  adaptive icon with a themed layer and the store's 512 px icon.  The
+  release build passes; not yet seen on a phone (none attached).
 
 - 2026-11-19 (night) — The app is Buteo (D23): published from the
   pilot's own account, "XCSoar Mobile" and `org.xcsoar.mobile` would

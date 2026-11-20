@@ -344,7 +344,13 @@ computer, under the GPL.
   (`src/lib/curl/Setup.cxx`).  The core reuses the main program's
   objects (`build/core.mk`), so `make PRODUCT_NAME=Buteo` for the core
   would leak into XCSoar's own build in the same output directory; it
-  needs a setting at run time.  A launcher icon of its own.
+  needs a setting at run time.
+- The launcher icon (2026-11-20, the pilot's pick of three drafts on
+  the canvas https://claude.ai/artifact/2ZyJzfyFwS5KLieMtdbH9z):
+  a buzzard under a flat-based cumulus, ink and white on the
+  theme's updraft blue.  An adaptive icon (`mipmap-anydpi`) with a
+  monochrome layer for themed icons; `ic_launcher-playstore.png` is
+  the store's 512 px icon.
 - Not a hard fork: the name changes, the engine stays upstream's and
   the branch keeps merging it.
 - The repository is `CorentinGrard/buteo` (was `CorentinGrard/XCSoar`;
