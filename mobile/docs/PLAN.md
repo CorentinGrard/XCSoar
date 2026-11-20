@@ -871,6 +871,12 @@ caution).  From a fresh install tested on a Redmi 5 and the Pixel 7.
 
 ## Log
 
+- 2026-11-20 — The fork's page is Buteo's (D23): the repository is
+  `CorentinGrard/buteo`, `mobile` its default branch, issues on, its
+  description Buteo's; `.github/README.md` (what it does, not made by
+  XCSoar, written largely with Claude Code, how to build) and Buteo's
+  issue templates.
+
 - 2026-11-19 (night) — The app is Buteo (D23): published from the
   pilot's own account, "XCSoar Mobile" and `org.xcsoar.mobile` would
   pass for the XCSoar project's app.  Application ID

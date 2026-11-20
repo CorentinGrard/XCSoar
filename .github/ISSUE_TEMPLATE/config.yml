@@ -1,4 +1,1 @@
-contact_links:
-  - name: XCSoar forum
-    url: https://forum.xcsoar.org
-    about: Please ask questions about using XCSoar here, do not open an issue for usage or general questions.
+blank_issues_enabled: true

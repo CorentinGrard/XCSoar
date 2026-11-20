@@ -347,3 +347,9 @@ computer, under the GPL.
   needs a setting at run time.  A launcher icon of its own.
 - Not a hard fork: the name changes, the engine stays upstream's and
   the branch keeps merging it.
+- The repository is `CorentinGrard/buteo` (was `CorentinGrard/XCSoar`;
+  GitHub redirects the old URLs), its default branch `mobile`.  Its
+  page shows `.github/README.md`, which GitHub prefers to the root
+  `README.md`: upstream's stays as it is, so merges leave it alone.  The
+  issue templates are Buteo's: an upstream merge that changes
+  `.github/ISSUE_TEMPLATE/` keeps ours.

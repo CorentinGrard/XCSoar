@@ -1,80 +1,42 @@
 ---
 name: Bug report
-about: Report a problem with XCSoar to help us resolve it
+about: Report a problem with Buteo
 ---
 
 <!--
-
-Welcome! - We kindly ask that you:
-
-  1. Fill out the issue template below - not doing so needs a good reason.
-  2. Use the forum if you have a question rather than a bug or feature request.
-
-The forum is at: https://forum.xcsoar.org
-
-Thanks for understanding, and for contributing to the project!
-
+Buteo is not made by the XCSoar project: report Buteo's problems here,
+not to XCSoar.
 -->
 
-
-XCSoar versions having the problem
--------------------------------------------------
+Buteo version
+-------------
 
 <!--
-Which XCSoar version are you using when seeing the problem?
+Android settings → Apps → Buteo: the version is at the bottom.
 -->
 
-XCSoar versions not having the problem
--------------------------------------------------
+Phone and Android version
+-------------------------
 
-<!--
-Which XCSoar version is the last one you know that did not show the problem?
--->
 
-System information
+Steps to reproduce
 ------------------
 
 <!--
-Please include the device, version of the operating system, and any other relevant information.
--->
-
-
-Steps to reproduce the behavior
--------------------------------
-
-<!--
-The more time you spend describing an easy way to reproduce the behavior (if
-this is possible), the easier it is for the project developers to fix it!
+A replay that shows it (Menu → Replay) helps the most: attach the IGC
+file if you can.
 -->
 
 
 Expected behavior
 -----------------
 
-<!--
-Please describe what you expected to see/should happen.
--->
-
 
 Actual behavior
 ---------------
 
 <!--
-Please describe the exact symptoms that you were seeing instead.
--->
-
-
-Do you have any idea what may have caused this?
------------------------------------------------
-
-<!--
-This might give us ideas we haven't thought of, feel free to suggest causes.
--->
-
-
-Do you have an idea how to solve the issue?
--------------------------------------------
-
-<!--
-This might give us ideas we haven't thought of, feel free to suggest solutions.
+Screenshots help.  The app's log is
+Android/data/app.corentin.buteo/files/XCSoarData/xcsoar.log
+(visible from a computer over USB): attach it.
 -->

@@ -6,7 +6,7 @@ the values in the tiles, units, profiles and data files are XCSoar's.
 What changes is how you reach them.
 
 Buteo is not made by the XCSoar project: please report its problems at
-https://github.com/CorentinGrard/XCSoar/issues, not to XCSoar.
+https://github.com/CorentinGrard/buteo/issues, not to XCSoar.
 
 Both apps install side by side (Buteo is `app.corentin.buteo`), so
 you can keep XCSoar while you try it.
